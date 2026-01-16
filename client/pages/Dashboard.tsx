@@ -121,16 +121,15 @@ export default function Dashboard() {
 
             <div className="flex gap-3">
               <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                variant="default"
                 size="lg"
               >
                 <Plus className="mr-2 h-5 w-5" />
                 Add Patient
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="lg"
-                className="border-secondary text-secondary hover:bg-secondary/10"
               >
                 <Bot className="mr-2 h-5 w-5" />
                 Open ARGOS
