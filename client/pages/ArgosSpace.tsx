@@ -269,8 +269,8 @@ export default function ArgosSpace() {
                 />
                 <Button
                   type="submit"
+                  variant="secondary"
                   disabled={loading || !input.trim()}
-                  className="bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
