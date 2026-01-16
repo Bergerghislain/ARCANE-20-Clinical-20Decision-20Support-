@@ -242,28 +242,28 @@ export default function Dashboard() {
           </div>
 
           {/* Stats */}
-          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="rounded-2xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-md hover:shadow-lg transition-shadow">
+              <p className="text-sm font-semibold text-muted-foreground">
                 Active Patients
               </p>
-              <p className="mt-2 text-3xl font-bold text-primary">
+              <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 {mockPatients.filter((p) => p.status === "active").length}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">
+            <div className="rounded-2xl border border-amber-200/50 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-md hover:shadow-lg transition-shadow">
+              <p className="text-sm font-semibold text-muted-foreground">
                 Pending Review
               </p>
-              <p className="mt-2 text-3xl font-bold text-warning">
+              <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-warning to-amber-600 bg-clip-text text-transparent">
                 {mockPatients.filter((p) => p.status === "pending").length}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">
+            <div className="rounded-2xl border border-green-200/50 bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-md hover:shadow-lg transition-shadow">
+              <p className="text-sm font-semibold text-muted-foreground">
                 Completed Cases
               </p>
-              <p className="mt-2 text-3xl font-bold text-success">
+              <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-success to-emerald-600 bg-clip-text text-transparent">
                 {mockPatients.filter((p) => p.status === "completed").length}
               </p>
             </div>
