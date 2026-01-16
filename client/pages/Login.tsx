@@ -1,27 +1,27 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Lock, Mail, AlertCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Lock, Mail, AlertCircle } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     // Simulate authentication
     setTimeout(() => {
       if (email && password) {
-        navigate('/dashboard');
+        navigate("/dashboard");
       } else {
-        setError('Please fill in all fields');
+        setError("Please fill in all fields");
       }
       setLoading(false);
     }, 500);
@@ -34,11 +34,15 @@ export default function Login() {
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">A</span>
+              <span className="text-lg font-bold text-primary-foreground">
+                A
+              </span>
             </div>
             <div>
               <h1 className="text-2xl font-bold text-primary">ARCANE</h1>
-              <p className="text-xs text-muted-foreground">Clinical Decision Support</p>
+              <p className="text-xs text-muted-foreground">
+                Clinical Decision Support
+              </p>
             </div>
           </div>
         </div>
@@ -99,7 +103,7 @@ export default function Login() {
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 
@@ -112,7 +116,9 @@ export default function Login() {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-muted-foreground">
-          <p>ARCANE Phase 1 • IA agentique pour l'aide à la décision clinique</p>
+          <p>
+            ARCANE Phase 1 • IA agentique pour l'aide à la décision clinique
+          </p>
           <p className="mt-2">Specialized in Rare Cancer Support</p>
         </div>
       </div>

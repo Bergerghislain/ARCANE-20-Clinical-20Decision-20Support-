@@ -19,12 +19,14 @@ const NotFound = () => {
         <div className="mb-6">
           <AlertCircle className="h-20 w-20 text-destructive/50 mx-auto mb-4" />
           <h1 className="text-5xl font-bold text-primary mb-2">404</h1>
-          <p className="text-xl text-foreground font-semibold">Page not found</p>
+          <p className="text-xl text-foreground font-semibold">
+            Page not found
+          </p>
         </div>
 
         <p className="text-muted-foreground mb-8">
-          The page you are looking for doesn't exist or has been moved.
-          Please return to the dashboard to continue.
+          The page you are looking for doesn't exist or has been moved. Please
+          return to the dashboard to continue.
         </p>
 
         <div className="space-y-3">
@@ -36,7 +38,10 @@ const NotFound = () => {
           </Link>
 
           <Link to="/login">
-            <Button variant="outline" className="w-full border-secondary text-secondary hover:bg-secondary/10">
+            <Button
+              variant="outline"
+              className="w-full border-secondary text-secondary hover:bg-secondary/10"
+            >
               Back to Login
             </Button>
           </Link>

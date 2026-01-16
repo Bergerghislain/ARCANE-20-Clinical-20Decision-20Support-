@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Search,
   Plus,
@@ -11,7 +11,7 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface Patient {
   id: string;
@@ -19,82 +19,85 @@ interface Patient {
   age: number;
   condition: string;
   lastVisit: string;
-  status: 'active' | 'completed' | 'pending';
+  status: "active" | "completed" | "pending";
 }
 
 const mockPatients: Patient[] = [
   {
-    id: '1',
-    name: 'Marie Dubois',
+    id: "1",
+    name: "Marie Dubois",
     age: 52,
-    condition: 'Rare Lymphoma',
-    lastVisit: '2025-01-14',
-    status: 'active',
+    condition: "Rare Lymphoma",
+    lastVisit: "2025-01-14",
+    status: "active",
   },
   {
-    id: '2',
-    name: 'Jean Martin',
+    id: "2",
+    name: "Jean Martin",
     age: 67,
-    condition: 'Sarcoma of the Jaw',
-    lastVisit: '2025-01-10',
-    status: 'pending',
+    condition: "Sarcoma of the Jaw",
+    lastVisit: "2025-01-10",
+    status: "pending",
   },
   {
-    id: '3',
-    name: 'Sophie Bernard',
+    id: "3",
+    name: "Sophie Bernard",
     age: 45,
-    condition: 'Neuroendocrine Tumor',
-    lastVisit: '2025-01-08',
-    status: 'active',
+    condition: "Neuroendocrine Tumor",
+    lastVisit: "2025-01-08",
+    status: "active",
   },
   {
-    id: '4',
-    name: 'Pierre Leclerc',
+    id: "4",
+    name: "Pierre Leclerc",
     age: 59,
-    condition: 'Angiosarcoma',
-    lastVisit: '2025-01-05',
-    status: 'completed',
+    condition: "Angiosarcoma",
+    lastVisit: "2025-01-05",
+    status: "completed",
   },
   {
-    id: '5',
-    name: 'Isabelle Fournier',
+    id: "5",
+    name: "Isabelle Fournier",
     age: 38,
-    condition: 'Epithelioid Sarcoma',
-    lastVisit: '2025-01-12',
-    status: 'active',
+    condition: "Epithelioid Sarcoma",
+    lastVisit: "2025-01-12",
+    status: "active",
   },
 ];
 
 export default function Dashboard() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<Patient['status'] | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">(
+    "all",
+  );
 
   const filteredPatients = mockPatients.filter((patient) => {
     const matchesSearch =
       patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       patient.condition.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" || patient.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: Patient['status']) => {
+  const getStatusColor = (status: Patient["status"]) => {
     switch (status) {
-      case 'active':
-        return 'bg-success/10 text-success';
-      case 'completed':
-        return 'bg-primary/10 text-primary';
-      case 'pending':
-        return 'bg-warning/10 text-warning';
+      case "active":
+        return "bg-success/10 text-success";
+      case "completed":
+        return "bg-primary/10 text-primary";
+      case "pending":
+        return "bg-warning/10 text-warning";
       default:
-        return 'bg-muted text-muted-foreground';
+        return "bg-muted text-muted-foreground";
     }
   };
 
-  const getStatusIcon = (status: Patient['status']) => {
+  const getStatusIcon = (status: Patient["status"]) => {
     switch (status) {
-      case 'active':
+      case "active":
         return <CheckCircle className="h-4 w-4" />;
-      case 'pending':
+      case "pending":
         return <AlertCircle className="h-4 w-4" />;
       default:
         return null;
@@ -108,7 +111,9 @@ export default function Dashboard() {
         <div className="border-b border-border bg-card">
           <div className="mx-auto max-w-7xl px-6 py-8">
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-primary">Dashboard Clinicien</h1>
+              <h1 className="text-3xl font-bold text-primary">
+                Dashboard Clinicien
+              </h1>
               <p className="mt-2 text-muted-foreground">
                 Manage your patients and access ARGOS clinical decision support
               </p>
@@ -150,19 +155,21 @@ export default function Dashboard() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {(['all', 'active', 'pending', 'completed'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                    statusFilter === status
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
+              {(["all", "active", "pending", "completed"] as const).map(
+                (status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                      statusFilter === status
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ),
+              )}
             </div>
           </div>
 
@@ -181,23 +188,32 @@ export default function Dashboard() {
                         <h3 className="text-lg font-semibold text-foreground">
                           {patient.name}
                         </h3>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(patient.status)}`}>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(patient.status)}`}
+                        >
                           {getStatusIcon(patient.status)}
-                          {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
+                          {patient.status.charAt(0).toUpperCase() +
+                            patient.status.slice(1)}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-3">
                         <div>
-                          <span className="font-medium text-foreground">{patient.age}</span> years
+                          <span className="font-medium text-foreground">
+                            {patient.age}
+                          </span>{" "}
+                          years
                         </div>
                         <div>{patient.condition}</div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          {new Date(patient.lastVisit).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {new Date(patient.lastVisit).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )}
                         </div>
                       </div>
                     </div>
@@ -229,21 +245,27 @@ export default function Dashboard() {
           {/* Stats */}
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">Active Patients</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Active Patients
+              </p>
               <p className="mt-2 text-3xl font-bold text-primary">
-                {mockPatients.filter((p) => p.status === 'active').length}
+                {mockPatients.filter((p) => p.status === "active").length}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Pending Review
+              </p>
               <p className="mt-2 text-3xl font-bold text-warning">
-                {mockPatients.filter((p) => p.status === 'pending').length}
+                {mockPatients.filter((p) => p.status === "pending").length}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-6">
-              <p className="text-sm font-medium text-muted-foreground">Completed Cases</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Completed Cases
+              </p>
               <p className="mt-2 text-3xl font-bold text-success">
-                {mockPatients.filter((p) => p.status === 'completed').length}
+                {mockPatients.filter((p) => p.status === "completed").length}
               </p>
             </div>
           </div>

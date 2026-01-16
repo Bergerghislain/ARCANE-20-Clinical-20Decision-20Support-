@@ -12,7 +12,9 @@ export default function Index() {
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">A</span>
+              <span className="text-sm font-bold text-primary-foreground">
+                A
+              </span>
             </div>
             <div>
               <h1 className="text-lg font-bold text-primary">ARCANE</h1>
@@ -35,7 +37,9 @@ export default function Index() {
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-6 inline-flex items-center rounded-full border border-secondary/30 bg-secondary/10 px-4 py-2">
             <Bot className="h-4 w-4 text-secondary mr-2" />
-            <span className="text-sm font-medium text-secondary">AI-Powered Clinical Support</span>
+            <span className="text-sm font-medium text-secondary">
+              AI-Powered Clinical Support
+            </span>
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-bold text-primary mb-6 leading-tight">
@@ -43,8 +47,9 @@ export default function Index() {
           </h1>
 
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            ARCANE is an intelligent clinical decision support platform that helps oncologists
-            navigate complex rare cancer cases with AI-powered reasoning and evidence-based guidance.
+            ARCANE is an intelligent clinical decision support platform that
+            helps oncologists navigate complex rare cancer cases with AI-powered
+            reasoning and evidence-based guidance.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -90,9 +95,12 @@ export default function Index() {
               <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-primary/10 mb-4">
                 <Users className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-bold text-lg text-foreground mb-2">Patient Management</h3>
+              <h3 className="font-bold text-lg text-foreground mb-2">
+                Patient Management
+              </h3>
               <p className="text-muted-foreground text-sm">
-                Centralized patient data, structured clinical information, and comprehensive case histories.
+                Centralized patient data, structured clinical information, and
+                comprehensive case histories.
               </p>
             </div>
 
@@ -101,9 +109,12 @@ export default function Index() {
               <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-secondary/10 mb-4">
                 <Brain className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="font-bold text-lg text-foreground mb-2">AI-Powered Analysis</h3>
+              <h3 className="font-bold text-lg text-foreground mb-2">
+                AI-Powered Analysis
+              </h3>
               <p className="text-muted-foreground text-sm">
-                ARGOS provides structured clinical reasoning with evidence-based hypotheses and recommendations.
+                ARGOS provides structured clinical reasoning with evidence-based
+                hypotheses and recommendations.
               </p>
             </div>
 
@@ -112,9 +123,12 @@ export default function Index() {
               <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-success/10 mb-4">
                 <Lock className="h-6 w-6 text-success" />
               </div>
-              <h3 className="font-bold text-lg text-foreground mb-2">Secure & Compliant</h3>
+              <h3 className="font-bold text-lg text-foreground mb-2">
+                Secure & Compliant
+              </h3>
               <p className="text-muted-foreground text-sm">
-                HIPAA-compliant infrastructure with role-based access and comprehensive audit trails.
+                HIPAA-compliant infrastructure with role-based access and
+                comprehensive audit trails.
               </p>
             </div>
           </div>
@@ -127,7 +141,8 @@ export default function Index() {
           <div className="rounded-2xl border border-secondary/30 bg-gradient-to-br from-secondary/5 to-secondary/10 p-12 text-center">
             <h2 className="text-3xl font-bold text-primary mb-4">Meet ARGOS</h2>
             <p className="text-lg text-foreground mb-6 max-w-2xl mx-auto">
-              ARCANE Reasoning & Guidance Orchestrator - Your intelligent companion for clinical decision-making.
+              ARCANE Reasoning & Guidance Orchestrator - Your intelligent
+              companion for clinical decision-making.
             </p>
             <div className="space-y-3 text-sm text-muted-foreground max-w-2xl mx-auto mb-8">
               <p>✓ Contextual clinical synthesis</p>
@@ -147,7 +162,8 @@ export default function Index() {
             Ready to enhance clinical decision-making?
           </h2>
           <p className="text-muted-foreground mb-8">
-            Join clinicians leveraging AI for better patient outcomes in rare cancer care.
+            Join clinicians leveraging AI for better patient outcomes in rare
+            cancer care.
           </p>
           <Button
             size="lg"
@@ -173,27 +189,54 @@ export default function Index() {
             <div>
               <p className="font-semibold text-foreground mb-2">Product</p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-secondary">Features</a></li>
-                <li><a href="#" className="hover:text-secondary">Pricing</a></li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    Pricing
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <p className="font-semibold text-foreground mb-2">Company</p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-secondary">About</a></li>
-                <li><a href="#" className="hover:text-secondary">Blog</a></li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    Blog
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <p className="font-semibold text-foreground mb-2">Legal</p>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-secondary">Privacy</a></li>
-                <li><a href="#" className="hover:text-secondary">Terms</a></li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    Privacy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-secondary">
+                    Terms
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border/50 pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2025 ARCANE. IA agentique pour l'aide à la décision clinique dans les cancers rares.</p>
+            <p>
+              © 2025 ARCANE. IA agentique pour l'aide à la décision clinique
+              dans les cancers rares.
+            </p>
           </div>
         </div>
       </footer>
