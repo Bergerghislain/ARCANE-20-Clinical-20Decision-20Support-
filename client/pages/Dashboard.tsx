@@ -179,7 +179,7 @@ export default function Dashboard() {
                 <Link
                   key={patient.id}
                   to={`/patient/${patient.id}`}
-                  className="group block rounded-lg border border-border bg-card p-4 transition-all hover:border-secondary hover:shadow-md"
+                  className="group block rounded-2xl border border-border bg-gradient-to-br from-white to-blue-50/30 p-6 transition-all hover:shadow-xl hover:border-secondary/50"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
