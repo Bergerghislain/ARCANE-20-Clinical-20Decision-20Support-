@@ -107,11 +107,13 @@ export default function ArgosSpace() {
     <MainLayout>
       <div className="flex h-[calc(100vh-4rem)] flex-col bg-background">
         {/* Header */}
-        <div className="border-b border-border bg-card px-6 py-4">
+        <div className="border-b border-border/50 bg-gradient-to-r from-white to-blue-50 px-6 py-4 shadow-sm">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-2">
-              <Bot className="h-6 w-6 text-secondary" />
-              <h1 className="text-2xl font-bold text-primary">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-secondary to-cyan-600">
+                <Bot className="h-6 w-6 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 ARGOS Clinical Assistant
               </h1>
             </div>
