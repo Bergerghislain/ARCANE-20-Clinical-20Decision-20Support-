@@ -104,9 +104,9 @@ export default function Index() {
             </div>
 
             {/* Feature 2 */}
-            <div className="rounded-lg border border-border bg-background p-8">
-              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-secondary/10 mb-4">
-                <Brain className="h-6 w-6 text-secondary" />
+            <div className="rounded-2xl border border-cyan-200/50 bg-gradient-to-br from-cyan-50 to-blue-50 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-secondary to-cyan-600 mb-4">
+                <Brain className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-bold text-lg text-foreground mb-2">
                 AI-Powered Analysis
@@ -118,9 +118,9 @@ export default function Index() {
             </div>
 
             {/* Feature 3 */}
-            <div className="rounded-lg border border-border bg-background p-8">
-              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-success/10 mb-4">
-                <Lock className="h-6 w-6 text-success" />
+            <div className="rounded-2xl border border-green-200/50 bg-gradient-to-br from-green-50 to-emerald-50 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-success to-emerald-600 mb-4">
+                <Lock className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-bold text-lg text-foreground mb-2">
                 Secure & Compliant
