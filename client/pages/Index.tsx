@@ -82,17 +82,17 @@ export default function Index() {
       </section>
 
       {/* Features Section */}
-      <section className="bg-card/50 border-y border-border px-6 py-20">
+      <section className="bg-gradient-to-b from-white to-blue-50 border-y border-border/30 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-3xl font-bold text-primary mb-12 text-center">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent mb-12 text-center">
             Powerful Features for Clinicians
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="rounded-lg border border-border bg-background p-8">
-              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-primary/10 mb-4">
-                <Users className="h-6 w-6 text-primary" />
+            <div className="rounded-2xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-blue-600 mb-4">
+                <Users className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-bold text-lg text-foreground mb-2">
                 Patient Management
