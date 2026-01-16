@@ -7,61 +7,61 @@
 
 @layer base {
   /**
-   * ARCANE Platform - Color Palette
+   * ARCANE Platform - Modern Vibrant Color Palette
    * All colors expressed as HSL values for Tailwind compatibility
   */
   :root {
-    /* Primary Color: Dark Navy (#0B2E4A) */
-    --primary: 210 69% 23%;
-    --primary-foreground: 210 50% 98%;
+    /* Primary Color: Modern Deep Blue-Purple */
+    --primary: 255 85% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary Color: Teal (#007C91) */
-    --secondary: 193 100% 29%;
-    --secondary-foreground: 210 50% 98%;
+    /* Secondary Color: Vibrant Cyan/Turquoise */
+    --secondary: 190 100% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Success Color: Green (#2E8B57) */
-    --success: 144 50% 42%;
-    --success-foreground: 210 50% 98%;
+    /* Success Color: Vibrant Green */
+    --success: 140 70% 45%;
+    --success-foreground: 0 0% 100%;
 
-    /* Warning Color: Orange (#D28B00) */
-    --warning: 38 100% 41%;
+    /* Warning Color: Vibrant Orange */
+    --warning: 35 100% 50%;
     --warning-foreground: 0 0% 100%;
 
-    /* Destructive/Error: Red (#B00020) */
-    --destructive: 356 100% 35%;
-    --destructive-foreground: 210 50% 98%;
+    /* Destructive/Error: Vibrant Red */
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Background & Text */
-    --background: 210 50% 98%;
-    --foreground: 218 33% 10%;
+    --background: 240 10% 97%;
+    --foreground: 240 10% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 218 33% 10%;
+    --card-foreground: 240 10% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 218 33% 10%;
+    --popover-foreground: 240 10% 15%;
 
-    --muted: 210 25% 88%;
-    --muted-foreground: 215 15% 45%;
+    --muted: 240 10% 85%;
+    --muted-foreground: 240 5% 45%;
 
-    --accent: 193 100% 29%;
-    --accent-foreground: 210 50% 98%;
+    --accent: 190 100% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --border: 210 35% 90%;
+    --border: 240 10% 90%;
     --input: 0 0% 100%;
-    --ring: 210 69% 23%;
+    --ring: 255 85% 55%;
 
-    --radius: 0.5rem;
+    --radius: 12px;
 
     /* Sidebar Theme */
-    --sidebar-background: 210 50% 98%;
-    --sidebar-foreground: 218 33% 10%;
-    --sidebar-primary: 210 69% 23%;
-    --sidebar-primary-foreground: 210 50% 98%;
-    --sidebar-accent: 193 100% 29%;
+    --sidebar-background: 240 10% 97%;
+    --sidebar-foreground: 240 10% 15%;
+    --sidebar-primary: 255 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 190 100% 45%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 35% 90%;
-    --sidebar-ring: 210 69% 23%;
+    --sidebar-border: 240 10% 88%;
+    --sidebar-ring: 255 85% 55%;
   }
 
   .dark {
