@@ -42,7 +42,7 @@ export default function Index() {
             </span>
           </div>
 
-          <h1 className="text-5xl sm:text-6xl font-bold text-primary mb-6 leading-tight">
+          <h1 className="text-5xl sm:text-6xl font-bold bg-gradient-to-r from-primary via-blue-600 to-secondary bg-clip-text text-transparent mb-6 leading-tight">
             Clinical Decision Support for Rare Cancers
           </h1>
 
