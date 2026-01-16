@@ -157,6 +157,39 @@
   input,
   textarea,
   select {
-    @apply rounded-md;
+    @apply rounded-lg;
+  }
+}
+
+@layer components {
+  /* Gradient Button Styles */
+  .btn-gradient-primary {
+    @apply bg-gradient-to-br from-primary to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 rounded-xl;
+  }
+
+  .btn-gradient-secondary {
+    @apply bg-gradient-to-br from-secondary to-cyan-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 rounded-xl;
+  }
+
+  .btn-gradient-success {
+    @apply bg-gradient-to-br from-success to-emerald-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 rounded-xl;
+  }
+
+  .btn-gradient-warning {
+    @apply bg-gradient-to-br from-warning to-amber-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 rounded-xl;
+  }
+
+  .btn-gradient-danger {
+    @apply bg-gradient-to-br from-destructive to-rose-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 rounded-xl;
+  }
+
+  /* Card with gradient */
+  .card-gradient {
+    @apply bg-gradient-to-br rounded-2xl shadow-lg border border-white/10;
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply rounded-2xl p-6 bg-white shadow-md border border-border/50 hover:shadow-lg transition-shadow;
   }
 }
