@@ -6,18 +6,18 @@ export default function Index() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-secondary/5">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-cyan-50">
       {/* Navigation */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur">
+      <header className="border-b border-border/30 bg-white/70 backdrop-blur sticky top-0 z-50 shadow-sm">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 shadow-md">
+              <span className="text-sm font-bold text-white">
                 A
               </span>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-primary">ARCANE</h1>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ARCANE</h1>
               <p className="text-xs text-muted-foreground">Clinical AI</p>
             </div>
           </Link>
@@ -25,7 +25,7 @@ export default function Index() {
             <Button variant="ghost" onClick={() => navigate("/login")}>
               Sign In
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button variant="default" onClick={() => navigate("/login")}>
               Get Started
             </Button>
           </div>
