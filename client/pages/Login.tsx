@@ -28,18 +28,18 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg">
+              <span className="text-lg font-bold text-white">
                 A
               </span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-primary">ARCANE</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ARCANE</h1>
               <p className="text-xs text-muted-foreground">
                 Clinical Decision Support
               </p>
@@ -48,7 +48,7 @@ export default function Login() {
         </div>
 
         {/* Login Card */}
-        <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+        <div className="rounded-2xl border border-white/60 bg-white/80 backdrop-blur p-8 shadow-xl">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -100,7 +100,9 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              variant="default"
+              size="lg"
+              className="w-full"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign in"}
