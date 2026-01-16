@@ -135,10 +135,10 @@ export default function Index() {
       </section>
 
       {/* ARGOS Section */}
-      <section className="px-6 py-20">
+      <section className="px-6 py-20 bg-gradient-to-b from-white to-cyan-50">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-secondary/30 bg-gradient-to-br from-secondary/5 to-secondary/10 p-12 text-center">
-            <h2 className="text-3xl font-bold text-primary mb-4">Meet ARGOS</h2>
+          <div className="rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-50/50 to-blue-50/50 p-12 text-center shadow-lg">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4">Meet ARGOS</h2>
             <p className="text-lg text-foreground mb-6 max-w-2xl mx-auto">
               ARCANE Reasoning & Guidance Orchestrator - Your intelligent
               companion for clinical decision-making.
