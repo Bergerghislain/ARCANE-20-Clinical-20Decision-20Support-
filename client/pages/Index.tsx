@@ -12,12 +12,12 @@ export default function Index() {
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 shadow-md">
-              <span className="text-sm font-bold text-white">
-                A
-              </span>
+              <span className="text-sm font-bold text-white">A</span>
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ARCANE</h1>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                ARCANE
+              </h1>
               <p className="text-xs text-muted-foreground">Clinical AI</p>
             </div>
           </Link>
@@ -61,10 +61,7 @@ export default function Index() {
               Enter ARCANE
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-            >
+            <Button size="lg" variant="outline">
               Learn More
             </Button>
           </div>
@@ -138,7 +135,9 @@ export default function Index() {
       <section className="px-6 py-20 bg-gradient-to-b from-white to-cyan-50">
         <div className="mx-auto max-w-4xl">
           <div className="rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-50/50 to-blue-50/50 p-12 text-center shadow-lg">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4">Meet ARGOS</h2>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4">
+              Meet ARGOS
+            </h2>
             <p className="text-lg text-foreground mb-6 max-w-2xl mx-auto">
               ARCANE Reasoning & Guidance Orchestrator - Your intelligent
               companion for clinical decision-making.

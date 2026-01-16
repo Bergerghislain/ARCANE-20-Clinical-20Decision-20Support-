@@ -120,17 +120,11 @@ export default function Dashboard() {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                variant="default"
-                size="lg"
-              >
+              <Button variant="default" size="lg">
                 <Plus className="mr-2 h-5 w-5" />
                 Add Patient
               </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-              >
+              <Button variant="secondary" size="lg">
                 <Bot className="mr-2 h-5 w-5" />
                 Open ARGOS
               </Button>

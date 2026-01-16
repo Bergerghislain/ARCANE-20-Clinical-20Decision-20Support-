@@ -34,12 +34,12 @@ export default function Login() {
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg">
-              <span className="text-lg font-bold text-white">
-                A
-              </span>
+              <span className="text-lg font-bold text-white">A</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">ARCANE</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                ARCANE
+              </h1>
               <p className="text-xs text-muted-foreground">
                 Clinical Decision Support
               </p>

@@ -107,10 +107,7 @@ export default function PatientFile() {
                   </div>
                 </div>
               </div>
-              <Button
-                variant="secondary"
-                size="lg"
-              >
+              <Button variant="secondary" size="lg">
                 <Bot className="mr-2 h-5 w-5" />
                 New ARGOS Discussion
               </Button>
