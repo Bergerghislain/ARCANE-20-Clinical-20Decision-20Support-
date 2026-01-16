@@ -155,9 +155,9 @@ export default function Index() {
       </section>
 
       {/* CTA Section */}
-      <section className="border-t border-border px-6 py-16">
+      <section className="border-t border-border/30 px-6 py-16 bg-gradient-to-r from-blue-50 to-cyan-50">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold text-primary mb-4">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent mb-4">
             Ready to enhance clinical decision-making?
           </h2>
           <p className="text-muted-foreground mb-8">
@@ -166,7 +166,7 @@ export default function Index() {
           </p>
           <Button
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            variant="default"
             onClick={() => navigate("/login")}
           >
             Start Using ARCANE
