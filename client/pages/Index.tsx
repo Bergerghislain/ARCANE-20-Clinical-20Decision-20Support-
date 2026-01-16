@@ -55,7 +55,7 @@ export default function Index() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              variant="default"
               onClick={() => navigate("/login")}
             >
               Enter ARCANE
@@ -64,7 +64,6 @@ export default function Index() {
             <Button
               size="lg"
               variant="outline"
-              className="border-secondary text-secondary hover:bg-secondary/10"
             >
               Learn More
             </Button>
