@@ -108,7 +108,7 @@ export default function PatientFile() {
                 </div>
               </div>
               <Button
-                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+                variant="secondary"
                 size="lg"
               >
                 <Bot className="mr-2 h-5 w-5" />
