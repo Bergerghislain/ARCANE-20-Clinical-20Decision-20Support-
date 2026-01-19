@@ -121,11 +121,21 @@ export default function Login() {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          <p>
-            ARCANE Phase 1 • IA agentique pour l'aide à la décision clinique
-          </p>
-          <p className="mt-2">Specialized in Rare Cancer Support</p>
+        <div className="mt-6 flex flex-col items-center gap-4 text-center text-xs text-muted-foreground">
+          <div>
+            <p>
+              ARCANE Phase 1 • IA agentique pour l'aide à la décision clinique
+            </p>
+            <p className="mt-2">Specialized in Rare Cancer Support</p>
+          </div>
+          <div className="flex items-center gap-2 pt-4 border-t border-border w-full justify-center">
+            <p>Powered by</p>
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2F7cd1f0a31d4341f88052d23a9c109ccd%2F5695ec5fddb246fdb41b71f78ec4270c?format=webp&width=800"
+              alt="IHU PRISM"
+              className="h-5 object-contain"
+            />
+          </div>
         </div>
       </div>
     </div>
