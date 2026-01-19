@@ -33,8 +33,12 @@ export default function Login() {
         {/* Logo */}
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg">
-              <span className="text-lg font-bold text-white">A</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl shadow-lg">
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets%2F7cd1f0a31d4341f88052d23a9c109ccd%2F8bdc503ce9cf4432ae8603c4be99f69b?format=webp&width=800"
+                alt="ARCANE Logo"
+                className="h-12 w-12 object-contain"
+              />
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
