@@ -17,6 +17,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex-1 overflow-y-auto bg-background">{children}</main>
       </div>
+      <Footer />
     </div>
   );
 }
