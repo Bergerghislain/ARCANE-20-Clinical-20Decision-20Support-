@@ -13,8 +13,12 @@ export function Header({ userName = "Dr. Martin", onMenuClick }: HeaderProps) {
     <header className="sticky top-0 z-40 border-b border-border/50 bg-white/80 backdrop-blur shadow-sm">
       <div className="flex h-16 items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 shadow-md">
-            <span className="text-sm font-bold text-white">A</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg shadow-md">
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets%2F7cd1f0a31d4341f88052d23a9c109ccd%2F8bdc503ce9cf4432ae8603c4be99f69b?format=webp&width=800"
+              alt="ARCANE Logo"
+              className="h-10 w-10 object-contain"
+            />
           </div>
           <div>
             <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
