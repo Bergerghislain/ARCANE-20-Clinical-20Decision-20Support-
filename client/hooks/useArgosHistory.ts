@@ -54,7 +54,9 @@ function deserializeConversation(data: any): Conversation {
 export function useArgosHistory() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentPatientId, setCurrentPatientId] = useState<string | null>(null);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load conversations from localStorage on mount
@@ -96,7 +98,9 @@ export function useArgosHistory() {
   // Get current active conversation
   const getCurrentConversation = useCallback(() => {
     if (!currentConversationId) return null;
-    return conversations.find((conv) => conv.id === currentConversationId) || null;
+    return (
+      conversations.find((conv) => conv.id === currentConversationId) || null
+    );
   }, [conversations, currentConversationId]);
 
   // Create a new conversation
@@ -158,25 +162,35 @@ export function useArgosHistory() {
   );
 
   // Load a conversation
-  const loadConversation = useCallback((conversationId: string) => {
-    const conversation = conversations.find((conv) => conv.id === conversationId);
-    if (conversation) {
-      setCurrentConversationId(conversationId);
-      setCurrentPatientId(conversation.patientId);
-      return conversation;
-    }
-    return null;
-  }, [conversations]);
+  const loadConversation = useCallback(
+    (conversationId: string) => {
+      const conversation = conversations.find(
+        (conv) => conv.id === conversationId,
+      );
+      if (conversation) {
+        setCurrentConversationId(conversationId);
+        setCurrentPatientId(conversation.patientId);
+        return conversation;
+      }
+      return null;
+    },
+    [conversations],
+  );
 
   // Delete a conversation
-  const deleteConversation = useCallback((conversationId: string) => {
-    setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
+  const deleteConversation = useCallback(
+    (conversationId: string) => {
+      setConversations((prev) =>
+        prev.filter((conv) => conv.id !== conversationId),
+      );
 
-    // If we deleted the current conversation, clear selection
-    if (currentConversationId === conversationId) {
-      setCurrentConversationId(null);
-    }
-  }, [currentConversationId]);
+      // If we deleted the current conversation, clear selection
+      if (currentConversationId === conversationId) {
+        setCurrentConversationId(null);
+      }
+    },
+    [currentConversationId],
+  );
 
   // Rename a conversation
   const renameConversation = useCallback(
@@ -216,7 +230,9 @@ export function useArgosHistory() {
   // Update title to auto-generated one after first user message
   const updateTitleFromFirstMessage = useCallback(
     (conversationId: string) => {
-      const conversation = conversations.find((conv) => conv.id === conversationId);
+      const conversation = conversations.find(
+        (conv) => conv.id === conversationId,
+      );
       if (conversation) {
         // Find the first user message
         const firstUserMessage = conversation.messages.find(
@@ -233,7 +249,10 @@ export function useArgosHistory() {
 
   // Get all unique patients with their conversation count
   const getPatientGroups = useCallback(() => {
-    const patientMap = new Map<string, { patientName: string; count: number; lastDate: Date }>();
+    const patientMap = new Map<
+      string,
+      { patientName: string; count: number; lastDate: Date }
+    >();
 
     conversations.forEach((conv) => {
       if (!patientMap.has(conv.patientId)) {

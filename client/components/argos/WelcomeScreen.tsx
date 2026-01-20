@@ -30,8 +30,9 @@ export function WelcomeScreen({ onSelectPatient }: WelcomeScreenProps) {
         {/* Description */}
         <p className="mb-8 text-sm text-muted-foreground leading-relaxed">
           ARGOS leverages advanced AI to provide structured clinical reasoning,
-          treatment hypotheses, and evidence-based recommendations. Select a patient
-          to begin a consultation and receive comprehensive clinical support.
+          treatment hypotheses, and evidence-based recommendations. Select a
+          patient to begin a consultation and receive comprehensive clinical
+          support.
         </p>
 
         {/* Features List */}

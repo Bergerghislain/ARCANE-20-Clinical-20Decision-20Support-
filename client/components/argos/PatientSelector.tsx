@@ -35,7 +35,8 @@ export function PatientSelector({
       (patient) =>
         patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         patient.condition.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (patient.mrn && patient.mrn.toLowerCase().includes(searchQuery.toLowerCase()))
+        (patient.mrn &&
+          patient.mrn.toLowerCase().includes(searchQuery.toLowerCase())),
     );
   }, [patients, searchQuery]);
 
@@ -45,20 +46,14 @@ export function PatientSelector({
     setSearchQuery("");
   };
 
-  const handleNewConversation = (
-    e: React.MouseEvent,
-    patient: Patient
-  ) => {
+  const handleNewConversation = (e: React.MouseEvent, patient: Patient) => {
     e.stopPropagation();
     onNewConversation(patient);
     setIsOpen(false);
     setSearchQuery("");
   };
 
-  const handleLoadConversation = (
-    e: React.MouseEvent,
-    patient: Patient
-  ) => {
+  const handleLoadConversation = (e: React.MouseEvent, patient: Patient) => {
     e.stopPropagation();
     onLoadConversation(patient);
     setIsOpen(false);

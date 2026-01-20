@@ -1,5 +1,12 @@
 import React, { useState, useMemo } from "react";
-import { Plus, Trash2, Edit2, ChevronDown, Clock, Calendar } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  ChevronDown,
+  Clock,
+  Calendar,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Conversation } from "@/hooks/useArgosHistory";
 
@@ -30,13 +37,13 @@ export function ArgosSidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(
-    new Set([currentPatientId || ""])
+    new Set([currentPatientId || ""]),
   );
 
   // Sort conversations by date (most recent first)
   const sortedConversations = useMemo(() => {
     return [...conversations].sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
     );
   }, [conversations]);
 
@@ -111,7 +118,11 @@ export function ArgosSidebar({
     }
   };
 
-  const ConversationItem = ({ conversation }: { conversation: Conversation }) => (
+  const ConversationItem = ({
+    conversation,
+  }: {
+    conversation: Conversation;
+  }) => (
     <div
       key={conversation.id}
       onClick={() => onLoadConversation(conversation.id)}
@@ -171,9 +182,7 @@ export function ArgosSidebar({
             onClick={(e) => {
               e.stopPropagation();
               if (
-                confirm(
-                  "Are you sure you want to delete this conversation?"
-                )
+                confirm("Are you sure you want to delete this conversation?")
               ) {
                 onDeleteConversation(conversation.id);
               }
@@ -258,10 +267,14 @@ export function ArgosSidebar({
                   >
                     <ChevronDown
                       className={`h-4 w-4 flex-shrink-0 transition-transform ${
-                        expandedPatients.has(patientId) ? "rotate-0" : "-rotate-90"
+                        expandedPatients.has(patientId)
+                          ? "rotate-0"
+                          : "-rotate-90"
                       }`}
                     />
-                    <span className="truncate">{patientConvs[0].patientName}</span>
+                    <span className="truncate">
+                      {patientConvs[0].patientName}
+                    </span>
                     <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
                       ({patientConvs.length})
                     </span>
@@ -305,10 +318,7 @@ export function ArgosSidebar({
         }`}
       >
         {/* Overlay */}
-        <div
-          className="absolute inset-0 bg-black/50"
-          onClick={onClose}
-        />
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
         {/* Sidebar Panel */}
         <div className="absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex flex-col">

@@ -242,7 +242,9 @@ export default function ArgosSpace() {
                     <div
                       key={message.id}
                       className={`flex gap-3 ${
-                        message.role === "user" ? "justify-end" : "justify-start"
+                        message.role === "user"
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
                       {message.role === "assistant" && (
