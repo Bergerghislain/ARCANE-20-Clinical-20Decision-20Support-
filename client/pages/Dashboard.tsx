@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import {
   Search,
   Plus,
@@ -22,56 +23,26 @@ interface Patient {
   status: "active" | "completed" | "pending";
 }
 
-const mockPatients: Patient[] = [
-  {
-    id: "1",
-    name: "Marie Dubois",
-    age: 52,
-    condition: "Rare Lymphoma",
-    lastVisit: "2025-01-14",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Jean Martin",
-    age: 67,
-    condition: "Sarcoma of the Jaw",
-    lastVisit: "2025-01-10",
-    status: "pending",
-  },
-  {
-    id: "3",
-    name: "Sophie Bernard",
-    age: 45,
-    condition: "Neuroendocrine Tumor",
-    lastVisit: "2025-01-08",
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Pierre Leclerc",
-    age: 59,
-    condition: "Angiosarcoma",
-    lastVisit: "2025-01-05",
-    status: "completed",
-  },
-  {
-    id: "5",
-    name: "Isabelle Fournier",
-    age: 38,
-    condition: "Epithelioid Sarcoma",
-    lastVisit: "2025-01-12",
-    status: "active",
-  },
-];
-
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">("all");
 
-  const filteredPatients = mockPatients.filter((patient) => {
+  useEffect(() => {
+    const fetchPatients = async () => {
+      const res = await fetch("/api/patients");
+      if (res.ok) {
+        const data = await res.json();
+        setPatients(data);
+      }
+      setIsLoading(false);
+    };
+    fetchPatients();
+  }, []);
+
+  const filteredPatients = patients.filter((patient) => {
     const matchesSearch =
       patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       patient.condition.toLowerCase().includes(searchQuery.toLowerCase());
@@ -107,23 +78,26 @@ export default function Dashboard() {
   return (
     <MainLayout>
       <div className="min-h-screen bg-background">
-        {/* Header Section */}
+        {/* En‑tête */}
         <div className="border-b border-border bg-card">
           <div className="mx-auto max-w-7xl px-6 py-8">
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-primary">
-                Dashboard Clinicien
-              </h1>
+              <h1 className="text-3xl font-bold text-primary">Dashboard Clinicien</h1>
               <p className="mt-2 text-muted-foreground">
                 Manage your patients and access ARGOS clinical decision support
               </p>
             </div>
 
             <div className="flex gap-3">
-              <Button variant="default" size="lg">
-                <Plus className="mr-2 h-5 w-5" />
-                Add Patient
-              </Button>
+            <Button
+  variant="default"
+  size="lg"
+  onClick={() => navigate("/add-patient")}
+>
+  <Plus className="mr-2 h-5 w-5" />
+  Add Patient
+</Button>
+
               <Button variant="secondary" size="lg">
                 <Bot className="mr-2 h-5 w-5" />
                 Open ARGOS
@@ -132,9 +106,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Content Section */}
+        {/* Contenu */}
         <div className="mx-auto max-w-7xl px-6 py-8">
-          {/* Search and Filters */}
+          {/* Recherche et filtres */}
           <div className="mb-6 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
@@ -148,25 +122,23 @@ export default function Dashboard() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {(["all", "active", "pending", "completed"] as const).map(
-                (status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      statusFilter === status
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                ),
-              )}
+              {(["all", "active", "pending", "completed"] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    statusFilter === status
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Patient List */}
+          {/* Liste des patients */}
           <div className="space-y-3">
             {filteredPatients.length > 0 ? (
               filteredPatients.map((patient) => (
@@ -217,7 +189,7 @@ export default function Dashboard() {
                         className="border-secondary text-secondary hover:bg-secondary/10"
                         onClick={(e) => {
                           e.preventDefault();
-                          // Handle ARGOS click
+                          // Gérez ici l'ouverture d'ARGOS
                         }}
                       >
                         <Bot className="h-4 w-4" />
@@ -235,14 +207,14 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Stats */}
+          {/* Statistiques */}
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
             <div className="rounded-2xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-md hover:shadow-lg transition-shadow">
               <p className="text-sm font-semibold text-muted-foreground">
                 Active Patients
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                {mockPatients.filter((p) => p.status === "active").length}
+                {filteredPatients.filter((p) => p.status === "active").length}
               </p>
             </div>
             <div className="rounded-2xl border border-amber-200/50 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-md hover:shadow-lg transition-shadow">
@@ -250,7 +222,7 @@ export default function Dashboard() {
                 Pending Review
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-warning to-amber-600 bg-clip-text text-transparent">
-                {mockPatients.filter((p) => p.status === "pending").length}
+                {filteredPatients.filter((p) => p.status === "pending").length}
               </p>
             </div>
             <div className="rounded-2xl border border-green-200/50 bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-md hover:shadow-lg transition-shadow">
@@ -258,7 +230,7 @@ export default function Dashboard() {
                 Completed Cases
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-success to-emerald-600 bg-clip-text text-transparent">
-                {mockPatients.filter((p) => p.status === "completed").length}
+                {filteredPatients.filter((p) => p.status === "completed").length}
               </p>
             </div>
           </div>
