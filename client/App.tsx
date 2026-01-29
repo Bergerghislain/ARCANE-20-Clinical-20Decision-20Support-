@@ -1,37 +1,25 @@
-import "./global.css";
-
-import { Toaster } from "@/components/ui/toaster";
-import { createRoot } from "react-dom/client";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import PatientFile from "./pages/PatientFile";
+import AddPatient from "./pages/AddPatient";
 import ArgosSpace from "./pages/ArgosSpace";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/patient/:patientId" element={<PatientFile />} />
-          <Route path="/argos" element={<ArgosSpace />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+const App: React.FC = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/patient/:patientId" element={<PatientFile />} />
+      <Route path="/add-patient" element={<AddPatient />} />
+      <Route path="/argos" element={<ArgosSpace />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch‑all route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </BrowserRouter>
 );
 
-createRoot(document.getElementById("root")!).render(<App />);
+export default App;
