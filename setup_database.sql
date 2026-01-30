@@ -1,10 +1,27 @@
 -- setup_database.sql
--- Ce script crée toute la base de données ARCANE
+-- 0. Supprimer toutes les tables existantes (ATTENTION : cela effacera toutes les données !)
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS argos_messages CASCADE;
+DROP TABLE IF EXISTS argos_discussions CASCADE;
+DROP TABLE IF EXISTS radiotherapies CASCADE;
+DROP TABLE IF EXISTS imaging_studies CASCADE;
+DROP TABLE IF EXISTS surgeries CASCADE;
+DROP TABLE IF EXISTS medications CASCADE;
+DROP TABLE IF EXISTS measures CASCADE;
+DROP TABLE IF EXISTS biomarkers CASCADE;
+DROP TABLE IF EXISTS biological_specimens CASCADE;
+DROP TABLE IF EXISTS tumor_sizes CASCADE;
+DROP TABLE IF EXISTS tnm_events CASCADE;
+DROP TABLE IF EXISTS tumor_patho_events CASCADE;
+DROP TABLE IF EXISTS primary_cancer_stages CASCADE;
+DROP TABLE IF EXISTS primary_cancer_grades CASCADE;
+DROP TABLE IF EXISTS primary_cancers CASCADE;
+DROP TABLE IF EXISTS patient_access CASCADE;
+DROP TABLE IF EXISTS patients CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
--- 1. Créer les tables dans le bon ordre (pour les dépendances)
-
--- Table des utilisateurs (doit être créée en premier)
-CREATE TABLE IF NOT EXISTS users (
+-- 1. Table des utilisateurs (doit être créée en premier)
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -17,9 +34,10 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Table des patients
-CREATE TABLE IF NOT EXISTS patients (
-    id SERIAL PRIMARY KEY,
+-- 2. Table des patients avec les colonnes CORRIGÉES
+CREATE TABLE patients (
+    id_patient SERIAL PRIMARY KEY,                -- Changé de "id" à "id_patient"
+    name VARCHAR(255),                            -- Ajout de la colonne "name"
     ipp VARCHAR(50) UNIQUE NOT NULL,
     birth_date_year INTEGER,
     birth_date_month INTEGER,
@@ -36,10 +54,10 @@ CREATE TABLE IF NOT EXISTS patients (
     updated_by INTEGER REFERENCES users(id)
 );
 
--- Table des cancers primaires
-CREATE TABLE IF NOT EXISTS primary_cancers (
+-- 3. Table des cancers primaires (MAJ de la référence)
+CREATE TABLE primary_cancers (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     cancer_order INTEGER,
     topography_code VARCHAR(20),
     topography_group VARCHAR(100),
@@ -55,8 +73,8 @@ CREATE TABLE IF NOT EXISTS primary_cancers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des grades des cancers
-CREATE TABLE IF NOT EXISTS primary_cancer_grades (
+-- 4. Table des grades des cancers
+CREATE TABLE primary_cancer_grades (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     grade_value VARCHAR(50),
@@ -66,8 +84,8 @@ CREATE TABLE IF NOT EXISTS primary_cancer_grades (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des stades des cancers
-CREATE TABLE IF NOT EXISTS primary_cancer_stages (
+-- 5. Table des stades des cancers
+CREATE TABLE primary_cancer_stages (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     staging_system VARCHAR(100),
@@ -80,8 +98,8 @@ CREATE TABLE IF NOT EXISTS primary_cancer_stages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des événements tumoraux
-CREATE TABLE IF NOT EXISTS tumor_patho_events (
+-- 6. Table des événements tumoraux
+CREATE TABLE tumor_patho_events (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     event_type VARCHAR(100),
@@ -91,8 +109,8 @@ CREATE TABLE IF NOT EXISTS tumor_patho_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des événements TNM
-CREATE TABLE IF NOT EXISTS tnm_events (
+-- 7. Table des événements TNM
+CREATE TABLE tnm_events (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     tnm_version VARCHAR(20),
@@ -104,8 +122,8 @@ CREATE TABLE IF NOT EXISTS tnm_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des tailles tumorales
-CREATE TABLE IF NOT EXISTS tumor_sizes (
+-- 8. Table des tailles tumorales
+CREATE TABLE tumor_sizes (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     size_value DECIMAL(10,2),
@@ -116,10 +134,10 @@ CREATE TABLE IF NOT EXISTS tumor_sizes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des échantillons biologiques
-CREATE TABLE IF NOT EXISTS biological_specimens (
+-- 9. Table des échantillons biologiques (MAJ de la référence)
+CREATE TABLE biological_specimens (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     specimen_identifier VARCHAR(100) UNIQUE NOT NULL,
     specimen_collect_date_month INTEGER,
     specimen_collect_date_year INTEGER,
@@ -130,8 +148,8 @@ CREATE TABLE IF NOT EXISTS biological_specimens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des biomarqueurs
-CREATE TABLE IF NOT EXISTS biomarkers (
+-- 10. Table des biomarqueurs
+CREATE TABLE biomarkers (
     id SERIAL PRIMARY KEY,
     specimen_id INTEGER NOT NULL REFERENCES biological_specimens(id) ON DELETE CASCADE,
     biomarker_name VARCHAR(200) NOT NULL,
@@ -143,10 +161,10 @@ CREATE TABLE IF NOT EXISTS biomarkers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des mesures (taille, poids)
-CREATE TABLE IF NOT EXISTS measures (
+-- 11. Table des mesures (taille, poids) (MAJ de la référence)
+CREATE TABLE measures (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     measure_type VARCHAR(50) CHECK (measure_type IN ('HEIGHT', 'WEIGHT', 'BMI', 'BLOOD_PRESSURE', 'OTHER')),
     measure_value DECIMAL(10,2),
     measure_unit VARCHAR(20),
@@ -155,10 +173,10 @@ CREATE TABLE IF NOT EXISTS measures (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des médicaments
-CREATE TABLE IF NOT EXISTS medications (
+-- 12. Table des médicaments (MAJ de la référence)
+CREATE TABLE medications (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     medication_name VARCHAR(200) NOT NULL,
     dosage VARCHAR(100),
     frequency VARCHAR(100),
@@ -170,10 +188,10 @@ CREATE TABLE IF NOT EXISTS medications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des chirurgies
-CREATE TABLE IF NOT EXISTS surgeries (
+-- 13. Table des chirurgies (MAJ de la référence)
+CREATE TABLE surgeries (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     surgery_type VARCHAR(200),
     surgery_date_year INTEGER,
     surgery_date_month INTEGER,
@@ -182,10 +200,10 @@ CREATE TABLE IF NOT EXISTS surgeries (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des imageries
-CREATE TABLE IF NOT EXISTS imaging_studies (
+-- 14. Table des imageries (MAJ de la référence)
+CREATE TABLE imaging_studies (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     study_type VARCHAR(100),
     study_date_year INTEGER,
     study_date_month INTEGER,
@@ -195,10 +213,10 @@ CREATE TABLE IF NOT EXISTS imaging_studies (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des radiothérapies
-CREATE TABLE IF NOT EXISTS radiotherapies (
+-- 15. Table des radiothérapies (MAJ de la référence)
+CREATE TABLE radiotherapies (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     modality VARCHAR(100),
     total_dose DECIMAL(10,2),
     dose_unit VARCHAR(20),
@@ -211,10 +229,10 @@ CREATE TABLE IF NOT EXISTS radiotherapies (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des discussions ARGOS
-CREATE TABLE IF NOT EXISTS argos_discussions (
+-- 16. Table des discussions ARGOS (MAJ des références)
+CREATE TABLE argos_discussions (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     clinician_id INTEGER NOT NULL REFERENCES users(id),
     title VARCHAR(200),
     context TEXT,
@@ -223,8 +241,8 @@ CREATE TABLE IF NOT EXISTS argos_discussions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des messages ARGOS
-CREATE TABLE IF NOT EXISTS argos_messages (
+-- 17. Table des messages ARGOS
+CREATE TABLE argos_messages (
     id SERIAL PRIMARY KEY,
     discussion_id INTEGER NOT NULL REFERENCES argos_discussions(id) ON DELETE CASCADE,
     message_type VARCHAR(20) CHECK (message_type IN ('user_query', 'argos_response', 'clinician_note')),
@@ -239,8 +257,8 @@ CREATE TABLE IF NOT EXISTS argos_messages (
     created_by INTEGER REFERENCES users(id)
 );
 
--- Table des logs d'activité
-CREATE TABLE IF NOT EXISTS activity_logs (
+-- 18. Table des logs d'activité
+CREATE TABLE activity_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     action_type VARCHAR(100) NOT NULL,
@@ -252,10 +270,10 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table des accès aux patients
-CREATE TABLE IF NOT EXISTS patient_access (
+-- 19. Table des accès aux patients (MAJ des références)
+CREATE TABLE patient_access (
     id SERIAL PRIMARY KEY,
-    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,  -- Changé ici
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     access_level VARCHAR(50) CHECK (access_level IN ('full', 'read_only', 'limited')),
     granted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -264,29 +282,40 @@ CREATE TABLE IF NOT EXISTS patient_access (
     UNIQUE(patient_id, user_id)
 );
 
--- 2. Créer les index
-CREATE INDEX IF NOT EXISTS idx_patients_ipp ON patients(ipp);
-CREATE INDEX IF NOT EXISTS idx_patients_created_by ON patients(created_by);
-CREATE INDEX IF NOT EXISTS idx_primary_cancers_patient_id ON primary_cancers(patient_id);
-CREATE INDEX IF NOT EXISTS idx_biological_specimens_patient_id ON biological_specimens(patient_id);
-CREATE INDEX IF NOT EXISTS idx_measures_patient_id ON measures(patient_id);
-CREATE INDEX IF NOT EXISTS idx_argos_discussions_patient_id ON argos_discussions(patient_id);
-CREATE INDEX IF NOT EXISTS idx_argos_discussions_clinician_id ON argos_discussions(clinician_id);
-CREATE INDEX IF NOT EXISTS idx_argos_messages_discussion_id ON argos_messages(discussion_id);
-CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at);
+-- 20. Index pour améliorer les performances (MAJ des noms de colonnes)
+CREATE INDEX idx_patients_ipp ON patients(ipp);
+CREATE INDEX idx_patients_name ON patients(name);  -- Nouvel index pour la colonne name
+CREATE INDEX idx_patients_created_by ON patients(created_by);
+CREATE INDEX idx_primary_cancers_patient_id ON primary_cancers(patient_id);
+CREATE INDEX idx_biological_specimens_patient_id ON biological_specimens(patient_id);
+CREATE INDEX idx_measures_patient_id ON measures(patient_id);
+CREATE INDEX idx_argos_discussions_patient_id ON argos_discussions(patient_id);
+CREATE INDEX idx_argos_discussions_clinician_id ON argos_discussions(clinician_id);
+CREATE INDEX idx_argos_messages_discussion_id ON argos_messages(discussion_id);
+CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
 
--- 3. Insérer des données de test
-INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES
-('admin', 'admin@arcane.com', '$2a$10$YourHashedPasswordHere', 'admin', 'Admin User', true),
-('dr.martin', 'martin@hospital.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Martin', true),
-('researcher.jane', 'jane@research.com', '$2a$10$YourHashedPasswordHere', 'researcher', 'Jane Researcher', true)
-ON CONFLICT (username) DO NOTHING;
+-- 21. Insérer des données de test
+INSERT INTO users (username, email, password_hash, role, full_name) VALUES
+('admin', 'admin@arcane.com', '$2a$10$YourHashedPasswordHere', 'admin', 'Administrateur System'),
+('dr.martin', 'martin@hospital.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Martin Dupont'),
+('researcher.jane', 'jane@research.com', '$2a$10$YourHashedPasswordHere', 'researcher', 'Jane Doe');
 
--- 4. Message de confirmation
+INSERT INTO patients (name, ipp, birth_date_year, birth_date_month, sex, created_by, updated_by) VALUES
+('Jean Dupont', 'PAT001', 1960, 5, 'MALE', 1, 1),
+('Marie Curie', 'PAT002', 1975, 8, 'FEMALE', 1, 1),
+('Pierre Martin', 'PAT003', 1955, 2, 'MALE', 2, 2),
+('Sophie Bernard', 'PAT004', 1982, 11, 'FEMALE', 2, 2);
+
+-- 22. Message de confirmation
 DO $$
 BEGIN
-    RAISE NOTICE 'Base de données ARCANE configurée avec succès!';
-    RAISE NOTICE 'Tables créées: users, patients, primary_cancers, etc.';
-    RAISE NOTICE 'Données de test insérées dans la table users.';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'BASE DE DONNÉES ARCANE RECONSTRUITE';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '✓ Tables créées avec succès (19 tables)';
+    RAISE NOTICE '✓ Colonnes corrigées : patients.id_patient et patients.name';
+    RAISE NOTICE '✓ Données de test insérées';
+    RAISE NOTICE '✓ Toutes les références mises à jour';
+    RAISE NOTICE '========================================';
 END $$;
