@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 interface Patient {
   id: string;
   name: string;
-  age: number;
-  condition: string;
+  age?: number;
+  condition?: string;
   mrn?: string;
   status?: "active" | "pending" | "completed";
 }
@@ -34,7 +34,9 @@ export function PatientSelector({
     return patients.filter(
       (patient) =>
         patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        patient.condition.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (patient.condition || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
         (patient.mrn &&
           patient.mrn.toLowerCase().includes(searchQuery.toLowerCase())),
     );
@@ -76,7 +78,11 @@ export function PatientSelector({
                     {selectedPatient.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedPatient.condition} • {selectedPatient.age} years
+                    {selectedPatient.condition || "Unknown condition"} •{" "}
+                    {typeof selectedPatient.age === "number"
+                      ? selectedPatient.age
+                      : "—"}{" "}
+                    years
                   </p>
                 </div>
               ) : (
@@ -130,7 +136,11 @@ export function PatientSelector({
                             {patient.name}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {patient.condition} • {patient.age} years
+                            {patient.condition || "Unknown condition"} •{" "}
+                            {typeof patient.age === "number"
+                              ? patient.age
+                              : "—"}{" "}
+                            years
                           </p>
                           {patient.mrn && (
                             <p className="text-xs text-muted-foreground mt-0.5">

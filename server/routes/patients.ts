@@ -19,12 +19,25 @@ export const getPatient: RequestHandler = async (req, res) => {
 
 // POST /api/patients – ajoute un patient
 export const addPatient: RequestHandler = async (req, res) => {
-  const { name, age, gender, condition } = req.body;
+  const { name, age, gender, ipp } = req.body;
+  const birthYear =
+    typeof age === "number" && Number.isFinite(age)
+      ? new Date().getFullYear() - age
+      : null;
+  const normalizedSex =
+    typeof gender === "string" && gender.trim()
+      ? gender.trim().toUpperCase()
+      : null;
+  const patientIpp =
+    typeof ipp === "string" && ipp.trim()
+      ? ipp.trim()
+      : `ARC-${Date.now()}`;
+
   const result = await pool.query(
-    `INSERT INTO patients (name, age, gender, condition)
+    `INSERT INTO patients (name, ipp, birth_date_year, sex)
      VALUES ($1, $2, $3, $4)
      RETURNING id_patient`,
-    [name, age, gender, condition],
+    [name ?? null, patientIpp, birthYear, normalizedSex],
   );
   res.status(201).json({ id: result.rows[0].id_patient });
 };

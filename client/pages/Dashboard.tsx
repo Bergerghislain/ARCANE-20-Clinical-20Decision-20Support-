@@ -16,11 +16,45 @@ import {
 
 interface Patient {
   id: string;
-  name: string;
-  age: number;
-  condition: string;
-  lastVisit: string;
-  status: "active" | "completed" | "pending";
+  name?: string | null;
+  age?: number | null;
+  condition?: string | null;
+  lastVisit?: string | null;
+  status?: "active" | "completed" | "pending" | null;
+}
+
+function normalizePatient(row: any, index: number): Patient {
+  const id =
+    row?.id ??
+    row?.id_patient ??
+    row?.patient_id ??
+    row?.ipp ??
+    `row_${index}`;
+  const lastVisit = row?.lastVisit ?? row?.last_visit_date;
+  const lastVisitIso =
+    typeof lastVisit === "string" && lastVisit
+      ? lastVisit
+      : row?.last_visit_date_year
+        ? new Date(
+            Number(row.last_visit_date_year),
+            Math.max(0, Number(row.last_visit_date_month || 1) - 1),
+            1,
+          ).toISOString()
+        : null;
+
+  return {
+    id: String(id),
+    name: row?.name ?? row?.full_name ?? null,
+    age:
+      typeof row?.age === "number"
+        ? row.age
+        : row?.birth_date_year
+          ? new Date().getFullYear() - Number(row.birth_date_year)
+          : null,
+    condition: row?.condition ?? row?.diagnosis ?? null,
+    lastVisit: lastVisitIso,
+    status: row?.status ?? "active",
+  };
 }
 
 export default function Dashboard() {
@@ -32,20 +66,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchPatients = async () => {
-      const res = await fetch("/api/patients");
-      if (res.ok) {
-        const data = await res.json();
-        setPatients(data);
+      try {
+        const res = await fetch("/api/patients");
+        if (res.ok) {
+          const data = await res.json();
+          const normalized = Array.isArray(data)
+            ? data.map((row, index) => normalizePatient(row, index))
+            : [];
+          setPatients(normalized);
+        }
+      } catch (error) {
+        console.error("Failed to load patients:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchPatients();
   }, []);
 
   const filteredPatients = patients.filter((patient) => {
+    const nameValue = patient.name ?? "";
+    const conditionValue = patient.condition ?? "";
     const matchesSearch =
-      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.condition.toLowerCase().includes(searchQuery.toLowerCase());
+      nameValue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conditionValue.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === "all" || patient.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -144,41 +188,53 @@ export default function Dashboard() {
               filteredPatients.map((patient) => (
                 <Link
                   key={patient.id}
-                  to={`/patient/${patient.id}`}
+                  to="/argos"
+                  state={{
+                    patient: {
+                      id: patient.id,
+                      name: patient.name || "Unknown patient",
+                      age: typeof patient.age === "number" ? patient.age : 0,
+                      condition: patient.condition || "Unknown condition",
+                      mrn: patient.id,
+                      status: patient.status || "active",
+                    },
+                  }}
                   className="group block rounded-2xl border border-border bg-gradient-to-br from-white to-blue-50/30 p-6 transition-all hover:shadow-xl hover:border-secondary/50"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          {patient.name}
+                          {patient.name || "Unknown patient"}
                         </h3>
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(patient.status)}`}
                         >
                           {getStatusIcon(patient.status)}
-                          {patient.status.charAt(0).toUpperCase() +
-                            patient.status.slice(1)}
+                          {(patient.status || "active").charAt(0).toUpperCase() +
+                            (patient.status || "active").slice(1)}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-3">
                         <div>
                           <span className="font-medium text-foreground">
-                            {patient.age}
+                            {typeof patient.age === "number" ? patient.age : "—"}
                           </span>{" "}
                           years
                         </div>
-                        <div>{patient.condition}</div>
+                        <div>{patient.condition || "Unknown condition"}</div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          {new Date(patient.lastVisit).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            },
-                          )}
+                          {patient.lastVisit
+                            ? new Date(patient.lastVisit).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )
+                            : "Unknown"}
                         </div>
                       </div>
                     </div>

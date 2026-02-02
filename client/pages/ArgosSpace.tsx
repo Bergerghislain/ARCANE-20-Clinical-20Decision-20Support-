@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,7 @@ const mockARGOSResponse = {
 };
 
 export default function ArgosSpace() {
+  const location = useLocation();
   const argosHistory = useArgosHistory();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [input, setInput] = useState("");
@@ -105,6 +107,12 @@ export default function ArgosSpace() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentConversation = argosHistory.getCurrentConversation();
+
+  const patients = useMemo(() => {
+    if (!selectedPatient) return mockPatients;
+    const exists = mockPatients.some((p) => p.id === selectedPatient.id);
+    return exists ? mockPatients : [selectedPatient, ...mockPatients];
+  }, [selectedPatient]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -137,6 +145,29 @@ export default function ArgosSpace() {
     setSelectedPatient(null);
     argosHistory.setCurrentConversationId(null);
   };
+
+  useEffect(() => {
+    const statePatient = (location.state as { patient?: Patient } | null)
+      ?.patient;
+    if (!statePatient) return;
+    if (selectedPatient?.id === statePatient.id) return;
+
+    setSelectedPatient(statePatient);
+    argosHistory.setCurrentPatientId(statePatient.id);
+
+    const patientConvs = argosHistory.getConversationsByPatient(
+      statePatient.id,
+    );
+    if (patientConvs.length > 0) {
+      argosHistory.loadConversation(patientConvs[0].id);
+    } else {
+      argosHistory.createConversation(statePatient.id, statePatient.name);
+    }
+  }, [
+    location.state,
+    selectedPatient?.id,
+    argosHistory,
+  ]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,7 +259,7 @@ export default function ArgosSpace() {
 
               {/* Patient Selector Bar */}
               <PatientSelector
-                patients={mockPatients}
+                patients={patients}
                 selectedPatient={selectedPatient}
                 onSelectPatient={handleSelectPatient}
                 onNewConversation={handleNewConversation}
@@ -405,7 +436,7 @@ export default function ArgosSpace() {
             // Welcome/Patient Selection Screen
             <>
               <PatientSelector
-                patients={mockPatients}
+                patients={patients}
                 selectedPatient={null}
                 onSelectPatient={handleSelectPatient}
                 onNewConversation={handleNewConversation}

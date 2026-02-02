@@ -1,58 +1,75 @@
-# fix-vite.ps1
-Write-Host "=== RÉPARATION VITE ÉCRAN BLANC ===" -ForegroundColor Green
+# fix-all.ps1 - Correction des deux problèmes
+Write-Host "=== CORRECTION DES 2 PROBLÈMES ===" -ForegroundColor Green
 
-# 1. Arrêter Vite
-Write-Host "1. Arrêt des processus Vite..." -ForegroundColor Yellow
-Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*vite*" } | Stop-Process -Force
-
-# 2. Nettoyer les caches
-Write-Host "2. Nettoyage des caches..." -ForegroundColor Yellow
-Remove-Item -Path "node_modules/.vite", "node_modules/.vite-temp", "dist" -Recurse -Force -ErrorAction SilentlyContinue
-
-# 3. Vérifier/Créer les fichiers essentiels
-Write-Host "3. Vérification des fichiers essentiels..." -ForegroundColor Yellow
-
-# index.html
-if (-not (Test-Path "index.html")) {
-    @'
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARCANE</title>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-</body>
-</html>
-'@ | Out-File -FilePath "index.html" -Encoding UTF8
-    Write-Host "   ✅ index.html créé" -ForegroundColor Green
+# 1. Installer next-themes si nécessaire
+Write-Host "1. Vérification de next-themes..." -ForegroundColor Yellow
+$packageJson = Get-Content "package.json" -Raw | ConvertFrom-Json
+if (-not ($packageJson.dependencies."next-themes" -or $packageJson.devDependencies."next-themes")) {
+    Write-Host "   Installation de next-themes..." -ForegroundColor Cyan
+    pnpm add next-themes
+} else {
+    Write-Host "   ✅ next-themes déjà installé" -ForegroundColor Green
 }
 
-# src/App.jsx
-if (-not (Test-Path "src\App.jsx")) {
-    New-Item -Path "src" -Name "App.jsx" -ItemType File -Force | Out-Null
-    @'
-export default function App() {
-  return (
-    <div style={{ padding: 20, fontFamily: 'Arial' }}>
-      <h1 style={{ color: '#4CAF50' }}>ARCANE - Application Médicale</h1>
-      <p>Frontend React fonctionnel ✅</p>
-      <p>Base de données PostgreSQL connectée ✅</p>
-    </div>
-  );
-}
-'@ | Out-File -FilePath "src\App.jsx" -Encoding UTF8
-    Write-Host "   ✅ src/App.jsx créé" -ForegroundColor Green
+# 2. Mettre à jour main.jsx avec ThemeProvider
+Write-Host "2. Mise à jour de main.jsx..." -ForegroundColor Yellow
+$mainJsxPath = "src/main.jsx"
+if (Test-Path $mainJsxPath) {
+    $content = Get-Content $mainJsxPath -Raw
+    
+    # Vérifier si ThemeProvider est déjà présent
+    if ($content -notmatch "ThemeProvider") {
+        $newContent = $content -replace 
+            'import { Toaster as Sonner } from "@/components/ui/sonner";',
+            'import { Toaster as Sonner } from "@/components/ui/sonner";' + "`n" + 'import { ThemeProvider } from "next-themes";'
+        
+        $newContent = $newContent -replace 
+            '<TooltipProvider>',
+            '<ThemeProvider attribute="class" defaultTheme="light" enableSystem>' + "`n" + '  <TooltipProvider>'
+        
+        $newContent = $newContent -replace 
+            '</TooltipProvider>',
+            '  </TooltipProvider>' + "`n" + '</ThemeProvider>'
+        
+        $newContent | Set-Content $mainJsxPath -Encoding UTF8
+        Write-Host "   ✅ main.jsx mis à jour avec ThemeProvider" -ForegroundColor Green
+    } else {
+        Write-Host "   ✅ ThemeProvider déjà présent" -ForegroundColor Green
+    }
 }
 
-# 4. Démarrer Vite
-Write-Host "4. Démarrage de Vite..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; Write-Host '=== DÉMARRAGE VITE ===' -ForegroundColor Cyan; pnpm dev"
+# 3. Vérifier les routes problématiques
+Write-Host "3. Recherche de routes problématiques..." -ForegroundColor Yellow
+Get-ChildItem -Recurse -Filter *.jsx,*.tsx | ForEach-Object {
+    $file = $_.FullName
+    $content = Get-Content $file -Raw
+    
+    # Chercher des routes avec paramètres mal formés
+    if ($content -match 'path="[^"]*:[^a-zA-Z_$]' -or $content -match "path='[^']*:[^a-zA-Z_$]") {
+        Write-Host "   ⚠️  Route suspecte dans: $file" -ForegroundColor Yellow
+        Write-Host "      Extraît: $($matches[0])" -ForegroundColor Gray
+    }
+    
+    # Chercher les routes avec ":patientId" (bon format)
+    if ($content -match 'path="[^"]*:patientId[^"]*"') {
+        Write-Host "   ✅ Route /patient/:patientId trouvée dans: $file" -ForegroundColor Green
+    }
+}
 
-Write-Host "`n=== INSTRUCTIONS ===" -ForegroundColor Green
-Write-Host "1. Ouvrez http://localhost:3000" -ForegroundColor Cyan
-Write-Host "2. Appuyez sur Ctrl+F5 pour forcer le rafraîchissement" -ForegroundColor Cyan
-Write-Host "3. Ouvrez DevTools (F12) et partagez les erreurs" -ForegroundColor Cyan
+# 4. Nettoyer le cache
+Write-Host "4. Nettoyage du cache..." -ForegroundColor Yellow
+Remove-Item -Path "node_modules/.vite", "node_modules/.vite-temp" -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host "`n=== RÉSUMÉ ===" -ForegroundColor Green
+Write-Host "Problème 1: path-to-regexp" -ForegroundColor Cyan
+Write-Host "   → Vérifiez vos routes React Router (surtout /patient/:patientId)" -ForegroundColor White
+Write-Host "   → Le paramètre doit avoir un nom valide (:patientId, pas : ou :patient-id)" -ForegroundColor White
+Write-Host ""
+Write-Host "Problème 2: Sonner + useTheme" -ForegroundColor Cyan
+Write-Host "   → ThemeProvider ajouté dans main.jsx" -ForegroundColor White
+Write-Host "   → Alternative: <Sonner theme='light' /> si pas de gestion de thème" -ForegroundColor White
+Write-Host ""
+Write-Host "=== INSTRUCTIONS ===" -ForegroundColor Yellow
+Write-Host "1. Vérifiez MANUELLEMENT vos routes dans App.jsx et autres composants" -ForegroundColor White
+Write-Host "2. Démarrez Vite: pnpm dev" -ForegroundColor White
+Write-Host "3. Si erreur persiste, partagez TOUTES vos routes" -ForegroundColor White

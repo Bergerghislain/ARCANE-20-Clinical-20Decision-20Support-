@@ -9,6 +9,7 @@ export default function AddPatient() {
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
   const [gender, setGender] = useState("");
+  const [ipp, setIpp] = useState("");
   const [condition, setCondition] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,6 +18,7 @@ export default function AddPatient() {
       name,
       age: age === "" ? null : Number(age),
       gender,
+      ipp: ipp.trim() || undefined,
       condition,
     };
     const res = await fetch("/api/patients", {
@@ -40,6 +42,11 @@ export default function AddPatient() {
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            placeholder="IPP / MRN"
+            value={ipp}
+            onChange={(e) => setIpp(e.target.value)}
           />
           <Input
             type="number"
