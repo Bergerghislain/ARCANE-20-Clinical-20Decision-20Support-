@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 
 interface WelcomeScreenProps {
   onSelectPatient: () => void;
+  onStartGeneral: () => void;
 }
 
-export function WelcomeScreen({ onSelectPatient }: WelcomeScreenProps) {
+export function WelcomeScreen({
+  onSelectPatient,
+  onStartGeneral,
+}: WelcomeScreenProps) {
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-8">
       <div className="max-w-xl text-center">
@@ -81,15 +85,25 @@ export function WelcomeScreen({ onSelectPatient }: WelcomeScreenProps) {
         </div>
 
         {/* CTA Button */}
-        <Button
-          variant="default"
-          size="lg"
-          onClick={onSelectPatient}
-          className="w-full"
-        >
-          <span>Select a Patient to Begin</span>
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="space-y-3">
+          <Button
+            variant="default"
+            size="lg"
+            onClick={onSelectPatient}
+            className="w-full"
+          >
+            <span>Select a Patient to Begin</span>
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={onStartGeneral}
+            className="w-full"
+          >
+            <span>Ask a General Question</span>
+          </Button>
+        </div>
 
         {/* Footer Text */}
         <p className="mt-6 text-xs text-muted-foreground">

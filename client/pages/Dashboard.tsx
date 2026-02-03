@@ -19,6 +19,7 @@ interface Patient {
   name?: string | null;
   age?: number | null;
   condition?: string | null;
+  birthDate?: string | null;
   lastVisit?: string | null;
   status?: "active" | "completed" | "pending" | null;
 }
@@ -41,6 +42,14 @@ function normalizePatient(row: any, index: number): Patient {
             1,
           ).toISOString()
         : null;
+  const birthDateIso =
+    row?.birth_date_year
+      ? new Date(
+          Number(row.birth_date_year),
+          Math.max(0, Number(row.birth_date_month || 1) - 1),
+          Math.max(1, Number(row.birth_date_day || 1)),
+        ).toISOString()
+      : null;
 
   return {
     id: String(id),
@@ -52,6 +61,7 @@ function normalizePatient(row: any, index: number): Patient {
           ? new Date().getFullYear() - Number(row.birth_date_year)
           : null,
     condition: row?.condition ?? row?.diagnosis ?? null,
+    birthDate: birthDateIso,
     lastVisit: lastVisitIso,
     status: row?.status ?? "active",
   };
@@ -215,7 +225,7 @@ export default function Dashboard() {
                             (patient.status || "active").slice(1)}
                         </span>
                       </div>
-                      <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-4">
                         <div>
                           <span className="font-medium text-foreground">
                             {typeof patient.age === "number" ? patient.age : "—"}
@@ -223,6 +233,18 @@ export default function Dashboard() {
                           years
                         </div>
                         <div>{patient.condition || "Unknown condition"}</div>
+                        <div>
+                          {patient.birthDate
+                            ? new Date(patient.birthDate).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )
+                            : "Unknown birth date"}
+                        </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
                           {patient.lastVisit
@@ -249,6 +271,17 @@ export default function Dashboard() {
                         }}
                       >
                         <Bot className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-primary text-primary hover:bg-primary/10"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(`/patient/${patient.id}`);
+                        }}
+                      >
+                        <span className="text-xs font-medium">Edit</span>
                       </Button>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-secondary" />
                     </div>

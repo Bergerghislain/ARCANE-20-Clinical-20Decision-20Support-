@@ -135,8 +135,10 @@ export function useArgosHistory() {
 
   // Add message to current conversation
   const addMessage = useCallback(
-    (message: Omit<Message, "id">) => {
-      if (!currentConversationId) return;
+    (message: Omit<Message, "id">, conversationIdOverride?: string) => {
+      const targetConversationId =
+        conversationIdOverride ?? currentConversationId;
+      if (!targetConversationId) return;
 
       const messageWithId: Message = {
         ...message,
@@ -145,7 +147,7 @@ export function useArgosHistory() {
 
       setConversations((prev) =>
         prev.map((conv) => {
-          if (conv.id === currentConversationId) {
+          if (conv.id === targetConversationId) {
             return {
               ...conv,
               messages: [...conv.messages, messageWithId],

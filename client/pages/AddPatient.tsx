@@ -10,6 +10,8 @@ export default function AddPatient() {
   const [age, setAge] = useState<number | "">("");
   const [gender, setGender] = useState("");
   const [ipp, setIpp] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [status, setStatus] = useState("pending");
   const [condition, setCondition] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -19,6 +21,8 @@ export default function AddPatient() {
       age: age === "" ? null : Number(age),
       gender,
       ipp: ipp.trim() || undefined,
+      birthDate: birthDate || undefined,
+      status,
       condition,
     };
     const res = await fetch("/api/patients", {
@@ -49,6 +53,12 @@ export default function AddPatient() {
             onChange={(e) => setIpp(e.target.value)}
           />
           <Input
+            type="date"
+            placeholder="Date of birth"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+          />
+          <Input
             type="number"
             placeholder="Age"
             value={age}
@@ -59,6 +69,18 @@ export default function AddPatient() {
             value={gender}
             onChange={(e) => setGender(e.target.value)}
           />
+          <label className="block text-sm font-medium text-foreground">
+            Status
+          </label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
+          >
+            <option value="pending">Pending</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+          </select>
           <Input
             placeholder="Condition"
             value={condition}

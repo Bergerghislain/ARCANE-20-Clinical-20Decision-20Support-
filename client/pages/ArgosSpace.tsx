@@ -29,6 +29,13 @@ interface Patient {
   status?: "active" | "pending" | "completed";
 }
 
+const GENERAL_PATIENT: Patient = {
+  id: "general",
+  name: "General discussion",
+  age: 0,
+  condition: "General question",
+};
+
 // Mock patients from dashboard
 const mockPatients: Patient[] = [
   {
@@ -109,9 +116,10 @@ export default function ArgosSpace() {
   const currentConversation = argosHistory.getCurrentConversation();
 
   const patients = useMemo(() => {
-    if (!selectedPatient) return mockPatients;
+    if (!selectedPatient) return [GENERAL_PATIENT, ...mockPatients];
     const exists = mockPatients.some((p) => p.id === selectedPatient.id);
-    return exists ? mockPatients : [selectedPatient, ...mockPatients];
+    const base = exists ? mockPatients : [selectedPatient, ...mockPatients];
+    return [GENERAL_PATIENT, ...base];
   }, [selectedPatient]);
 
   const scrollToBottom = () => {
@@ -146,6 +154,14 @@ export default function ArgosSpace() {
     argosHistory.setCurrentConversationId(null);
   };
 
+  const handleStartGeneral = () => {
+    setSelectedPatient(GENERAL_PATIENT);
+    argosHistory.createConversation(
+      GENERAL_PATIENT.id,
+      GENERAL_PATIENT.name,
+    );
+  };
+
   useEffect(() => {
     const statePatient = (location.state as { patient?: Patient } | null)
       ?.patient;
@@ -171,29 +187,47 @@ export default function ArgosSpace() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || loading || !currentConversation) return;
+    if (!input.trim() || loading) return;
+
+    let conversation = currentConversation;
+    if (!conversation) {
+      const fallbackPatient = selectedPatient ?? GENERAL_PATIENT;
+      if (!selectedPatient) {
+        setSelectedPatient(fallbackPatient);
+      }
+      conversation = argosHistory.createConversation(
+        fallbackPatient.id,
+        fallbackPatient.name,
+      );
+    }
 
     // Add user message
-    const userMessage = argosHistory.addMessage({
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    });
+    const userMessage = argosHistory.addMessage(
+      {
+        role: "user",
+        content: input,
+        timestamp: new Date(),
+      },
+      conversation.id,
+    );
 
     setInput("");
     setLoading(true);
 
     // Update title from first user message if needed
-    argosHistory.updateTitleFromFirstMessage(currentConversation.id);
+    argosHistory.updateTitleFromFirstMessage(conversation.id);
 
     // Simulate ARGOS response
     setTimeout(() => {
-      argosHistory.addMessage({
-        role: "assistant",
-        content: "Here is my clinical assessment:",
-        timestamp: new Date(),
-        sections: mockARGOSResponse,
-      });
+      argosHistory.addMessage(
+        {
+          role: "assistant",
+          content: "Here is my clinical assessment:",
+          timestamp: new Date(),
+          sections: mockARGOSResponse,
+        },
+        conversation.id,
+      );
       setLoading(false);
     }, 1500);
   };
@@ -251,8 +285,11 @@ export default function ArgosSpace() {
                     </h1>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Patient: {selectedPatient.name} ({selectedPatient.mrn}) •{" "}
-                    {selectedPatient.condition}
+                    {selectedPatient.id === GENERAL_PATIENT.id
+                      ? "General discussion"
+                      : `Patient: ${selectedPatient.name} ${
+                          selectedPatient.mrn ? `(${selectedPatient.mrn})` : ""
+                        } • ${selectedPatient.condition}`}
                   </p>
                 </div>
               </div>
@@ -442,7 +479,10 @@ export default function ArgosSpace() {
                 onNewConversation={handleNewConversation}
                 onLoadConversation={handleLoadConversation}
               />
-              <WelcomeScreen onSelectPatient={handlePatientSelectorOpen} />
+              <WelcomeScreen
+                onSelectPatient={handlePatientSelectorOpen}
+                onStartGeneral={handleStartGeneral}
+              />
             </>
           )}
         </div>

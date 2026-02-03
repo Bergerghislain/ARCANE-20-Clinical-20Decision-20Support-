@@ -2,7 +2,12 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
-import { getPatients, getPatient, addPatient } from './routes/patients';
+import {
+  getPatients,
+  getPatient,
+  addPatient,
+  updatePatient,
+} from "./routes/patients";
 
 export function createServer() {
   const app = express();
@@ -20,9 +25,10 @@ export function createServer() {
 
   app.get("/api/demo", handleDemo);
 
-  app.get('/api/patients', getPatients);
-  app.get('/api/patients/:id', getPatient);
-  app.post('/api/patients', addPatient);
+  app.get("/api/patients", getPatients);
+  app.get("/api/patients/:id", getPatient);
+  app.post("/api/patients", addPatient);
+  app.put("/api/patients/:id", updatePatient);
 
   return app;
 }
