@@ -1,14 +1,20 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { clearAuth, getStoredUser } from "@/lib/auth";
 
 interface HeaderProps {
   userName?: string;
   onMenuClick?: () => void;
 }
 
-export function Header({ userName = "Dr. Martin", onMenuClick }: HeaderProps) {
+export function Header({ userName, onMenuClick }: HeaderProps) {
+  const navigate = useNavigate();
+  const storedUser = getStoredUser();
+  const displayName =
+    userName || storedUser?.full_name || storedUser?.username || "Clinician";
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-white/80 backdrop-blur shadow-sm">
       <div className="flex h-16 items-center justify-between px-6">
@@ -34,13 +40,17 @@ export function Header({ userName = "Dr. Martin", onMenuClick }: HeaderProps) {
           <div className="hidden items-center gap-2 sm:flex">
             <User className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">
-              {userName}
+              {displayName}
             </span>
           </div>
           <Button
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              clearAuth();
+              navigate("/login");
+            }}
           >
             <LogOut className="h-5 w-5" />
           </Button>

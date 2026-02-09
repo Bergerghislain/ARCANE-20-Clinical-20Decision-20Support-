@@ -7,7 +7,9 @@ import {
   getPatient,
   addPatient,
   updatePatient,
+  importPatientJson,
 } from "./routes/patients";
+import { login } from "./routes/auth";
 
 export function createServer() {
   const app = express();
@@ -25,9 +27,12 @@ export function createServer() {
 
   app.get("/api/demo", handleDemo);
 
+  app.post("/api/auth/login", login);
+
   app.get("/api/patients", getPatients);
   app.get("/api/patients/:id", getPatient);
   app.post("/api/patients", addPatient);
+  app.post("/api/patients/import", importPatientJson);
   app.put("/api/patients/:id", updatePatient);
 
   return app;

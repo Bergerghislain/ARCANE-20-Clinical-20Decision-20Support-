@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -51,9 +51,11 @@ function normalizePatient(row: any, index: number): Patient {
         ).toISOString()
       : null;
 
+  const fallbackName = row?.ipp ? `IPP ${row.ipp}` : null;
+
   return {
     id: String(id),
-    name: row?.name ?? row?.full_name ?? null,
+    name: row?.name ?? row?.full_name ?? fallbackName,
     age:
       typeof row?.age === "number"
         ? row.age
@@ -71,8 +73,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">("all");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -93,6 +98,48 @@ export default function Dashboard() {
     };
     fetchPatients();
   }, []);
+
+  const handleImportJson = async (file: File) => {
+    setImportError(null);
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const res = await fetch("/api/patients/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let message = "Import failed";
+        try {
+          const errorPayload = await res.json();
+          if (typeof errorPayload?.details === "string") {
+            message = errorPayload.details;
+          } else if (typeof errorPayload?.error === "string") {
+            message = errorPayload.error;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new Error(message);
+      }
+      const updated = await fetch("/api/patients");
+      if (updated.ok) {
+        const data = await updated.json();
+        const normalized = Array.isArray(data)
+          ? data.map((row, index) => normalizePatient(row, index))
+          : [];
+        setPatients(normalized);
+      }
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : "Unable to import file",
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const filteredPatients = patients.filter((patient) => {
     const nameValue = patient.name ?? "";
@@ -142,7 +189,7 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
             <Button
   variant="default"
   size="lg"
@@ -151,6 +198,27 @@ export default function Dashboard() {
   <Plus className="mr-2 h-5 w-5" />
   Add Patient
 </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    handleImportJson(file);
+                    event.target.value = "";
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+              >
+                {isImporting ? "Importing..." : "Import JSON"}
+              </Button>
 
               <Button variant="secondary" size="lg">
                 <Bot className="mr-2 h-5 w-5" />
@@ -162,6 +230,11 @@ export default function Dashboard() {
 
         {/* Contenu */}
         <div className="mx-auto max-w-7xl px-6 py-8">
+          {importError && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {importError}
+            </div>
+          )}
           {/* Recherche et filtres */}
           <div className="mb-6 space-y-4">
             <div className="relative">

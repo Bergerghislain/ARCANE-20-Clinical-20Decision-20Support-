@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Mail, AlertCircle } from "lucide-react";
+import { isAuthenticated, setAuth } from "@/lib/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,20 +12,40 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulate authentication
-    setTimeout(() => {
-      if (email && password) {
-        navigate("/dashboard");
-      } else {
-        setError("Please fill in all fields");
-      }
+    if (!email || !password) {
+      setError("Please fill in all fields");
       setLoading(false);
-    }, 500);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: email, password }),
+      });
+      if (!res.ok) {
+        throw new Error("Invalid credentials");
+      }
+      const data = await res.json();
+      setAuth(data.token, data.user);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,12 +91,12 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Email Address
+                Email or Username
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
-                  type="email"
+                  type="text"
                   placeholder="doctor@arcane.health"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -115,7 +136,7 @@ export default function Login() {
 
           <div className="mt-6 border-t border-border pt-6">
             <p className="text-center text-xs text-muted-foreground">
-              Demo credentials: any email & password
+              Demo credentials: email/username from DB + password "password"
             </p>
           </div>
         </div>
