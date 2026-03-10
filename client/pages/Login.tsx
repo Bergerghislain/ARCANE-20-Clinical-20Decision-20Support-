@@ -135,10 +135,24 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 border-t border-border pt-6">
-            <p className="text-center text-xs text-muted-foreground">
+          <div className="mt-6 border-t border-border pt-6 space-y-2 text-center text-xs text-muted-foreground">
+            <p>
               Demo credentials: email/username from DB + password "password"
             </p>
+            <button
+              type="button"
+              className="underline block w-full"
+              onClick={() => navigate("/register")}
+            >
+              Créer un compte clinicien
+            </button>
+            <button
+              type="button"
+              className="underline block w-full"
+              onClick={() => navigate("/forgot-password")}
+            >
+              Mot de passe oublié ?
+            </button>
           </div>
         </div>
 

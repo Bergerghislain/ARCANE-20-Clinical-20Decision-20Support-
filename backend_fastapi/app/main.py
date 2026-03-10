@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import auth, patients, argos
+from .routers import auth, patients, argos, admin
 from .settings import settings
 
 
@@ -31,4 +31,5 @@ def ping() -> dict[str, str]:
 app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(argos.router)
+app.include_router(admin.router)
 

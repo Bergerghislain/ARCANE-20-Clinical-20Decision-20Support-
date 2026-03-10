@@ -300,10 +300,21 @@ CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
 CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
 
 -- 21. Insérer des données de test
+-- Tous les mots de passe sont "password" en environnement de démo
 INSERT INTO users (username, email, password_hash, role, full_name) VALUES
 ('admin', 'admin@arcane.com', '$2a$10$YourHashedPasswordHere', 'admin', 'Administrateur System'),
 ('dr.martin', 'martin@hospital.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Martin Dupont'),
 ('researcher.jane', 'jane@research.com', '$2a$10$YourHashedPasswordHere', 'researcher', 'Jane Doe');
+
+-- Comptes supplémentaires pour tester les nouveaux flux d'authentification
+-- Cliniciens en attente de validation (is_active = FALSE)
+INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES
+('pending.clin1', 'pending1@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Pending One', FALSE),
+('pending.clin2', 'pending2@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Pending Two', FALSE);
+
+-- Clinicien désactivé (simule un compte rejeté / bloqué)
+INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES
+('disabled.clin', 'disabled@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Disabled', FALSE);
 
 INSERT INTO patients (name, ipp, birth_date_year, birth_date_month, sex, created_by, updated_by) VALUES
 ('Jean Dupont', 'PAT001', 1960, 5, 'MALE', 1, 1),

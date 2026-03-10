@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response, Request, status
+from pydantic import BaseModel, EmailStr, constr
 
-from ..db import fetch_one
+from ..db import fetch_one, execute
 from ..schemas import LoginIn, LoginOut, UserOut
 from ..security import (
   create_access_token,
   create_refresh_token,
   decode_refresh_token,
   verify_password,
+  pwd_context,
 )
 from ..settings import settings
 
@@ -132,3 +134,55 @@ def refresh_token(request: Request, response: Response) -> LoginOut:
 def logout(response: Response) -> None:
   _clear_refresh_cookie(response)
 
+class RegisterIn(BaseModel):
+  email: EmailStr
+  username: constr(min_length=3, max_length=100)
+  full_name: str | None = None
+  password: constr(min_length=8)
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(payload: RegisterIn):
+  # 1) Vérifier qu'aucun user n'a déjà cet email ou username
+  existing = fetch_one(
+    """
+    SELECT id
+    FROM users
+    WHERE email = %s OR username = %s
+    LIMIT 1
+    """,
+    (payload.email, payload.username),
+  )
+  if existing:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail="Email or username already in use",
+    )
+
+  # 2) Hasher le mot de passe
+  password_hash = pwd_context.hash(payload.password)
+
+  # 3) Insérer le user avec rôle clinician et is_active = FALSE
+  execute(
+    """
+    INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+    VALUES (%s, %s, %s, %s, %s, FALSE)
+    """,
+    (
+      payload.username,
+      payload.email,
+      password_hash,
+      "clinician",
+      payload.full_name,
+    ),
+  )
+
+  # 4) (optionnel) envoyer un email
+  # TODO: send confirmation email to payload.email
+
+  # 5) Réponse simple
+  return {
+    "message": "Account created, pending admin validation",
+    "email": payload.email,
+    "username": payload.username,
+  }
