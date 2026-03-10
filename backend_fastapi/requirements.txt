@@ -4,6 +4,12 @@ psycopg[binary]
 pydantic-settings
 python-dotenv
 python-jose[cryptography]
+# Passlib 1.7.x n'est pas encore compatible avec bcrypt 4.x :
+# on pince bcrypt à une version < 4.0.0 pour éviter les erreurs
+# "AttributeError: module 'bcrypt' has no attribute '__about__'"
+# et "ValueError: password cannot be longer than 72 bytes" lors du
+# test interne detect_wrap_bug().
 passlib[bcrypt]
+bcrypt<4.0.0
 pytest
 httpx

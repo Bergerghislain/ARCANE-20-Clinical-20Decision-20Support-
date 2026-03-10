@@ -10,20 +10,12 @@ import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
 import AdminUsers from "./pages/AdminUsers";
 import ForgotPassword from "./pages/ForgotPassword";
-import { isAuthenticated, getStoredUser } from "./lib/auth";
+import { isAuthenticated } from "./lib/auth";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const location = useLocation();
   if (!isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-  return children;
-}
-
-function RequireAdmin({ children }: { children: React.ReactElement }) {
-  const user = getStoredUser();
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -46,9 +38,7 @@ const App: React.FC = () => (
         path="/admin/users"
         element={
           <RequireAuth>
-            <RequireAdmin>
-              <AdminUsers />
-            </RequireAdmin>
+            <AdminUsers />
           </RequireAuth>
         }
       />

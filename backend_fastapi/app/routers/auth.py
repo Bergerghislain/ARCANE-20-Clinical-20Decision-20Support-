@@ -138,7 +138,8 @@ class RegisterIn(BaseModel):
   email: EmailStr
   username: constr(min_length=3, max_length=100)
   full_name: str | None = None
-  password: constr(min_length=8)
+  # Bcrypt ne supporte que 72 octets : on borne à 72 caractères.
+  password: constr(min_length=8, max_length=72)
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -159,10 +160,44 @@ def register(payload: RegisterIn):
       detail="Email or username already in use",
     )
 
-  # 2) Hasher le mot de passe
-  password_hash = pwd_context.hash(payload.password)
+  # 2) Vérifier la longueur du mot de passe côté backend (sécurité / robustesse)
+  #    Même si Pydantic borne déjà à 72 caractères, on ajoute une garde explicite
+  #    pour éviter toute erreur basse-niveau de bcrypt et renvoyer une 400 claire.
+  raw_password = payload.password or ""
+  if len(raw_password.encode("utf-8")) > 72:
+    from fastapi import status as _status
 
-  # 3) Insérer le user avec rôle clinician et is_active = FALSE
+    raise HTTPException(
+      status_code=_status.HTTP_400_BAD_REQUEST,
+      detail="Password too long (max 72 characters).",
+    )
+
+  # 2bis) Log de debug pour cette session (longueur du mot de passe)
+  # #region agent log
+  try:
+    import json as _json
+    import time as _time
+
+    log = {
+      "sessionId": "9d5a7f",
+      "runId": "pre-fix",
+      "hypothesisId": "H1",
+      "location": "app/routers/auth.py:register",
+      "message": "register password length before hash",
+      "data": {"length": len(raw_password)},
+      "timestamp": int(_time.time() * 1000),
+    }
+    with open("debug-9d5a7f.log", "a", encoding="utf-8") as _f:
+      _f.write(_json.dumps(log) + "\n")
+  except Exception:
+    # On ne casse jamais la requête pour un problème de log
+    pass
+  # #endregion agent log
+
+  # 3) Hasher le mot de passe
+  password_hash = pwd_context.hash(raw_password)
+
+  # 4) Insérer le user avec rôle clinician et is_active = FALSE
   execute(
     """
     INSERT INTO users (username, email, password_hash, role, full_name, is_active)
@@ -177,10 +212,10 @@ def register(payload: RegisterIn):
     ),
   )
 
-  # 4) (optionnel) envoyer un email
+  # 5) (optionnel) envoyer un email
   # TODO: send confirmation email to payload.email
 
-  # 5) Réponse simple
+  # 6) Réponse simple
   return {
     "message": "Account created, pending admin validation",
     "email": payload.email,

@@ -25,6 +25,10 @@ export default function Register() {
       setError("Veuillez remplir tous les champs obligatoires.");
       return;
     }
+    if (password.length > 72) {
+      setError("Le mot de passe ne doit pas dépasser 72 caractères.");
+      return;
+    }
     if (password !== passwordConfirm) {
       setError("Les mots de passe ne correspondent pas.");
       return;
@@ -162,6 +166,7 @@ export default function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   disabled={loading}
+                  maxLength={72}
                 />
               </div>
             </div>

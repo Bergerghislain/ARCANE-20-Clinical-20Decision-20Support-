@@ -322,6 +322,34 @@ INSERT INTO patients (name, ipp, birth_date_year, birth_date_month, sex, created
 ('Pierre Martin', 'PAT003', 1955, 2, 'MALE', 2, 2),
 ('Sophie Bernard', 'PAT004', 1982, 11, 'FEMALE', 2, 2);
 
+
+-- 1) Créer un compte admin s'il n'existe pas encore
+INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+SELECT 'admin', 'admin@arcane.com', '$2a$10$YourHashedPasswordHere', 'admin', 'Administrateur System', TRUE
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'admin@arcane.com'
+);
+
+-- 2) Créer deux cliniciens EN_ATTENTE (is_active = FALSE)
+INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+SELECT 'pending.clin1', 'pending1@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Pending One', FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'pending1@arcane.com'
+);
+
+INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+SELECT 'pending.clin2', 'pending2@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Pending Two', FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'pending2@arcane.com'
+);
+
+-- 3) Un clinicien désactivé (simuler REJETÉ)
+INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+SELECT 'disabled.clin', 'disabled@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr. Disabled', FALSE
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'disabled@arcane.com'
+);
+
 -- 22. Message de confirmation
 DO $$
 BEGIN

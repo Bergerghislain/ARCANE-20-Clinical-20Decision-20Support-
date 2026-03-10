@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
-import { getStoredUser } from "@/lib/auth";
 
 interface AdminUserRow {
   id: number;
@@ -15,20 +14,22 @@ interface AdminUserRow {
 
 export default function AdminUsers() {
   const navigate = useNavigate();
-  const currentUser = getStoredUser();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
-    if (!currentUser || currentUser.role !== "admin") {
-      return;
-    }
     const load = async () => {
       setError(null);
       setLoading(true);
       try {
         const res = await apiFetch("/api/admin/users?status=EN_ATTENTE");
+        if (res.status === 403) {
+          setUnauthorized(true);
+          setUsers([]);
+          return;
+        }
         if (!res.ok) {
           throw new Error("Unable to load pending users");
         }
@@ -41,7 +42,7 @@ export default function AdminUsers() {
       }
     };
     void load();
-  }, [currentUser]);
+  }, []);
 
   const handleValidate = async (id: number, action: "APPROVE" | "REJECT") => {
     try {
@@ -63,7 +64,7 @@ export default function AdminUsers() {
     }
   };
 
-  if (!currentUser || currentUser.role !== "admin") {
+  if (unauthorized) {
     return (
       <MainLayout>
         <div className="p-6">
