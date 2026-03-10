@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..db import fetch_all, fetch_one, get_conn_tx, execute
-from ..deps import CurrentUser
+from ..deps import ClinicianUser
 from ..schemas import (
   ArgosDiscussionCreateIn,
   ArgosDiscussionOut,
@@ -100,7 +100,7 @@ def _log_activity(
 def create_discussion(
   payload: ArgosDiscussionCreateIn,
   request: Request,
-  user: CurrentUser,
+  user: ClinicianUser,
 ) -> ArgosDiscussionOut:
   # Vérifier que le patient existe
   patient = fetch_one(
@@ -162,7 +162,7 @@ def create_discussion(
 
 @router.get("/discussions", response_model=list[ArgosDiscussionOut])
 def list_discussions(
-  user: CurrentUser,
+  user: ClinicianUser,
   patient_id: int | None = None,
 ) -> list[ArgosDiscussionOut]:
   if patient_id is not None:
@@ -189,7 +189,7 @@ def list_discussions(
 
 
 @router.get("/discussions/{discussion_id}", response_model=ArgosDiscussionOut)
-def get_discussion(discussion_id: int, user: CurrentUser) -> ArgosDiscussionOut:
+def get_discussion(discussion_id: int, user: ClinicianUser) -> ArgosDiscussionOut:
   row = fetch_one(
     """
     SELECT *
@@ -204,7 +204,7 @@ def get_discussion(discussion_id: int, user: CurrentUser) -> ArgosDiscussionOut:
 
 
 @router.get("/discussions/{discussion_id}/messages", response_model=list[ArgosMessageOut])
-def list_messages(discussion_id: int, user: CurrentUser) -> list[ArgosMessageOut]:
+def list_messages(discussion_id: int, user: ClinicianUser) -> list[ArgosMessageOut]:
   # Vérifier que la discussion appartient bien au clinicien
   discussion = fetch_one(
     """
@@ -238,7 +238,7 @@ def add_message(
   discussion_id: int,
   payload: ArgosMessageCreateIn,
   request: Request,
-  user: CurrentUser,
+  user: ClinicianUser,
 ) -> ArgosMessageOut:
   # Vérifier que la discussion appartient bien au clinicien
   discussion = fetch_one(

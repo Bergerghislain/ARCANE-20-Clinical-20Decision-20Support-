@@ -57,3 +57,36 @@ def decode_token(token: str) -> dict[str, Any]:
   except JWTError as exc:
     raise ValueError("Invalid token") from exc
 
+
+def create_refresh_token(subject: str) -> str:
+  """Crée un refresh token JWT avec une durée de vie plus longue."""
+  now = datetime.now(timezone.utc)
+  expire = now + timedelta(days=settings.refresh_token_expire_days)
+  payload: dict[str, Any] = {
+    "sub": subject,
+    "type": "refresh",
+    "iss": settings.jwt_issuer,
+    "aud": settings.jwt_audience,
+    "iat": int(now.timestamp()),
+    "exp": int(expire.timestamp()),
+  }
+  return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def decode_refresh_token(token: str) -> dict[str, Any]:
+  try:
+    claims = jwt.decode(
+      token,
+      settings.jwt_secret,
+      algorithms=["HS256"],
+      audience=settings.jwt_audience,
+      issuer=settings.jwt_issuer,
+      options={"verify_aud": True, "verify_iss": True},
+    )
+  except JWTError as exc:
+    raise ValueError("Invalid token") from exc
+
+  if claims.get("type") != "refresh":
+    raise ValueError("Invalid token type")
+  return claims
+

@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import fetch_all, fetch_one, get_conn_tx
-from ..deps import CurrentUser
+from ..deps import ClinicianOrAdminUser
 from ..schemas import PatientCreateIn
 
 
@@ -14,13 +14,13 @@ router = APIRouter(prefix="/api/patients", tags=["patients"])
 
 
 @router.get("")
-def get_patients(_user: CurrentUser) -> list[dict[str, Any]]:
+def get_patients(_user: ClinicianOrAdminUser) -> list[dict[str, Any]]:
   rows = fetch_all("SELECT * FROM patients ORDER BY id_patient")
   return rows
 
 
 @router.get("/{patient_id}")
-def get_patient(patient_id: int, _user: CurrentUser) -> dict[str, Any]:
+def get_patient(patient_id: int, _user: ClinicianOrAdminUser) -> dict[str, Any]:
   row = fetch_one("SELECT * FROM patients WHERE id_patient = %s", (patient_id,))
   if not row:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
@@ -28,7 +28,7 @@ def get_patient(patient_id: int, _user: CurrentUser) -> dict[str, Any]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def add_patient(payload: PatientCreateIn, user: CurrentUser) -> dict[str, Any]:
+def add_patient(payload: PatientCreateIn, user: ClinicianOrAdminUser) -> dict[str, Any]:
   # Aligné avec ta table `patients` actuelle (setup_database.sql)
   ipp = (payload.ipp or "").strip() or None
   if ipp is None:
@@ -88,7 +88,7 @@ def add_patient(payload: PatientCreateIn, user: CurrentUser) -> dict[str, Any]:
 
 
 @router.post("/import", status_code=status.HTTP_201_CREATED)
-def import_patient_json(payload: dict[str, Any], _user: CurrentUser) -> dict[str, Any]:
+def import_patient_json(payload: dict[str, Any], _user: ClinicianOrAdminUser) -> dict[str, Any]:
   if not payload or not payload.get("ipp"):
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing ipp in payload")
 

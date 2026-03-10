@@ -57,3 +57,26 @@ def get_current_user(
 
 CurrentUser = Annotated[dict[str, Any], Depends(get_current_user)]
 
+
+def require_role(*roles: str):
+  """Fabrique une dépendance FastAPI qui impose un rôle."""
+
+  def _dep(user: CurrentUser) -> dict[str, Any]:
+    role = str(user.get("role") or "").lower()
+    if role not in [r.lower() for r in roles]:
+      raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Insufficient permissions",
+      )
+    return user
+
+  return _dep
+
+
+ClinicianUser = Annotated[dict[str, Any], Depends(require_role("clinician"))]
+AdminUser = Annotated[dict[str, Any], Depends(require_role("admin"))]
+ClinicianOrAdminUser = Annotated[
+  dict[str, Any],
+  Depends(require_role("clinician", "admin")),
+]
+

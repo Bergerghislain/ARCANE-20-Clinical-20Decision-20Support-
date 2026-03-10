@@ -17,6 +17,14 @@ class Settings(BaseSettings):
   jwt_audience: str = "arcane-client"
   access_token_expire_minutes: int = 60
 
+  # Durée de vie des refresh tokens (jours)
+  refresh_token_expire_days: int = 7
+
+  # Cookies (pour refresh_token)
+  cookie_domain: str | None = None
+  cookie_secure: bool = False
+  cookie_samesite: str = "lax"
+
   cors_origins: str = "http://localhost:8080"
 
 
