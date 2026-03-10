@@ -133,6 +133,19 @@ export function useArgosHistory() {
     [],
   );
 
+  // Hydrate a conversation from an external source (e.g. backend)
+  const hydrateConversation = useCallback(
+    (conversation: Conversation) => {
+      setConversations((prev) => {
+        const others = prev.filter((c) => c.id !== conversation.id);
+        return [conversation, ...others];
+      });
+      setCurrentConversationId(conversation.id);
+      setCurrentPatientId(conversation.patientId);
+    },
+    [],
+  );
+
   // Add message to current conversation
   const addMessage = useCallback(
     (message: Omit<Message, "id">, conversationIdOverride?: string) => {
@@ -304,5 +317,6 @@ export function useArgosHistory() {
     getConversationsByDate,
     setCurrentPatientId,
     setCurrentConversationId,
+    hydrateConversation,
   };
 }

@@ -19,6 +19,12 @@ import { useArgosHistory, Message } from "@/hooks/useArgosHistory";
 import { WelcomeScreen } from "@/components/argos/WelcomeScreen";
 import { PatientSelector } from "@/components/argos/PatientSelector";
 import { ArgosSidebar } from "@/components/argos/ArgosSidebar";
+import {
+  createArgosDiscussion,
+  fetchArgosDiscussions,
+  fetchArgosMessages,
+  postArgosMessage,
+} from "@/lib/argosApi";
 
 interface Patient {
   id: string;
@@ -111,6 +117,9 @@ export default function ArgosSpace() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [backendDiscussionIds, setBackendDiscussionIds] = useState<
+    Record<string, number>
+  >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentConversation = argosHistory.getCurrentConversation();
@@ -130,6 +139,18 @@ export default function ArgosSpace() {
     scrollToBottom();
   }, [currentConversation?.messages]);
 
+  const getBackendDiscussionId = (conversationId: string | null) => {
+    if (!conversationId) return null;
+    return backendDiscussionIds[conversationId] ?? null;
+  };
+
+  const setBackendDiscussionId = (conversationId: string, id: number) => {
+    setBackendDiscussionIds((prev) => ({
+      ...prev,
+      [conversationId]: id,
+    }));
+  };
+
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
     argosHistory.setCurrentPatientId(patient.id);
@@ -137,12 +158,71 @@ export default function ArgosSpace() {
     const patientConvs = argosHistory.getConversationsByPatient(patient.id);
     if (patientConvs.length > 0) {
       argosHistory.loadConversation(patientConvs[0].id);
+      return;
+    }
+    // Pas encore de conversation locale : on tentera de charger une discussion ARGOS existante
+    if (patient.id !== GENERAL_PATIENT.id) {
+      void (async () => {
+        try {
+          const patientIdNum = Number(patient.id);
+          if (!Number.isFinite(patientIdNum)) return;
+          const discussions = await fetchArgosDiscussions(patientIdNum);
+          if (discussions.length === 0) return;
+
+          const discussion = discussions[0];
+          const messages = await fetchArgosMessages(discussion.id);
+
+          const convId = `conv_${discussion.id}`;
+          const conversation = {
+            id: convId,
+            patientId: String(patient.id),
+            patientName: patient.name,
+            title: discussion.title || "ARGOS Discussion",
+            createdAt: new Date(discussion.created_at),
+            updatedAt: new Date(discussion.updated_at),
+            messages: messages.map<Message>((m) => ({
+              id: `msg_${m.id}`,
+              role: m.message_type === "user_query" ? "user" : "assistant",
+              content: m.content,
+              timestamp: new Date(m.created_at),
+              sections: m.sections
+                ? {
+                    clinicalSynthesis: m.sections.clinicalSynthesis ?? "",
+                    hypotheses: m.sections.hypotheses ?? [],
+                    arguments: m.sections.arguments ?? [],
+                    nextSteps: m.sections.nextSteps ?? [],
+                    traceability: m.sections.traceability ?? "",
+                  }
+                : undefined,
+            })),
+          };
+          argosHistory.hydrateConversation(conversation);
+          setBackendDiscussionId(convId, discussion.id);
+        } catch {
+          // en cas d'erreur, on reste en local uniquement
+        }
+      })();
     }
   };
 
   const handleNewConversation = (patient: Patient) => {
     setSelectedPatient(patient);
-    argosHistory.createConversation(patient.id, patient.name);
+    const conv = argosHistory.createConversation(patient.id, patient.name);
+    if (patient.id !== GENERAL_PATIENT.id) {
+      void (async () => {
+        try {
+          const patientIdNum = Number(patient.id);
+          if (!Number.isFinite(patientIdNum)) return;
+          const discussion = await createArgosDiscussion({
+            patientId: patientIdNum,
+            title: conv.title,
+          });
+          setBackendDiscussionId(conv.id, discussion.id);
+        } catch {
+          // on garde au moins la conversation locale
+        }
+      })();
+    }
   };
 
   const handleLoadConversation = (patient: Patient) => {
@@ -177,7 +257,7 @@ export default function ArgosSpace() {
     if (patientConvs.length > 0) {
       argosHistory.loadConversation(patientConvs[0].id);
     } else {
-      argosHistory.createConversation(statePatient.id, statePatient.name);
+      handleNewConversation(statePatient);
     }
   }, [
     location.state,
@@ -217,9 +297,19 @@ export default function ArgosSpace() {
     // Update title from first user message if needed
     argosHistory.updateTitleFromFirstMessage(conversation.id);
 
+    const backendDiscussionId = getBackendDiscussionId(conversation.id);
+    if (backendDiscussionId && userMessage) {
+      void postArgosMessage(backendDiscussionId, {
+        message_type: "user_query",
+        content: userMessage.content,
+      }).catch(() => {
+        // si l'enregistrement serveur échoue, on garde au moins l'historique local
+      });
+    }
+
     // Simulate ARGOS response
     setTimeout(() => {
-      argosHistory.addMessage(
+      const assistantMessage = argosHistory.addMessage(
         {
           role: "assistant",
           content: "Here is my clinical assessment:",
@@ -228,6 +318,21 @@ export default function ArgosSpace() {
         },
         conversation.id,
       );
+      if (backendDiscussionId && assistantMessage) {
+        void postArgosMessage(backendDiscussionId, {
+          message_type: "argos_response",
+          content: assistantMessage.content,
+          sections: {
+            clinicalSynthesis: mockARGOSResponse.clinicalSynthesis,
+            hypotheses: mockARGOSResponse.hypotheses,
+            arguments: mockARGOSResponse.arguments,
+            nextSteps: mockARGOSResponse.nextSteps,
+            traceability: mockARGOSResponse.traceability,
+          },
+        }).catch(() => {
+          // ignore error côté serveur
+        });
+      }
       setLoading(false);
     }, 1500);
   };

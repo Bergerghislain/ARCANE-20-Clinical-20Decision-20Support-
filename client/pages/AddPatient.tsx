@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
 
 export default function AddPatient() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function AddPatient() {
       status,
       condition,
     };
-    const res = await fetch("/api/patients", {
+    const res = await apiFetch("/api/patients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

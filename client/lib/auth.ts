@@ -13,6 +13,10 @@ export function isAuthenticated(): boolean {
   return Boolean(localStorage.getItem(AUTH_TOKEN_KEY));
 }
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
 export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(AUTH_USER_KEY);
   if (!raw) return null;

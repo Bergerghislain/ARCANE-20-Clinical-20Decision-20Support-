@@ -1,0 +1,2 @@
+"""ARCANE FastAPI backend package."""
+

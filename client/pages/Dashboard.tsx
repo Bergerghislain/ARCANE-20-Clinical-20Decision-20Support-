@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api";
 
 import {
   Search,
@@ -82,7 +83,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const res = await fetch("/api/patients");
+        const res = await apiFetch("/api/patients");
         if (res.ok) {
           const data = await res.json();
           const normalized = Array.isArray(data)
@@ -105,7 +106,7 @@ export default function Dashboard() {
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      const res = await fetch("/api/patients/import", {
+      const res = await apiFetch("/api/patients/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -124,7 +125,7 @@ export default function Dashboard() {
         }
         throw new Error(message);
       }
-      const updated = await fetch("/api/patients");
+      const updated = await apiFetch("/api/patients");
       if (updated.ok) {
         const data = await updated.json();
         const normalized = Array.isArray(data)
