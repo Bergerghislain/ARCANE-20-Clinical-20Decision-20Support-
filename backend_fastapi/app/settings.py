@@ -16,6 +16,7 @@ class Settings(BaseSettings):
   jwt_issuer: str = "arcane"
   jwt_audience: str = "arcane-client"
   access_token_expire_minutes: int = 60
+  ping_message: str = "ping"
 
   # Durée de vie des refresh tokens (jours)
   refresh_token_expire_days: int = 7

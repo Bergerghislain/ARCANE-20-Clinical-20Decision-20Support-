@@ -21,19 +21,18 @@ principales (users, patients, etc.).
 
 Front‑end : Application monopage React/TypeScript utilisant Vite et Tailwind CSS.
 
-Serveur Express : intégré au serveur de développement afin d'exposer les API et d'offrir
-un point d'entrée unique en mode développement.
+Back-end unique : FastAPI est désormais l'unique backend d'exécution. L'ancien backend
+Express n'est plus utilisé dans les scripts de développement/production.
 
 Authentification : mécanismes JWT/OAuth2 pour sécuriser les accès.
 
 ## Structure du dépôt
 client/        # code source React (pages, composants, styles)
-server/        # API Express et routes
-shared/        # types et fonctions partagés entre client et serveur
+backend_fastapi/ # API FastAPI (auth, patients, admin, argos)
+shared/        # types/fonctions partagés côté frontend
 Database: arcane  # script SQL décrivant le schéma PostgreSQL
-vite.config.ts      # configuration Vite pour le client et le dev server
-vite.config.server.ts  # configuration Vite pour le build du serveur
-package.json    # scripts npm/pnpm (dev, build, start) et dépendances
+vite.config.ts      # configuration Vite frontend (proxy /api -> FastAPI en dev)
+package.json    # scripts npm/pnpm (dev frontend, start FastAPI, build)
 
 ## Installation et exécution
 
@@ -47,19 +46,22 @@ cd ARCANE-20-Clinical-20Decision-20Support-
 ### Installer les dépendances
 pnpm install    # ou npm install
 
-### Démarrer en développement (client + API sur http://localhost:8080)
-pnpm run dev    # ou npm run dev
+### Démarrer en développement
+# Terminal 1: backend FastAPI
+pnpm run dev:api
+
+# Terminal 2: frontend Vite
+pnpm run dev
 
 ### Construire puis lancer la version de production
 pnpm run build
 pnpm run start
 
 
-Le serveur de développement Vite sert l'application React et l'API Express sur un port unique
-(par défaut : 8080). La configuration (ports, règles d'accès au système de fichiers) se trouve
-dans vite.config.ts. Des variables d'environnement peuvent être placées dans un fichier
-.env pour personnaliser certains comportements (par exemple PING_MESSAGE pour l'endpoint
-/api/ping).
+Le frontend Vite est servi sur le port 8080 en développement. Les appels `/api/*` sont
+proxifiés vers FastAPI (port 8000) via `vite.config.ts`. Des variables d'environnement peuvent
+être placées dans un fichier `.env` pour personnaliser les comportements backend
+(par exemple `PING_MESSAGE` pour l'endpoint `/api/ping`).
 
 ## Base de données
 

@@ -1,16 +1,66 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
 from ..db import fetch_all, fetch_one, get_conn_tx
 from ..deps import ClinicianOrAdminUser
-from ..schemas import PatientCreateIn
-
-
 router = APIRouter(prefix="/api/patients", tags=["patients"])
+
+
+def _normalize_sex(value: Any) -> str | None:
+  if not isinstance(value, str):
+    return None
+  normalized = value.strip().upper()
+  return normalized if normalized in ("MALE", "FEMALE", "OTHER") else None
+
+
+def _normalize_status_create(value: Any) -> str:
+  if not isinstance(value, str) or not value.strip():
+    return "pending"
+  normalized = value.strip().lower()
+  return normalized if normalized in ("pending", "active", "completed") else "pending"
+
+
+def _normalize_status_update(value: Any) -> str | None:
+  if not isinstance(value, str) or not value.strip():
+    return None
+  normalized = value.strip().lower()
+  return normalized if normalized in ("pending", "active", "completed") else None
+
+
+def _parse_birth_parts(payload: dict[str, Any]) -> tuple[int | None, int | None, int | None]:
+  # Priorité 1: champs explicites snake_case.
+  year = payload.get("birth_date_year")
+  month = payload.get("birth_date_month")
+  day = payload.get("birth_date_day")
+  if isinstance(year, int) or isinstance(month, int) or isinstance(day, int):
+    return (
+      int(year) if isinstance(year, int) else None,
+      int(month) if isinstance(month, int) else None,
+      int(day) if isinstance(day, int) else None,
+    )
+
+  # Priorité 2: date ISO "birthDate" (payload Express historique).
+  birth_date = payload.get("birthDate")
+  if isinstance(birth_date, str) and birth_date.strip():
+    try:
+      parsed = datetime.fromisoformat(birth_date.strip().replace("Z", "+00:00"))
+      return parsed.year, parsed.month, parsed.day
+    except ValueError:
+      return None, None, None
+
+  # Priorité 3: âge (payload Express historique).
+  age = payload.get("age")
+  if isinstance(age, int):
+    return datetime.now().year - age, None, None
+  if isinstance(age, float):
+    return datetime.now().year - int(age), None, None
+
+  return None, None, None
 
 
 @router.get("")
@@ -28,25 +78,25 @@ def get_patient(patient_id: int, _user: ClinicianOrAdminUser) -> dict[str, Any]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def add_patient(payload: PatientCreateIn, user: ClinicianOrAdminUser) -> dict[str, Any]:
-  # Aligné avec ta table `patients` actuelle (setup_database.sql)
-  ipp = (payload.ipp or "").strip() or None
+def add_patient(payload: dict[str, Any], user: ClinicianOrAdminUser) -> dict[str, Any]:
+  # Compatibilité payload FastAPI + payload historique Express.
+  ipp_raw = payload.get("ipp")
+  ipp = ipp_raw.strip() if isinstance(ipp_raw, str) and ipp_raw.strip() else None
   if ipp is None:
-    # Comportement similaire au fallback `ARC-${Date.now()}`
-    # Ici on fait simple en générant un IPP pseudo-unique.
     import time
 
     ipp = f"ARC-{user['id']}-{int(time.time() * 1000)}"
 
-  status_value = (payload.status or "pending").strip().lower()
-  if status_value not in ("pending", "active", "completed"):
-    status_value = "pending"
+  status_value = _normalize_status_create(payload.get("status"))
+  sex = _normalize_sex(payload.get("sex") or payload.get("gender"))
+  birth_year, birth_month, birth_day = _parse_birth_parts(payload)
 
-  sex = (payload.sex or "").strip().upper() or None
-  if sex not in (None, "MALE", "FEMALE", "OTHER"):
-    sex = None
-
-  health_info_json = json.dumps(payload.health_info) if payload.health_info is not None else None
+  health_info_payload = payload.get("health_info")
+  if health_info_payload is None:
+    health_info_payload = payload.get("healthInfo")
+  health_info_json = (
+    json.dumps(health_info_payload) if health_info_payload is not None else None
+  )
 
   inserted = fetch_one(
     """
@@ -67,13 +117,13 @@ def add_patient(payload: PatientCreateIn, user: ClinicianOrAdminUser) -> dict[st
     RETURNING id_patient
     """,
     (
-      payload.name,
+      payload.get("name"),
       ipp,
-      payload.birth_date_year,
-      payload.birth_date_month,
-      payload.birth_date_day,
+      birth_year,
+      birth_month,
+      birth_day,
       sex,
-      payload.condition,
+      payload.get("condition"),
       status_value,
       health_info_json,
       int(user["id"]),
@@ -85,6 +135,77 @@ def add_patient(payload: PatientCreateIn, user: ClinicianOrAdminUser) -> dict[st
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create patient")
 
   return {"id": inserted["id_patient"]}
+
+
+@router.put("/{patient_id}")
+def update_patient(
+  patient_id: int,
+  payload: dict[str, Any],
+  _user: ClinicianOrAdminUser,
+) -> dict[str, Any]:
+  existing = fetch_one(
+    "SELECT id_patient FROM patients WHERE id_patient = %s",
+    (patient_id,),
+  )
+  if not existing:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+
+  updates: list[str] = []
+  values: list[Any] = []
+
+  def add_update(column: str, value: Any) -> None:
+    updates.append(f"{column} = %s")
+    values.append(value)
+
+  if "name" in payload:
+    add_update("name", payload.get("name"))
+  if "ipp" in payload:
+    ipp_raw = payload.get("ipp")
+    add_update(
+      "ipp",
+      ipp_raw.strip() if isinstance(ipp_raw, str) and ipp_raw.strip() else None,
+    )
+  if "condition" in payload:
+    add_update("condition", payload.get("condition"))
+  if "status" in payload:
+    add_update("status", _normalize_status_update(payload.get("status")))
+
+  if "health_info" in payload or "healthInfo" in payload:
+    health_info_payload = payload.get("health_info")
+    if health_info_payload is None:
+      health_info_payload = payload.get("healthInfo")
+    add_update(
+      "health_info",
+      json.dumps(health_info_payload) if health_info_payload is not None else None,
+    )
+
+  if (
+    "birthDate" in payload
+    or "birth_date_year" in payload
+    or "birth_date_month" in payload
+    or "birth_date_day" in payload
+    or "age" in payload
+  ):
+    birth_year, birth_month, birth_day = _parse_birth_parts(payload)
+    add_update("birth_date_year", birth_year)
+    add_update("birth_date_month", birth_month)
+    add_update("birth_date_day", birth_day)
+
+  if "gender" in payload or "sex" in payload:
+    add_update("sex", _normalize_sex(payload.get("sex") or payload.get("gender")))
+
+  if not updates:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+
+  query = (
+    f"UPDATE patients SET {', '.join(updates)}, updated_at = CURRENT_TIMESTAMP "
+    "WHERE id_patient = %s RETURNING *"
+  )
+  values.append(patient_id)
+  updated = fetch_one(query, tuple(values))
+  if not updated:
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
+  return updated
 
 
 @router.post("/import", status_code=status.HTTP_201_CREATED)

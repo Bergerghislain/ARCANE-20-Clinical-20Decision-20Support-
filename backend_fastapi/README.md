@@ -1,6 +1,6 @@
-## Backend FastAPI (nouveau)
+## Backend FastAPI
 
-Ce dossier contient un backend **FastAPI** qui peut cohabiter avec le backend Express existant le temps de la migration.
+Ce dossier contient désormais le backend **FastAPI unique** du projet ARCANE.
 
 ### Prérequis
 
@@ -49,12 +49,21 @@ uvicorn app.main:app --reload --port 8000
 ### Endpoints disponibles
 
 - `GET /api/ping`
-- `POST /api/auth/login` -> `{ token, user }` (compatible avec ton frontend actuel)
+- `GET /api/demo`
+- `POST /api/auth/login` -> `{ token, user }`
+- `POST /api/auth/register`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
 - `GET /api/patients` (protégé)
 - `GET /api/patients/{id}` (protégé)
 - `POST /api/patients` (protégé)
+- `PUT /api/patients/{id}` (protégé)
+- `POST /api/patients/import` (protégé)
+- `GET /api/admin/users` (admin)
+- `POST /api/admin/users/{id}/validate` (admin)
 
 ### Notes migration
 
-- Ton frontend appelle actuellement `/api/patients` sans envoyer le token. Avec ce backend FastAPI, ces routes sont protégées: il faudra ajouter `Authorization: Bearer <token>` côté client (ou basculer vers cookies HttpOnly plus tard).
+- Le frontend doit envoyer `Authorization: Bearer <token>` sur les routes protégées.
+- Les payloads patients historiques de l'ancien backend Express (`age`, `gender`, `birthDate`) sont supportés par FastAPI pour compatibilité.
 
