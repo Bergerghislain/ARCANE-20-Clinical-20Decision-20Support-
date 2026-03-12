@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Users, Bot, Settings, HelpCircle, X } from "lucide-react";
+import { Users, Bot, Settings, HelpCircle, Shield, X } from "lucide-react";
+import { getStoredUser } from "@/lib/auth";
 
 interface NavItem {
   label: string;
@@ -13,23 +14,33 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-const navItems: NavItem[] = [
-  {
-    label: "Patients",
-    icon: <Users className="h-5 w-5" />,
-    href: "/dashboard",
-  },
-  { label: "ARGOS Space", icon: <Bot className="h-5 w-5" />, href: "/argos" },
-  {
-    label: "Settings",
-    icon: <Settings className="h-5 w-5" />,
-    href: "/settings",
-  },
-  { label: "Help", icon: <HelpCircle className="h-5 w-5" />, href: "/help" },
-];
-
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const location = useLocation();
+  const user = getStoredUser();
+  const isAdmin = (user?.role || "").toLowerCase() === "admin";
+
+  const navItems: NavItem[] = [
+    {
+      label: "Patients",
+      icon: <Users className="h-5 w-5" />,
+      href: "/dashboard",
+    },
+    { label: "ARGOS Space", icon: <Bot className="h-5 w-5" />, href: "/argos" },
+    {
+      label: "Settings",
+      icon: <Settings className="h-5 w-5" />,
+      href: "/settings",
+    },
+    { label: "Help", icon: <HelpCircle className="h-5 w-5" />, href: "/help" },
+  ];
+
+  if (isAdmin) {
+    navItems.push({
+      label: "Administration",
+      icon: <Shield className="h-5 w-5" />,
+      href: "/admin/users",
+    });
+  }
 
   return (
     <>

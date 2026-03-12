@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Response, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, constr
 
-from ..db import fetch_one, execute
+from ..db import execute, fetch_one
 from ..schemas import LoginIn, LoginOut, UserOut
 from ..security import (
   create_access_token,
   create_refresh_token,
   decode_refresh_token,
-  verify_password,
   pwd_context,
+  verify_password,
 )
 from ..settings import settings
 
@@ -19,33 +19,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 REFRESH_COOKIE_NAME = "arcane_refresh_token"
-
-
-def _debug_log(
-  run_id: str,
-  hypothesis_id: str,
-  location: str,
-  message: str,
-  data: dict[str, object] | None = None,
-) -> None:
-  try:
-    import json as _json
-    import time as _time
-
-    log = {
-      "sessionId": "6d7094",
-      "runId": run_id,
-      "hypothesisId": hypothesis_id,
-      "location": location,
-      "message": message,
-      "data": data or {},
-      "timestamp": int(_time.time() * 1000),
-    }
-    with open("debug-6d7094.log", "a", encoding="utf-8") as _f:
-      _f.write(_json.dumps(log) + "\n")
-  except Exception:
-    # Le debug ne doit jamais casser la requête.
-    pass
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
@@ -136,12 +109,10 @@ def refresh_token(request: Request, response: Response) -> LoginOut:
   if not user or user.get("is_active") is False:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or disabled")
 
-  # Nouveau jeton d'accès
   access = create_access_token(
     subject=str(user["id"]),
     extra_claims={"user_id": int(user["id"]), "role": user.get("role")},
   )
-  # On peut aussi regénérer un refresh token (rotation simple)
   new_refresh = create_refresh_token(subject=str(user["id"]))
   _set_refresh_cookie(response, new_refresh)
 
@@ -161,6 +132,7 @@ def refresh_token(request: Request, response: Response) -> LoginOut:
 def logout(response: Response) -> None:
   _clear_refresh_cookie(response)
 
+
 class RegisterIn(BaseModel):
   email: EmailStr
   username: constr(min_length=3, max_length=100)
@@ -171,21 +143,6 @@ class RegisterIn(BaseModel):
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterIn):
-  # #region agent log
-  _debug_log(
-    run_id="pre-fix",
-    hypothesis_id="H3",
-    location="app/routers/auth.py:register",
-    message="register endpoint entered",
-    data={
-      "has_full_name": bool(payload.full_name),
-      "password_len_chars": len(payload.password or ""),
-      "password_len_bytes": len((payload.password or "").encode("utf-8")),
-    },
-  )
-  # #endregion agent log
-
-  # 1) Vérifier qu'aucun user n'a déjà cet email ou username
   existing = fetch_one(
     """
     SELECT id
@@ -195,94 +152,21 @@ def register(payload: RegisterIn):
     """,
     (payload.email, payload.username),
   )
-  # #region agent log
-  _debug_log(
-    run_id="pre-fix",
-    hypothesis_id="H4",
-    location="app/routers/auth.py:register",
-    message="uniqueness check completed",
-    data={"existing_account_found": bool(existing)},
-  )
-  # #endregion agent log
-
   if existing:
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
       detail="Email or username already in use",
     )
 
-  # 2) Vérifier la longueur du mot de passe côté backend (sécurité / robustesse)
-  #    Même si Pydantic borne déjà à 72 caractères, on ajoute une garde explicite
-  #    pour éviter toute erreur basse-niveau de bcrypt et renvoyer une 400 claire.
   raw_password = payload.password or ""
   if len(raw_password.encode("utf-8")) > 72:
-    from fastapi import status as _status
-
     raise HTTPException(
-      status_code=_status.HTTP_400_BAD_REQUEST,
+      status_code=status.HTTP_400_BAD_REQUEST,
       detail="Password too long (max 72 characters).",
     )
 
-  # 2bis) Log de debug pour cette session (longueur du mot de passe)
-  # #region agent log
-  try:
-    import json as _json
-    import time as _time
+  password_hash = pwd_context.hash(raw_password)
 
-    log = {
-      "sessionId": "9d5a7f",
-      "runId": "pre-fix",
-      "hypothesisId": "H1",
-      "location": "app/routers/auth.py:register",
-      "message": "register password length before hash",
-      "data": {"length": len(raw_password)},
-      "timestamp": int(_time.time() * 1000),
-    }
-    with open("debug-9d5a7f.log", "a", encoding="utf-8") as _f:
-      _f.write(_json.dumps(log) + "\n")
-  except Exception:
-    # On ne casse jamais la requête pour un problème de log
-    pass
-  # #endregion agent log
-
-  # 3) Hasher le mot de passe
-  # #region agent log
-  _debug_log(
-    run_id="pre-fix",
-    hypothesis_id="H3",
-    location="app/routers/auth.py:register",
-    message="starting password hashing",
-    data={"password_len_bytes": len(raw_password.encode("utf-8"))},
-  )
-  # #endregion agent log
-  try:
-    password_hash = pwd_context.hash(raw_password)
-  except Exception as exc:
-    # #region agent log
-    _debug_log(
-      run_id="pre-fix",
-      hypothesis_id="H3",
-      location="app/routers/auth.py:register",
-      message="password hashing failed",
-      data={
-        "error_type": type(exc).__name__,
-        "error_message": str(exc)[:160],
-      },
-    )
-    # #endregion agent log
-    raise
-
-  # #region agent log
-  _debug_log(
-    run_id="pre-fix",
-    hypothesis_id="H3",
-    location="app/routers/auth.py:register",
-    message="password hashing succeeded",
-    data={"hash_generated": bool(password_hash)},
-  )
-  # #endregion agent log
-
-  # 4) Insérer le user avec rôle clinician et is_active = FALSE
   execute(
     """
     INSERT INTO users (username, email, password_hash, role, full_name, is_active)
@@ -297,20 +181,6 @@ def register(payload: RegisterIn):
     ),
   )
 
-  # #region agent log
-  _debug_log(
-    run_id="pre-fix",
-    hypothesis_id="H4",
-    location="app/routers/auth.py:register",
-    message="pending clinician account inserted",
-    data={"default_role": "clinician", "is_active": False},
-  )
-  # #endregion agent log
-
-  # 5) (optionnel) envoyer un email
-  # TODO: send confirmation email to payload.email
-
-  # 6) Réponse simple
   return {
     "message": "Account created, pending admin validation",
     "email": payload.email,
