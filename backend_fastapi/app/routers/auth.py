@@ -21,6 +21,33 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 REFRESH_COOKIE_NAME = "arcane_refresh_token"
 
 
+def _debug_log(
+  run_id: str,
+  hypothesis_id: str,
+  location: str,
+  message: str,
+  data: dict[str, object] | None = None,
+) -> None:
+  try:
+    import json as _json
+    import time as _time
+
+    log = {
+      "sessionId": "6d7094",
+      "runId": run_id,
+      "hypothesisId": hypothesis_id,
+      "location": location,
+      "message": message,
+      "data": data or {},
+      "timestamp": int(_time.time() * 1000),
+    }
+    with open("debug-6d7094.log", "a", encoding="utf-8") as _f:
+      _f.write(_json.dumps(log) + "\n")
+  except Exception:
+    # Le debug ne doit jamais casser la requête.
+    pass
+
+
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
   response.set_cookie(
     key=REFRESH_COOKIE_NAME,
@@ -144,6 +171,20 @@ class RegisterIn(BaseModel):
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterIn):
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H3",
+    location="app/routers/auth.py:register",
+    message="register endpoint entered",
+    data={
+      "has_full_name": bool(payload.full_name),
+      "password_len_chars": len(payload.password or ""),
+      "password_len_bytes": len((payload.password or "").encode("utf-8")),
+    },
+  )
+  # #endregion agent log
+
   # 1) Vérifier qu'aucun user n'a déjà cet email ou username
   existing = fetch_one(
     """
@@ -154,6 +195,16 @@ def register(payload: RegisterIn):
     """,
     (payload.email, payload.username),
   )
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/auth.py:register",
+    message="uniqueness check completed",
+    data={"existing_account_found": bool(existing)},
+  )
+  # #endregion agent log
+
   if existing:
     raise HTTPException(
       status_code=status.HTTP_400_BAD_REQUEST,
@@ -195,7 +246,41 @@ def register(payload: RegisterIn):
   # #endregion agent log
 
   # 3) Hasher le mot de passe
-  password_hash = pwd_context.hash(raw_password)
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H3",
+    location="app/routers/auth.py:register",
+    message="starting password hashing",
+    data={"password_len_bytes": len(raw_password.encode("utf-8"))},
+  )
+  # #endregion agent log
+  try:
+    password_hash = pwd_context.hash(raw_password)
+  except Exception as exc:
+    # #region agent log
+    _debug_log(
+      run_id="pre-fix",
+      hypothesis_id="H3",
+      location="app/routers/auth.py:register",
+      message="password hashing failed",
+      data={
+        "error_type": type(exc).__name__,
+        "error_message": str(exc)[:160],
+      },
+    )
+    # #endregion agent log
+    raise
+
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H3",
+    location="app/routers/auth.py:register",
+    message="password hashing succeeded",
+    data={"hash_generated": bool(password_hash)},
+  )
+  # #endregion agent log
 
   # 4) Insérer le user avec rôle clinician et is_active = FALSE
   execute(
@@ -211,6 +296,16 @@ def register(payload: RegisterIn):
       payload.full_name,
     ),
   )
+
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/auth.py:register",
+    message="pending clinician account inserted",
+    data={"default_role": "clinician", "is_active": False},
+  )
+  # #endregion agent log
 
   # 5) (optionnel) envoyer un email
   # TODO: send confirmation email to payload.email

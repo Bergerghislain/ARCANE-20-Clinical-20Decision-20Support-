@@ -12,6 +12,33 @@ from ..deps import AdminUser
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+def _debug_log(
+  run_id: str,
+  hypothesis_id: str,
+  location: str,
+  message: str,
+  data: dict[str, object] | None = None,
+) -> None:
+  try:
+    import json as _json
+    import time as _time
+
+    log = {
+      "sessionId": "6d7094",
+      "runId": run_id,
+      "hypothesisId": hypothesis_id,
+      "location": location,
+      "message": message,
+      "data": data or {},
+      "timestamp": int(_time.time() * 1000),
+    }
+    with open("debug-6d7094.log", "a", encoding="utf-8") as _f:
+      _f.write(_json.dumps(log) + "\n")
+  except Exception:
+    # Le debug ne doit jamais casser le endpoint.
+    pass
+
+
 @router.get("/users")
 def list_users(
   _admin: AdminUser,
@@ -25,6 +52,15 @@ def list_users(
   - REJETE:     réservé pour une éventuelle colonne 'status' dédiée
   """
   status_upper = status.upper()
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/admin.py:list_users",
+    message="admin list users requested",
+    data={"status": status_upper, "admin_id": int(_admin["id"])},
+  )
+  # #endregion agent log
 
   if status_upper == "EN_ATTENTE":
     rows = fetch_all(
@@ -47,6 +83,16 @@ def list_users(
   else:  # "REJETE" - pas encore géré finement, on retourne une liste vide pour le moment
     rows = []
 
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/admin.py:list_users",
+    message="admin list users completed",
+    data={"status": status_upper, "count": len(rows)},
+  )
+  # #endregion agent log
+
   return rows
 
 
@@ -62,6 +108,22 @@ def validate_user(
   payload: ValidateUserIn | None = None,
 ) -> dict[str, Any]:
   """Valide ou rejette un compte utilisateur."""
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/admin.py:validate_user",
+    message="admin validate user requested",
+    data={
+      "admin_id": int(_admin["id"]),
+      "target_user_id": user_id,
+      "payload_present": payload is not None,
+      "action": payload.action if payload else None,
+      "requested_role": payload.role if payload else None,
+    },
+  )
+  # #endregion agent log
+
   user = fetch_one(
     """
     SELECT id, email, username, role, is_active
@@ -129,6 +191,20 @@ def validate_user(
       status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
       detail="Failed to update user",
     )
+
+  # #region agent log
+  _debug_log(
+    run_id="pre-fix",
+    hypothesis_id="H4",
+    location="app/routers/admin.py:validate_user",
+    message="admin validate user completed",
+    data={
+      "target_user_id": int(updated["id"]),
+      "new_role": str(updated.get("role") or ""),
+      "is_active": bool(updated.get("is_active")),
+    },
+  )
+  # #endregion agent log
 
   # TODO: envoyer un email de bienvenue / refus ici si besoin
 
