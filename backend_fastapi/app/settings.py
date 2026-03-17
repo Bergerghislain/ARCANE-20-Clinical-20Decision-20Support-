@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
   cors_origins: str = "http://localhost:8080"
 
+  # Compatibilité démo: autoriser le mot de passe "password" sur des hashes factices.
+  # À désactiver en production.
+  allow_demo_password_fallback: bool = True
+
 
 settings = Settings()
 

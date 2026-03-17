@@ -15,21 +15,20 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def verify_password(plain_password: str, password_hash: str) -> bool:
   if not isinstance(password_hash, str):
     return False
-  # Raccourci de démo : si la base contient des mots de passe factices ou vides,
-  # on autorise "password" pour les comptes de test.
-  if plain_password == "password" and (
-    not password_hash
-    or password_hash.startswith("$2")
-    or "YourHashedPasswordHere" in password_hash
-  ):
-    return True
+  # Compatibilité démo contrôlable par configuration.
+  if settings.allow_demo_password_fallback:
+    if plain_password == "password" and (
+      not password_hash
+      or password_hash.startswith("$2")
+      or "YourHashedPasswordHere" in password_hash
+    ):
+      return True
   if password_hash.startswith("$2"):
     try:
       return pwd_context.verify(plain_password, password_hash)
     except Exception:
       return False
-  # DEV fallback: si la DB contient un mot de passe en clair (temporaire)
-  return plain_password == password_hash
+  return settings.allow_demo_password_fallback and plain_password == password_hash
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:

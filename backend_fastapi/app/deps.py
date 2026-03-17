@@ -4,11 +4,73 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Header, HTTPException, status
 
-from .db import fetch_one
-from .security import decode_token
+from .application.errors import ApplicationError
+from .application.services.admin_service import AdminService
+from .application.services.argos_service import ArgosService
+from .application.services.auth_service import AuthService
+from .application.services.patient_service import PatientService
+from .infrastructure.repositories.argos_repository import (
+  SqlActivityLogRepository,
+  SqlArgosRepository,
+)
+from .infrastructure.repositories.patient_repository import SqlPatientRepository
+from .infrastructure.repositories.user_repository import SqlUserRepository
+from .infrastructure.security.auth_gateways import PasswordGateway, TokenGateway
+
+
+def get_user_repository() -> SqlUserRepository:
+  return SqlUserRepository()
+
+
+def get_patient_repository() -> SqlPatientRepository:
+  return SqlPatientRepository()
+
+
+def get_argos_repository() -> SqlArgosRepository:
+  return SqlArgosRepository()
+
+
+def get_activity_log_repository() -> SqlActivityLogRepository:
+  return SqlActivityLogRepository()
+
+
+def get_password_gateway() -> PasswordGateway:
+  return PasswordGateway()
+
+
+def get_token_gateway() -> TokenGateway:
+  return TokenGateway()
+
+
+def get_auth_service(
+  users: Annotated[SqlUserRepository, Depends(get_user_repository)],
+  passwords: Annotated[PasswordGateway, Depends(get_password_gateway)],
+  tokens: Annotated[TokenGateway, Depends(get_token_gateway)],
+) -> AuthService:
+  return AuthService(users, passwords, tokens)
+
+
+def get_admin_service(
+  users: Annotated[SqlUserRepository, Depends(get_user_repository)],
+) -> AdminService:
+  return AdminService(users)
+
+
+def get_patient_service(
+  patients: Annotated[SqlPatientRepository, Depends(get_patient_repository)],
+) -> PatientService:
+  return PatientService(patients)
+
+
+def get_argos_service(
+  argos_repo: Annotated[SqlArgosRepository, Depends(get_argos_repository)],
+  activity_repo: Annotated[SqlActivityLogRepository, Depends(get_activity_log_repository)],
+) -> ArgosService:
+  return ArgosService(argos_repo, activity_repo)
 
 
 def get_current_user(
+  auth_service: Annotated[AuthService, Depends(get_auth_service)],
   authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
   if not authorization:
@@ -16,6 +78,7 @@ def get_current_user(
       status_code=status.HTTP_401_UNAUTHORIZED,
       detail="Missing Authorization header",
     )
+
   scheme, _, token = authorization.partition(" ")
   if scheme.lower() != "bearer" or not token:
     raise HTTPException(
@@ -24,43 +87,17 @@ def get_current_user(
     )
 
   try:
-    claims = decode_token(token)
-  except ValueError:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid token",
-    )
+    user = auth_service.resolve_access_token(token)
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
 
-  user_id = claims.get("user_id")
-  if not user_id:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid token claims",
-    )
-
-  user = fetch_one(
-    """
-    SELECT id, username, email, role, full_name, is_active
-    FROM users
-    WHERE id = %s
-    LIMIT 1
-    """,
-    (int(user_id),),
-  )
-  if not user or user.get("is_active") is False:
-    raise HTTPException(
-      status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="User not found or disabled",
-    )
-  return user
+  return user.to_public_dict()
 
 
 CurrentUser = Annotated[dict[str, Any], Depends(get_current_user)]
 
 
 def require_role(*roles: str):
-  """Fabrique une dépendance FastAPI qui impose un rôle."""
-
   def _dep(user: CurrentUser) -> dict[str, Any]:
     role = str(user.get("role") or "").lower()
     if role not in [r.lower() for r in roles]:

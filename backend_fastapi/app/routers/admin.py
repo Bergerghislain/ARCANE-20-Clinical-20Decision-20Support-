@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
 
-from ..db import execute, fetch_all, fetch_one
-from ..deps import AdminUser
+from ..application.errors import ApplicationError
+from ..application.services.admin_service import AdminService
+from ..deps import AdminUser, get_admin_service
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -15,39 +16,13 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 @router.get("/users")
 def list_users(
   _admin: AdminUser,
+  admin_service: Annotated[AdminService, Depends(get_admin_service)],
   status: str = Query("EN_ATTENTE", pattern="^(EN_ATTENTE|ACTIF|REJETE)$"),
 ) -> list[dict[str, Any]]:
-  """
-  Liste les comptes utilisateurs pour l'administration.
-
-  - EN_ATTENTE: is_active = FALSE
-  - ACTIF:      is_active = TRUE
-  - REJETE:     réservé pour une éventuelle colonne 'status' dédiée
-  """
-  status_upper = status.upper()
-
-  if status_upper == "EN_ATTENTE":
-    rows = fetch_all(
-      """
-      SELECT id, email, username, role, is_active
-      FROM users
-      WHERE is_active = FALSE
-      ORDER BY created_at DESC
-      """,
-    )
-  elif status_upper == "ACTIF":
-    rows = fetch_all(
-      """
-      SELECT id, email, username, role, is_active
-      FROM users
-      WHERE is_active = TRUE
-      ORDER BY created_at DESC
-      """,
-    )
-  else:  # "REJETE" - pas encore géré finement, on retourne une liste vide pour le moment
-    rows = []
-
-  return rows
+  try:
+    return admin_service.list_users(status)
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
 
 
 class ValidateUserIn(BaseModel):
@@ -58,78 +33,19 @@ class ValidateUserIn(BaseModel):
 @router.post("/users/{user_id}/validate")
 def validate_user(
   _admin: AdminUser,
+  admin_service: Annotated[AdminService, Depends(get_admin_service)],
   user_id: int = Path(..., ge=1),
   payload: ValidateUserIn | None = None,
 ) -> dict[str, Any]:
-  """Valide ou rejette un compte utilisateur."""
-  user = fetch_one(
-    """
-    SELECT id, email, username, role, is_active
-    FROM users
-    WHERE id = %s
-    LIMIT 1
-    """,
-    (user_id,),
-  )
-  if not user:
-    raise HTTPException(
-      status_code=status.HTTP_404_NOT_FOUND,
-      detail="User not found",
-    )
-
   if payload is None:
-    raise HTTPException(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Missing validation payload",
-    )
+    raise HTTPException(status_code=400, detail="Missing validation payload")
 
-  action = payload.action.upper()
-
-  if action == "APPROVE":
-    # Choisir le rôle final : celui fourni ou celui existant (fallback clinician)
-    new_role = (payload.role or user.get("role") or "clinician").lower()
-    execute(
-      """
-      UPDATE users
-      SET is_active = TRUE,
-          role = %s,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = %s
-      """,
-      (new_role, user_id),
+  try:
+    return admin_service.validate_user(
+      user_id=user_id,
+      action=payload.action,
+      role=payload.role,
     )
-  elif action == "REJECT":
-    # Marque le compte comme inactif (on pourrait aussi stocker un statut dédié)
-    execute(
-      """
-      UPDATE users
-      SET is_active = FALSE,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = %s
-      """,
-      (user_id,),
-    )
-  else:
-    raise HTTPException(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      detail="Invalid action",
-    )
-
-  updated = fetch_one(
-    """
-    SELECT id, email, username, role, is_active
-    FROM users
-    WHERE id = %s
-    LIMIT 1
-    """,
-    (user_id,),
-  )
-  if not updated:
-    raise HTTPException(
-      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      detail="Failed to update user",
-    )
-
-  # TODO: envoyer un email de bienvenue / refus ici si besoin
-  return updated
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
 

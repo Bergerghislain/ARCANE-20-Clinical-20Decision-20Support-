@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, constr
 
 
 class UserOut(BaseModel):
@@ -20,6 +20,12 @@ class LoginOut(BaseModel):
   token: str
   user: UserOut
 
+class RegisterIn(BaseModel):
+  email: EmailStr
+  username: constr(min_length=3, max_length=100)
+  full_name: str | None = None
+  # Bcrypt tronque au-delà de 72 octets : on borne aussi côté DTO.
+  password: constr(min_length=8, max_length=72)
 
 class PatientCreateIn(BaseModel):
   name: str | None = None

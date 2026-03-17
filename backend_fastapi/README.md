@@ -1,13 +1,13 @@
-## Backend FastAPI
+# Backend FastAPI
 
 Ce dossier contient désormais le backend **FastAPI unique** du projet ARCANE.
 
-### Prérequis
+## Prérequis
 
 - Python 3.11+ (recommandé)
 - Une base PostgreSQL avec le schéma de `setup_database.sql`
 
-### Variables d’environnement
+## Variables d’environnement
 
 Créer un fichier `.env` (exemple ci-dessous) à la racine de `backend_fastapi/` ou exporter ces variables.
 
@@ -23,11 +23,14 @@ JWT_ISSUER=arcane
 JWT_AUDIENCE=arcane-client
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
+# Mettre à false en production
+ALLOW_DEMO_PASSWORD_FALLBACK=true
+
 # CORS (séparé par des virgules). Ex: http://localhost:8080
 CORS_ORIGINS=http://localhost:8080
 ```
 
-### Installation
+## Installation
 
 ```bash
 cd backend_fastapi
@@ -40,13 +43,13 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### Lancer en local
+## Lancer en local
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Endpoints disponibles
+## Endpoints disponibles
 
 - `GET /api/ping`
 - `GET /api/demo`
@@ -62,8 +65,9 @@ uvicorn app.main:app --reload --port 8000
 - `GET /api/admin/users` (admin)
 - `POST /api/admin/users/{id}/validate` (admin)
 
-### Notes migration
+## Notes migration
 
 - Le frontend doit envoyer `Authorization: Bearer <token>` sur les routes protégées.
 - Les payloads patients historiques de l'ancien backend Express (`age`, `gender`, `birthDate`) sont supportés par FastAPI pour compatibilité.
-
+- La structure backend suit désormais une séparation `domain` / `application` / `infrastructure` / `routers`.
+- Voir le guide: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
