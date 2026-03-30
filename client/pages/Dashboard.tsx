@@ -335,6 +335,7 @@ export default function Dashboard() {
                         variant="outline"
                         size="sm"
                         className="border-secondary text-secondary hover:bg-secondary/10"
+                        aria-label={`Open ARGOS for ${patient.name || "patient"}`}
                         onClick={(e) => {
                           e.preventDefault();
                           navigate("/argos", {
