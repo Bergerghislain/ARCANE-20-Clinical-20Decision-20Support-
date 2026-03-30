@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ..application.errors import ApplicationError
 from ..application.services.patient_service import PatientService
 from ..deps import ClinicianOrAdminUser, get_patient_service
+from ..schemas import PatientProfileIn, PatientProfileOut
 
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
@@ -65,6 +66,33 @@ def import_patient_json(
 ) -> dict[str, Any]:
   try:
     return patient_service.import_patient_json(payload)
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.get("/{patient_id}/profile", response_model=PatientProfileOut)
+def get_patient_profile(
+  patient_id: int,
+  _user: ClinicianOrAdminUser,
+  patient_service: Annotated[PatientService, Depends(get_patient_service)],
+) -> PatientProfileOut:
+  try:
+    payload = patient_service.get_patient_profile(patient_id)
+    return PatientProfileOut(**payload)
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.put("/{patient_id}/profile", response_model=PatientProfileOut)
+def save_patient_profile(
+  patient_id: int,
+  payload: PatientProfileIn,
+  _user: ClinicianOrAdminUser,
+  patient_service: Annotated[PatientService, Depends(get_patient_service)],
+) -> PatientProfileOut:
+  try:
+    saved = patient_service.save_patient_profile(patient_id, payload.model_dump())
+    return PatientProfileOut(**saved)
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
 

@@ -109,6 +109,34 @@ class PatientService:
       raise ApplicationError(f"Failed to import patient: {exc}", 500)
     return {"id": patient_id}
 
+  def get_patient_profile(self, patient_id: int) -> dict[str, Any]:
+    patient = self._repository.find_patient(patient_id)
+    if not patient:
+      raise ApplicationError("Patient not found", 404)
+    profile = self._repository.find_patient_profile(patient_id)
+    return {
+      "patient_id": patient_id,
+      "source": "persisted" if profile else "none",
+      "profile": profile,
+    }
+
+  def save_patient_profile(self, patient_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    patient = self._repository.find_patient(patient_id)
+    if not patient:
+      raise ApplicationError("Patient not found", 404)
+
+    profile = dict(payload)
+    profile["patientId"] = str(patient_id)
+    saved = self._repository.save_patient_profile(patient_id, profile)
+    if not saved:
+      raise ApplicationError("Failed to save patient profile", 500)
+
+    return {
+      "patient_id": patient_id,
+      "source": "persisted",
+      "profile": saved,
+    }
+
 
 def _normalize_sex(value: Any) -> str | None:
   if not isinstance(value, str):

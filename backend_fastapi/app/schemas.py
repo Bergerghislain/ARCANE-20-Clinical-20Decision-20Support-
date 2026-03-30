@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, constr
+from typing import Any
+
+from pydantic import BaseModel, EmailStr, Field, constr
 
 
 class UserOut(BaseModel):
@@ -37,6 +39,21 @@ class PatientCreateIn(BaseModel):
   birth_date_day: int | None = None
   sex: str | None = None
   health_info: dict | None = None
+
+
+class PatientProfileIn(BaseModel):
+  schemaVersion: int = 1
+  patientId: str | None = None
+  diagnosis: str
+  pathologySummary: str
+  analyses: list[dict[str, Any]] = Field(default_factory=list)
+  report: dict[str, Any]
+
+
+class PatientProfileOut(BaseModel):
+  patient_id: int
+  source: str
+  profile: dict[str, Any] | None = None
 
 
 class ArgosDiscussionCreateIn(BaseModel):

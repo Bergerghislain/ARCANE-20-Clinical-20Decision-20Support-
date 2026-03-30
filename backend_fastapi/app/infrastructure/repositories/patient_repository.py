@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from ...db import fetch_all, fetch_one
@@ -62,6 +63,62 @@ class SqlPatientRepository:
     )
     values.append(patient_id)
     return fetch_one(query, tuple(values))
+
+  def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
+    row = fetch_one(
+      """
+      SELECT health_info
+      FROM patients
+      WHERE id_patient = %s
+      LIMIT 1
+      """,
+      (patient_id,),
+    )
+    if not row:
+      return None
+
+    health_info = _coerce_health_info(row.get("health_info"))
+    profile = health_info.get("manual_profile")
+    return profile if isinstance(profile, dict) else None
+
+  def save_patient_profile(
+    self,
+    patient_id: int,
+    profile: dict[str, Any],
+  ) -> dict[str, Any] | None:
+    row = fetch_one(
+      """
+      SELECT health_info
+      FROM patients
+      WHERE id_patient = %s
+      LIMIT 1
+      """,
+      (patient_id,),
+    )
+    if not row:
+      return None
+
+    health_info = _coerce_health_info(row.get("health_info"))
+    health_info["manual_profile"] = profile
+
+    updated = fetch_one(
+      """
+      UPDATE patients
+      SET health_info = %s,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id_patient = %s
+      RETURNING health_info
+      """,
+      (json.dumps(health_info), patient_id),
+    )
+    if not updated:
+      return None
+
+    updated_health_info = _coerce_health_info(updated.get("health_info"))
+    updated_profile = updated_health_info.get("manual_profile")
+    if isinstance(updated_profile, dict):
+      return updated_profile
+    return profile
 
   def import_patient_payload(self, payload: dict[str, Any]) -> int:
     with DbUnitOfWork() as uow:
@@ -487,4 +544,17 @@ class SqlPatientRepository:
       return
 
     self._insert_surgeries(cur, patient_id, surgeries)
+
+
+def _coerce_health_info(raw: Any) -> dict[str, Any]:
+  if isinstance(raw, dict):
+    return dict(raw)
+  if isinstance(raw, str):
+    try:
+      parsed = json.loads(raw)
+      if isinstance(parsed, dict):
+        return parsed
+    except ValueError:
+      return {}
+  return {}
 

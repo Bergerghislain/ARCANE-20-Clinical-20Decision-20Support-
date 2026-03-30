@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "patientId": "3",
+  "diagnosis": "Sarcome epithelioide localement avance",
+  "pathologySummary": "Masse infiltrante loco-regionale avec composante douloureuse chronique. Fonction renale preservee.",
+  "analyses": [
+    {
+      "name": "Hemoglobine",
+      "value": "10.8",
+      "unit": "g/dL",
+      "referenceRange": "12-16",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "Creatinine",
+      "value": "81",
+      "unit": "umol/L",
+      "referenceRange": "45-90",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "Plaquettes",
+      "value": "420",
+      "unit": "G/L",
+      "referenceRange": "150-400",
+      "date": "2026-03-10"
+    }
+  ],
+  "report": {
+    "conclusion": "Le cas est compatible avec une maladie loco-regionale agressive qui justifie une discussion therapeutique combinee (systemique + locale).",
+    "reasoning": "L'anemie inflammatoire et la thrombocytose reactionnelle soutiennent un contexte tumoral actif. L'absence d'insuffisance renale permet d'envisager des options therapeutiques standards sous surveillance.",
+    "sources": [
+      "Consensus sarcomes tissus mous (simulation)",
+      "Compte rendu imagerie loco-regionale (simulation)",
+      "Biologie patient du 10/03/2026 (simulation)"
+    ]
+  }
+}
+

@@ -9,7 +9,7 @@ interface Patient {
   age?: number;
   condition?: string;
   mrn?: string;
-  status?: "active" | "pending" | "completed";
+  status?: "active" | "pending" | "completed" | "unknown";
 }
 
 interface PatientSelectorProps {
@@ -155,7 +155,9 @@ export function PatientSelector({
                                 ? "bg-success/10 text-success"
                                 : patient.status === "pending"
                                   ? "bg-warning/10 text-warning"
-                                  : "bg-primary/10 text-primary"
+                                  : patient.status === "completed"
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-muted text-muted-foreground"
                             }`}
                           >
                             {patient.status.charAt(0).toUpperCase() +

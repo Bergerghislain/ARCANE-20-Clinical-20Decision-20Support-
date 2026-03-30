@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "patientId": "2",
+  "diagnosis": "Carcinome neuroendocrine peu differencie",
+  "pathologySummary": "Atteinte multi-site avec progression lente mais continue. Risque de decompensation metabolique a surveiller.",
+  "analyses": [
+    {
+      "name": "Chromogranine A",
+      "value": "620",
+      "unit": "ng/mL",
+      "referenceRange": "< 100",
+      "date": "2026-03-08"
+    },
+    {
+      "name": "ASAT",
+      "value": "58",
+      "unit": "U/L",
+      "referenceRange": "< 40",
+      "date": "2026-03-08"
+    },
+    {
+      "name": "ALAT",
+      "value": "63",
+      "unit": "U/L",
+      "referenceRange": "< 45",
+      "date": "2026-03-08"
+    }
+  ],
+  "report": {
+    "conclusion": "Le patient presente une pathologie active necessitant un ajustement therapeutique et un monitoring biologique rapproché.",
+    "reasoning": "Les marqueurs specifiques et l'alteration hepatique moderee plaident pour une progression clinique en cours. La strategie doit combiner controle tumoral et protection des fonctions d'organe.",
+    "sources": [
+      "Referentiel tumeurs neuroendocrines (simulation)",
+      "Bilan biologique consolide du 08/03/2026 (simulation)",
+      "Revue de dossier RCP locale (simulation)"
+    ]
+  }
+}
+

@@ -25,6 +25,12 @@ import {
   fetchArgosMessages,
   postArgosMessage,
 } from "@/lib/argosApi";
+import {
+  buildArgosContextFromProfile,
+  buildSimulatedAiReport,
+  loadPatientReportProfile,
+  PatientReportProfile,
+} from "@/lib/patientReport";
 
 interface Patient {
   id: string;
@@ -32,7 +38,9 @@ interface Patient {
   age: number;
   condition: string;
   mrn?: string;
-  status?: "active" | "pending" | "completed";
+  status?: "active" | "pending" | "completed" | "unknown";
+  contextProfile?: PatientReportProfile;
+  contextMessage?: string;
 }
 
 const GENERAL_PATIENT: Patient = {
@@ -86,29 +94,38 @@ const mockPatients: Patient[] = [
   },
 ];
 
-const mockARGOSResponse = {
-  clinicalSynthesis:
-    "Patient presents with advanced presentation with elevated inflammatory markers, indicating intermediate-to-high risk disease. ECOG status of 1 suggests patient can tolerate systemic therapy with appropriate supportive care.",
-  hypotheses: [
-    "Standard multi-agent chemotherapy regimen followed by consolidative therapy",
-    "Experimental targeted immunotherapy in combination with standard chemotherapy",
-    "Combined approach with induction therapy followed by maintenance immunotherapy",
-  ],
-  arguments: [
-    "Multi-agent chemotherapy remains gold standard with good historical outcomes",
-    "Early consideration of advanced therapies has shown benefit in selected patients",
-    "Targeted approach emerging evidence with potential for improved toxicity profile",
-    "ECOG 1 permits standard-dose treatment; no major organ contraindications",
-  ],
-  nextSteps: [
-    "Review recent imaging and confirm organ function (renal, cardiac, pulmonary)",
-    "Discuss with patient and family regarding treatment options and prognosis",
-    "Consider biomarker testing for prognostic refinement",
-    "Schedule multidisciplinary tumor board review",
-  ],
-  traceability:
-    "Analysis based on current clinical guidelines and institutional protocols. Generated on consultation date.",
-};
+const AUTO_CONTEXT_HEADER = "[Contexte Patient Auto Charge]";
+
+function buildMockArgosResponse(patient: Patient | null) {
+  const fallbackReport = buildSimulatedAiReport({
+    patientName: patient?.name || "Patient",
+    diagnosis: patient?.condition || "Diagnostic non precise",
+    pathologySummary:
+      "Contexte clinique simplifie. Aucun modele IA distant n'est encore branche.",
+    analyses: [],
+  });
+  const sourceReport = patient?.contextProfile?.report || fallbackReport;
+
+  return {
+    clinicalSynthesis: sourceReport.conclusion,
+    hypotheses: [
+      "Confirmer la priorisation therapeutique en reunion multidisciplinaire",
+      "Adapter la strategie selon tolerance clinique et nouvelles donnees biologiques",
+      "Planifier une reevaluation structuree a court terme",
+    ],
+    arguments: [
+      sourceReport.reasoning,
+      "Les recommandations sont simulees localement a partir du profil patient JSON.",
+      "Le raisonnement doit etre valide par un clinicien avant toute decision.",
+    ],
+    nextSteps: [
+      "Completer les examens manquants (biologie/imagerie selon contexte)",
+      "Partager la synthese avec l'equipe de prise en charge",
+      "Mettre a jour le profil patient avant la prochaine discussion ARGOS",
+    ],
+    traceability: sourceReport.sources.join(" | "),
+  };
+}
 
 export default function ArgosSpace() {
   const location = useLocation();
@@ -121,6 +138,7 @@ export default function ArgosSpace() {
     Record<string, number>
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const injectedContextKeysRef = useRef<Set<string>>(new Set());
 
   const currentConversation = argosHistory.getCurrentConversation();
 
@@ -149,6 +167,81 @@ export default function ArgosSpace() {
       ...prev,
       [conversationId]: id,
     }));
+  };
+
+  const ensurePatientContextInConversation = async (
+    targetPatient: Patient,
+    conversationId: string,
+  ) => {
+    if (targetPatient.id === GENERAL_PATIENT.id) return;
+
+    const markerKey = `${conversationId}:${targetPatient.id}`;
+    if (injectedContextKeysRef.current.has(markerKey)) return;
+
+    const conversation = argosHistory
+      .getConversations()
+      .find((conv) => conv.id === conversationId);
+    if (!conversation) return;
+
+    const alreadyContainsContext = conversation.messages.some((message) =>
+      message.content.includes(AUTO_CONTEXT_HEADER),
+    );
+    if (alreadyContainsContext) {
+      injectedContextKeysRef.current.add(markerKey);
+      return;
+    }
+
+    let contextProfile = targetPatient.contextProfile;
+    if (!contextProfile) {
+      contextProfile = await loadPatientReportProfile(targetPatient.id);
+    }
+    if (!contextProfile) {
+      const fallback = buildSimulatedAiReport({
+        patientName: targetPatient.name,
+        diagnosis: targetPatient.condition || "Diagnostic non precise",
+        pathologySummary:
+          "Contexte manuel minimal charge automatiquement dans ARGOS.",
+        analyses: [],
+      });
+      contextProfile = {
+        schemaVersion: 1,
+        patientId: targetPatient.id,
+        diagnosis: targetPatient.condition || "Diagnostic non precise",
+        pathologySummary:
+          "Profil patient partiel. Completer les informations dans l'onglet Patient Infos.",
+        analyses: [],
+        report: fallback,
+      };
+    }
+
+    const contextMessage =
+      targetPatient.contextMessage ||
+      buildArgosContextFromProfile(
+        contextProfile,
+        targetPatient.name,
+        targetPatient.mrn,
+      );
+
+    argosHistory.addMessage(
+      {
+        role: "assistant",
+        content: `${AUTO_CONTEXT_HEADER}\n${contextMessage}`,
+        timestamp: new Date(),
+      },
+      conversationId,
+    );
+
+    const discussionId = getBackendDiscussionId(conversationId);
+    if (discussionId) {
+      void postArgosMessage(discussionId, {
+        message_type: "clinician_note",
+        content: contextMessage,
+      }).catch(() => {
+        // Le contexte reste disponible localement meme si la synchro backend echoue.
+      });
+    }
+
+    injectedContextKeysRef.current.add(markerKey);
   };
 
   const handleSelectPatient = (patient: Patient) => {
@@ -265,6 +358,20 @@ export default function ArgosSpace() {
     argosHistory,
   ]);
 
+  // Injecte automatiquement le contexte patient dans la conversation active.
+  useEffect(() => {
+    if (!selectedPatient || !currentConversation) return;
+    void ensurePatientContextInConversation(
+      selectedPatient,
+      currentConversation.id,
+    );
+  }, [
+    selectedPatient,
+    currentConversation?.id,
+    backendDiscussionIds,
+    argosHistory,
+  ]);
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
@@ -309,6 +416,7 @@ export default function ArgosSpace() {
 
     // Simulate ARGOS response
     setTimeout(() => {
+      const mockARGOSResponse = buildMockArgosResponse(selectedPatient);
       const assistantMessage = argosHistory.addMessage(
         {
           role: "assistant",

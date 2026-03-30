@@ -20,6 +20,7 @@ interface Patient {
   name?: string | null;
   age?: number | null;
   condition?: string | null;
+  mrn?: string | null;
   birthDate?: string | null;
   lastVisit?: string | null;
   status?: "active" | "completed" | "pending" | null;
@@ -64,6 +65,7 @@ function normalizePatient(row: any, index: number): Patient {
           ? new Date().getFullYear() - Number(row.birth_date_year)
           : null,
     condition: row?.condition ?? row?.diagnosis ?? null,
+    mrn: row?.ipp ?? String(id),
     birthDate: birthDateIso,
     lastVisit: lastVisitIso,
     status: row?.status ?? "active",
@@ -221,7 +223,11 @@ export default function Dashboard() {
                 {isImporting ? "Importing..." : "Import JSON"}
               </Button>
 
-              <Button variant="secondary" size="lg">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => navigate("/argos")}
+              >
                 <Bot className="mr-2 h-5 w-5" />
                 Open ARGOS
               </Button>
@@ -272,17 +278,7 @@ export default function Dashboard() {
               filteredPatients.map((patient) => (
                 <Link
                   key={patient.id}
-                  to="/argos"
-                  state={{
-                    patient: {
-                      id: patient.id,
-                      name: patient.name || "Unknown patient",
-                      age: typeof patient.age === "number" ? patient.age : 0,
-                      condition: patient.condition || "Unknown condition",
-                      mrn: patient.id,
-                      status: patient.status || "active",
-                    },
-                  }}
+                  to={`/patient/${patient.id}`}
                   className="group block rounded-2xl border border-border bg-gradient-to-br from-white to-blue-50/30 p-6 transition-all hover:shadow-xl hover:border-secondary/50"
                 >
                   <div className="flex items-center justify-between">
@@ -341,7 +337,22 @@ export default function Dashboard() {
                         className="border-secondary text-secondary hover:bg-secondary/10"
                         onClick={(e) => {
                           e.preventDefault();
-                          // Gérez ici l'ouverture d'ARGOS
+                          navigate("/argos", {
+                            state: {
+                              patient: {
+                                id: patient.id,
+                                name: patient.name || "Unknown patient",
+                                age:
+                                  typeof patient.age === "number"
+                                    ? patient.age
+                                    : 0,
+                                condition:
+                                  patient.condition || "Unknown condition",
+                                mrn: patient.mrn || patient.id,
+                                status: patient.status || "active",
+                              },
+                            },
+                          });
                         }}
                       >
                         <Bot className="h-4 w-4" />
@@ -355,7 +366,7 @@ export default function Dashboard() {
                           navigate(`/patient/${patient.id}`);
                         }}
                       >
-                        <span className="text-xs font-medium">Edit</span>
+                        <span className="text-xs font-medium">Open</span>
                       </Button>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-secondary" />
                     </div>

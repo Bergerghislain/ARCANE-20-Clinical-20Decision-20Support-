@@ -19,3 +19,13 @@ class PatientRepositoryPort(Protocol):
   def import_patient_payload(self, payload: dict[str, Any]) -> int:
     ...
 
+  def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
+    ...
+
+  def save_patient_profile(
+    self,
+    patient_id: int,
+    profile: dict[str, Any],
+  ) -> dict[str, Any] | None:
+    ...
+

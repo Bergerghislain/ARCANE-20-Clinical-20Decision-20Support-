@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "patientId": "4",
+  "diagnosis": "Angiosarcome cutane multifocal",
+  "pathologySummary": "Evolution chronique avec episodes hemorragiques intermittents. Etat clinique global stable.",
+  "analyses": [
+    {
+      "name": "Leucocytes",
+      "value": "7.2",
+      "unit": "G/L",
+      "referenceRange": "4-10",
+      "date": "2026-03-05"
+    },
+    {
+      "name": "Ferritine",
+      "value": "18",
+      "unit": "ng/mL",
+      "referenceRange": "30-300",
+      "date": "2026-03-05"
+    },
+    {
+      "name": "TP",
+      "value": "78",
+      "unit": "%",
+      "referenceRange": "70-100",
+      "date": "2026-03-05"
+    }
+  ],
+  "report": {
+    "conclusion": "Le dossier suggere une maladie controlable a court terme, avec priorite sur la prevention des complications hemorragiques et la qualite de vie.",
+    "reasoning": "Le bilan biologiquement rassurant hors deficit martial modere permet de maintenir une strategie progressive. La surveillance doit rester rapprochee en raison de la multifocalite et du risque hemorragique.",
+    "sources": [
+      "Recommandations sarcomes vasculaires (simulation)",
+      "Bilan hematologique du 05/03/2026 (simulation)",
+      "Historique clinique numerise ARCANE (simulation)"
+    ]
+  }
+}
+

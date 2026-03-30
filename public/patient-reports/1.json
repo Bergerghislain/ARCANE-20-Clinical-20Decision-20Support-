@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "patientId": "1",
+  "diagnosis": "Lymphome rare a grandes cellules",
+  "pathologySummary": "Presentation ganglionnaire diffuse avec syndrome inflammatoire modere. L'etat general reste conserve (ECOG 1).",
+  "analyses": [
+    {
+      "name": "LDH",
+      "value": "512",
+      "unit": "U/L",
+      "referenceRange": "125-220",
+      "date": "2026-03-12"
+    },
+    {
+      "name": "Albumine",
+      "value": "34",
+      "unit": "g/L",
+      "referenceRange": "35-52",
+      "date": "2026-03-12"
+    },
+    {
+      "name": "CRP",
+      "value": "28",
+      "unit": "mg/L",
+      "referenceRange": "< 5",
+      "date": "2026-03-12"
+    }
+  ],
+  "report": {
+    "conclusion": "Le profil est compatible avec une maladie active necessitant une prise en charge oncologique rapide et multidisciplinaire.",
+    "reasoning": "L'elevation de la LDH et de la CRP, combinee a l'atteinte ganglionnaire diffuse, suggere une charge tumorale cliniquement significative. L'ECOG 1 permet d'envisager un traitement systemique standard avec surveillance rapprochee.",
+    "sources": [
+      "Guidelines hematologie-oncologie internes (simulation)",
+      "Compte-rendu anatomopathologique numerise (simulation)",
+      "Bilan biologique du patient au 12/03/2026 (simulation)"
+    ]
+  }
+}
+

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "patientId": "EXAMPLE_ID",
+  "diagnosis": "Diagnostic principal du patient",
+  "pathologySummary": "Resume clinique/pathologique court et explicite.",
+  "analyses": [
+    {
+      "name": "CRP",
+      "value": "42",
+      "unit": "mg/L",
+      "referenceRange": "< 5",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "Hemoglobine",
+      "value": "10.8",
+      "unit": "g/dL",
+      "referenceRange": "12 - 16",
+      "date": "2026-03-10"
+    }
+  ],
+  "report": {
+    "conclusion": "Conclusion IA de synthese.",
+    "reasoning": "Raisonnement IA structure en etapes.",
+    "sources": [
+      "Guideline institutionnelle",
+      "Litterature clinique",
+      "Historique patient"
+    ]
+  }
+}
