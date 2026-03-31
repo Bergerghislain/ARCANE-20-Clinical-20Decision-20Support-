@@ -20,6 +20,7 @@ import {
   loadPatientReportProfile,
   normalizePatientReportProfile,
   parseAnalysesFromEditorText,
+  PatientClinicalData,
   PatientReportProfile,
   SimulatedIaReport,
 } from "@/lib/patientReport";
@@ -142,6 +143,99 @@ function getStatusStyle(status: PatientViewModel["status"]): string {
   }
 }
 
+function toInputValue(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+}
+
+function parseNullableInteger(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.trunc(parsed);
+}
+
+function formatJsonArray(value: Record<string, unknown>[]): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function parseJsonArraySection(
+  raw: string,
+  sectionLabel: string,
+): { ok: true; data: Record<string, unknown>[] } | { ok: false; error: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, data: [] };
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) {
+      return {
+        ok: false,
+        error: `La section ${sectionLabel} doit etre un tableau JSON (ex: []).`,
+      };
+    }
+    const rows = parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({ ...(item as Record<string, unknown>) }));
+    return { ok: true, data: rows };
+  } catch {
+    return {
+      ok: false,
+      error: `Le JSON de la section ${sectionLabel} est invalide.`,
+    };
+  }
+}
+
+function toClinicalDataFromPatient(patient: PatientViewModel): PatientClinicalData {
+  const birthDate = patient.birthDate ? new Date(patient.birthDate) : null;
+  const lastVisit = patient.lastVisit ? new Date(patient.lastVisit) : null;
+  return {
+    ipp: patient.mrn,
+    birthDateYear: birthDate ? birthDate.getFullYear() : null,
+    birthDateMonth: birthDate ? birthDate.getMonth() + 1 : null,
+    sex: patient.sex || "",
+    deathDateYear: null,
+    deathDateMonth: null,
+    lastVisitDateYear: lastVisit ? lastVisit.getFullYear() : null,
+    lastVisitDateMonth: lastVisit ? lastVisit.getMonth() + 1 : null,
+    lastNewsDateYear: lastVisit ? lastVisit.getFullYear() : null,
+    lastNewsDateMonth: lastVisit ? lastVisit.getMonth() + 1 : null,
+    medication: [],
+    surgery: [],
+    primaryCancer: [],
+    biologicalSpecimenList: [],
+    mesureList: [],
+  };
+}
+
+function analysesFromMeasureSection(
+  measures: Record<string, unknown>[],
+): ReturnType<typeof parseAnalysesFromEditorText> {
+  return measures
+    .map((item) => {
+      const nameValue = item.measureType || item.name;
+      const valueValue = item.measureValue || item.value;
+      const name = typeof nameValue === "string" ? nameValue : "";
+      const value =
+        typeof valueValue === "number"
+          ? String(valueValue)
+          : typeof valueValue === "string"
+            ? valueValue
+            : "";
+      if (!name && !value) return null;
+      return {
+        name: name || "Mesure",
+        value: value || "Non renseigne",
+        unit: typeof item.measureUnit === "string" ? item.measureUnit : undefined,
+        referenceRange: undefined,
+        date:
+          typeof item.measureDateYear === "number"
+            ? `${item.measureDateYear}${typeof item.measureDateMonth === "number" ? `-${String(item.measureDateMonth).padStart(2, "0")}` : ""}`
+            : undefined,
+      };
+    })
+    .filter(Boolean) as ReturnType<typeof parseAnalysesFromEditorText>;
+}
+
 export default function PatientFile() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
@@ -159,6 +253,21 @@ export default function PatientFile() {
   const [pathologySummary, setPathologySummary] = useState("");
   const [analysesEditor, setAnalysesEditor] = useState("");
   const [reportOutput, setReportOutput] = useState<SimulatedIaReport | null>(null);
+  const [ipp, setIpp] = useState("");
+  const [clinicalSex, setClinicalSex] = useState("");
+  const [birthDateYear, setBirthDateYear] = useState("");
+  const [birthDateMonth, setBirthDateMonth] = useState("");
+  const [deathDateYear, setDeathDateYear] = useState("");
+  const [deathDateMonth, setDeathDateMonth] = useState("");
+  const [lastVisitDateYear, setLastVisitDateYear] = useState("");
+  const [lastVisitDateMonth, setLastVisitDateMonth] = useState("");
+  const [lastNewsDateYear, setLastNewsDateYear] = useState("");
+  const [lastNewsDateMonth, setLastNewsDateMonth] = useState("");
+  const [primaryCancerJson, setPrimaryCancerJson] = useState("[]");
+  const [specimenJson, setSpecimenJson] = useState("[]");
+  const [measureJson, setMeasureJson] = useState("[]");
+  const [medicationJson, setMedicationJson] = useState("[]");
+  const [surgeryJson, setSurgeryJson] = useState("[]");
 
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -175,6 +284,41 @@ export default function PatientFile() {
     setPathologySummary(profile.pathologySummary);
     setAnalysesEditor(analysesToEditorText(profile.analyses));
     setReportOutput(profile.report);
+    const fallbackClinical = patient
+      ? toClinicalDataFromPatient(patient)
+      : {
+          ipp: "",
+          birthDateYear: null,
+          birthDateMonth: null,
+          sex: "",
+          deathDateYear: null,
+          deathDateMonth: null,
+          lastVisitDateYear: null,
+          lastVisitDateMonth: null,
+          lastNewsDateYear: null,
+          lastNewsDateMonth: null,
+          medication: [],
+          surgery: [],
+          primaryCancer: [],
+          biologicalSpecimenList: [],
+          mesureList: [],
+        };
+    const clinicalData = profile.clinicalData || fallbackClinical;
+    setIpp(clinicalData.ipp || patient?.mrn || "");
+    setClinicalSex(clinicalData.sex || patient?.sex || "");
+    setBirthDateYear(toInputValue(clinicalData.birthDateYear));
+    setBirthDateMonth(toInputValue(clinicalData.birthDateMonth));
+    setDeathDateYear(toInputValue(clinicalData.deathDateYear));
+    setDeathDateMonth(toInputValue(clinicalData.deathDateMonth));
+    setLastVisitDateYear(toInputValue(clinicalData.lastVisitDateYear));
+    setLastVisitDateMonth(toInputValue(clinicalData.lastVisitDateMonth));
+    setLastNewsDateYear(toInputValue(clinicalData.lastNewsDateYear));
+    setLastNewsDateMonth(toInputValue(clinicalData.lastNewsDateMonth));
+    setPrimaryCancerJson(formatJsonArray(clinicalData.primaryCancer));
+    setSpecimenJson(formatJsonArray(clinicalData.biologicalSpecimenList));
+    setMeasureJson(formatJsonArray(clinicalData.mesureList));
+    setMedicationJson(formatJsonArray(clinicalData.medication));
+    setSurgeryJson(formatJsonArray(clinicalData.surgery));
     setInfoMessage(`Profil patient charge depuis ${sourceLabel}.`);
     setErrorMessage(null);
     if (options?.markAsPersisted) {
@@ -249,6 +393,22 @@ export default function PatientFile() {
         );
         setAnalysesEditor("");
         setReportOutput(null);
+        const baseClinical = toClinicalDataFromPatient(normalized);
+        setIpp(baseClinical.ipp);
+        setClinicalSex(baseClinical.sex);
+        setBirthDateYear(toInputValue(baseClinical.birthDateYear));
+        setBirthDateMonth(toInputValue(baseClinical.birthDateMonth));
+        setDeathDateYear("");
+        setDeathDateMonth("");
+        setLastVisitDateYear(toInputValue(baseClinical.lastVisitDateYear));
+        setLastVisitDateMonth(toInputValue(baseClinical.lastVisitDateMonth));
+        setLastNewsDateYear(toInputValue(baseClinical.lastNewsDateYear));
+        setLastNewsDateMonth(toInputValue(baseClinical.lastNewsDateMonth));
+        setPrimaryCancerJson("[]");
+        setSpecimenJson("[]");
+        setMeasureJson("[]");
+        setMedicationJson("[]");
+        setSurgeryJson("[]");
 
         // 1) Base JSON statique (simulation locale)
         const jsonProfile = await loadPatientReportProfile(normalized.id);
@@ -293,21 +453,73 @@ export default function PatientFile() {
     void fetchPatient();
   }, [patientId]);
 
+  const parsedClinicalSections = useMemo(() => {
+    const baseData = {
+      primaryCancer: [] as Record<string, unknown>[],
+      biologicalSpecimenList: [] as Record<string, unknown>[],
+      mesureList: [] as Record<string, unknown>[],
+      medication: [] as Record<string, unknown>[],
+      surgery: [] as Record<string, unknown>[],
+    };
+    const primaryCancer = parseJsonArraySection(primaryCancerJson, "Primary Cancer");
+    if ("error" in primaryCancer) return { error: primaryCancer.error, data: baseData };
+    const specimens = parseJsonArraySection(specimenJson, "Biological Specimen List");
+    if ("error" in specimens) return { error: specimens.error, data: baseData };
+    const measures = parseJsonArraySection(measureJson, "Mesure List");
+    if ("error" in measures) return { error: measures.error, data: baseData };
+    const medications = parseJsonArraySection(medicationJson, "Medication");
+    if ("error" in medications) return { error: medications.error, data: baseData };
+    const surgeries = parseJsonArraySection(surgeryJson, "Surgery");
+    if ("error" in surgeries) return { error: surgeries.error, data: baseData };
+    return {
+      error: null as string | null,
+      data: {
+        primaryCancer: primaryCancer.data,
+        biologicalSpecimenList: specimens.data,
+        mesureList: measures.data,
+        medication: medications.data,
+        surgery: surgeries.data,
+      },
+    };
+  }, [primaryCancerJson, specimenJson, measureJson, medicationJson, surgeryJson]);
+
   const currentProfile = useMemo<PatientReportProfile | null>(() => {
     if (!patient) return null;
+    if (parsedClinicalSections.error) return null;
 
     const parsedAnalyses = parseAnalysesFromEditorText(analysesEditor);
     const diagnosisValue = diagnosis.trim() || patient.condition;
     const summaryValue =
       pathologySummary.trim() ||
       "Resume pathologique non renseigne. Utiliser le JSON ou la saisie manuelle.";
+    const clinicalData: PatientClinicalData = {
+      ipp: ipp.trim() || patient.mrn,
+      birthDateYear: parseNullableInteger(birthDateYear),
+      birthDateMonth: parseNullableInteger(birthDateMonth),
+      sex: clinicalSex.trim() || patient.sex || "Non renseigne",
+      deathDateYear: parseNullableInteger(deathDateYear),
+      deathDateMonth: parseNullableInteger(deathDateMonth),
+      lastVisitDateYear: parseNullableInteger(lastVisitDateYear),
+      lastVisitDateMonth: parseNullableInteger(lastVisitDateMonth),
+      lastNewsDateYear: parseNullableInteger(lastNewsDateYear),
+      lastNewsDateMonth: parseNullableInteger(lastNewsDateMonth),
+      medication: parsedClinicalSections.data.medication,
+      surgery: parsedClinicalSections.data.surgery,
+      primaryCancer: parsedClinicalSections.data.primaryCancer,
+      biologicalSpecimenList: parsedClinicalSections.data.biologicalSpecimenList,
+      mesureList: parsedClinicalSections.data.mesureList,
+    };
+    const reportAnalyses =
+      parsedAnalyses.length > 0
+        ? parsedAnalyses
+        : analysesFromMeasureSection(clinicalData.mesureList);
     const report =
       reportOutput ||
       buildSimulatedAiReport({
         patientName: patient.name,
         diagnosis: diagnosisValue,
         pathologySummary: summaryValue,
-        analyses: parsedAnalyses,
+        analyses: reportAnalyses,
       });
 
     return {
@@ -315,18 +527,46 @@ export default function PatientFile() {
       patientId: patient.id,
       diagnosis: diagnosisValue,
       pathologySummary: summaryValue,
-      analyses: parsedAnalyses,
+      analyses: reportAnalyses,
       report,
+      clinicalData,
     };
-  }, [patient, diagnosis, pathologySummary, analysesEditor, reportOutput]);
+  }, [
+    patient,
+    parsedClinicalSections,
+    diagnosis,
+    pathologySummary,
+    analysesEditor,
+    reportOutput,
+    ipp,
+    birthDateYear,
+    birthDateMonth,
+    clinicalSex,
+    deathDateYear,
+    deathDateMonth,
+    lastVisitDateYear,
+    lastVisitDateMonth,
+    lastNewsDateYear,
+    lastNewsDateMonth,
+  ]);
 
   const handleGenerateReport = () => {
     if (!patient) return;
+    if (parsedClinicalSections.error) {
+      setInfoMessage(null);
+      setErrorMessage(parsedClinicalSections.error);
+      return;
+    }
+    if (!currentProfile) {
+      setInfoMessage(null);
+      setErrorMessage("Impossible de generer le report: donnees patient invalides.");
+      return;
+    }
     const generated = buildSimulatedAiReport({
       patientName: patient.name,
-      diagnosis: diagnosis.trim() || patient.condition,
-      pathologySummary: pathologySummary.trim(),
-      analyses: parseAnalysesFromEditorText(analysesEditor),
+      diagnosis: currentProfile.diagnosis,
+      pathologySummary: currentProfile.pathologySummary,
+      analyses: currentProfile.analyses,
     });
     setReportOutput(generated);
     setInfoMessage("Rapport IA simule genere avec succes.");
@@ -369,7 +609,17 @@ export default function PatientFile() {
   }, [patient, currentProfile]);
 
   const openArgosDiscussion = () => {
-    if (!patient || !currentProfile) return;
+    if (!patient) return;
+    if (parsedClinicalSections.error) {
+      setInfoMessage(null);
+      setErrorMessage(parsedClinicalSections.error);
+      return;
+    }
+    if (!currentProfile) {
+      setInfoMessage(null);
+      setErrorMessage("Impossible d'ouvrir ARGOS: profil patient incomplet.");
+      return;
+    }
     const contextMessage = buildArgosContextFromProfile(
       currentProfile,
       patient.name,
@@ -398,7 +648,7 @@ export default function PatientFile() {
       const normalized = normalizePatientReportProfile(payload, patient?.id);
       if (!normalized) {
         throw new Error(
-          "Le JSON est invalide. Verifiez patientId, pathology, analyses et report.",
+          "Le JSON est invalide. Verifiez patientId ou ipp, et les sections cliniques (primaryCancer, biologicalSpecimenList, mesureList, report).",
         );
       }
       hydrateFormFromProfile(normalized, file.name, { markAsPersisted: false });
@@ -499,8 +749,8 @@ export default function PatientFile() {
             </TabsList>
 
             <TabsContent value="patient-info" className="space-y-6">
-              <Card>
-                <CardHeader>
+              <Card className="overflow-hidden border-blue-200/60 bg-gradient-to-br from-blue-50 via-white to-cyan-50 shadow-sm">
+                <CardHeader className="border-b border-blue-100/70">
                   <CardTitle className="text-xl">
                     Source des donnees patient
                   </CardTitle>
@@ -509,7 +759,7 @@ export default function PatientFile() {
                     JSON local, ou saisir les informations manuellement.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 bg-white/70">
                   <div className="flex flex-wrap gap-3">
                     <Button
                       variant="outline"
@@ -578,57 +828,247 @@ export default function PatientFile() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
+              <Card className="overflow-hidden border-indigo-200/60 bg-gradient-to-br from-white via-violet-50/50 to-indigo-50/60 shadow-sm">
+                <CardHeader className="border-b border-indigo-100/70">
                   <CardTitle className="text-xl">Patient Infos</CardTitle>
                   <CardDescription>
                     Informations cliniques pour ce patient (JSON ou saisie manuelle).
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <CardContent className="space-y-6 bg-white/70">
+                  {parsedClinicalSections.error && (
+                    <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive shadow-sm">
+                      {parsedClinicalSections.error}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="rounded-xl border border-blue-200/60 bg-blue-50/70 p-3 text-xs text-blue-900">
+                      <div className="font-semibold">Cancers primaires</div>
+                      <div className="mt-1 text-lg font-bold">
+                        {parsedClinicalSections.data.primaryCancer.length}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-amber-200/60 bg-amber-50/70 p-3 text-xs text-amber-900">
+                      <div className="font-semibold">Specimens</div>
+                      <div className="mt-1 text-lg font-bold">
+                        {parsedClinicalSections.data.biologicalSpecimenList.length}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 p-3 text-xs text-emerald-900">
+                      <div className="font-semibold">Mesures</div>
+                      <div className="mt-1 text-lg font-bold">
+                        {parsedClinicalSections.data.mesureList.length}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-violet-200/60 bg-violet-50/70 p-3 text-xs text-violet-900">
+                      <div className="font-semibold">Analyses report</div>
+                      <div className="mt-1 text-lg font-bold">
+                        {currentProfile?.analyses.length || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  <section className="space-y-3 rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-blue-900">Section 1 - Identite et temporalite patient</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="ipp">IPP</Label>
+                        <Input
+                          id="ipp"
+                          value={ipp}
+                          onChange={(event) => setIpp(event.target.value)}
+                          placeholder="Ex: arcane1"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sex">Sexe</Label>
+                        <Input
+                          id="sex"
+                          value={clinicalSex}
+                          onChange={(event) => setClinicalSex(event.target.value)}
+                          placeholder="MALE / FEMALE / OTHER"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birth-year">Naissance annee</Label>
+                        <Input
+                          id="birth-year"
+                          value={birthDateYear}
+                          onChange={(event) => setBirthDateYear(event.target.value)}
+                          placeholder="1962"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birth-month">Naissance mois</Label>
+                        <Input
+                          id="birth-month"
+                          value={birthDateMonth}
+                          onChange={(event) => setBirthDateMonth(event.target.value)}
+                          placeholder="1"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="death-year">Deces annee</Label>
+                        <Input
+                          id="death-year"
+                          value={deathDateYear}
+                          onChange={(event) => setDeathDateYear(event.target.value)}
+                          placeholder="2022"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="death-month">Deces mois</Label>
+                        <Input
+                          id="death-month"
+                          value={deathDateMonth}
+                          onChange={(event) => setDeathDateMonth(event.target.value)}
+                          placeholder="3"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last-visit-year">Derniere visite annee</Label>
+                        <Input
+                          id="last-visit-year"
+                          value={lastVisitDateYear}
+                          onChange={(event) => setLastVisitDateYear(event.target.value)}
+                          placeholder="2022"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last-visit-month">Derniere visite mois</Label>
+                        <Input
+                          id="last-visit-month"
+                          value={lastVisitDateMonth}
+                          onChange={(event) => setLastVisitDateMonth(event.target.value)}
+                          placeholder="3"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last-news-year">Dernieres nouvelles annee</Label>
+                        <Input
+                          id="last-news-year"
+                          value={lastNewsDateYear}
+                          onChange={(event) => setLastNewsDateYear(event.target.value)}
+                          placeholder="2022"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last-news-month">Dernieres nouvelles mois</Label>
+                        <Input
+                          id="last-news-month"
+                          value={lastNewsDateMonth}
+                          onChange={(event) => setLastNewsDateMonth(event.target.value)}
+                          placeholder="3"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-3 rounded-2xl border border-cyan-200/60 bg-gradient-to-br from-cyan-50/70 to-teal-50/50 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-cyan-900">Section 2 - Synthese clinique exploitable par le report IA</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="diagnosis">Pathologie principale</Label>
+                        <Input
+                          id="diagnosis"
+                          value={diagnosis}
+                          onChange={(event) => setDiagnosis(event.target.value)}
+                          placeholder="Ex: Sarcome epithelioide localement avance"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="patient-status">Statut patient (lecture backend)</Label>
+                        <Input id="patient-status" value={patient.status} disabled />
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      <Label htmlFor="diagnosis">Pathologie principale</Label>
-                      <Input
-                        id="diagnosis"
-                        value={diagnosis}
-                        onChange={(event) => setDiagnosis(event.target.value)}
-                        placeholder="Ex: Sarcome epithelioide localement avance"
+                      <Label htmlFor="pathology-summary">
+                        Resume de la pathologie
+                      </Label>
+                      <Textarea
+                        id="pathology-summary"
+                        value={pathologySummary}
+                        onChange={(event) => setPathologySummary(event.target.value)}
+                        className="min-h-[130px]"
+                        placeholder="Decrire le contexte pathologique, stade, evolution, facteurs de risque..."
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sex">Sexe (lecture backend)</Label>
-                      <Input id="sex" value={patient.sex} disabled />
+                      <Label htmlFor="analyses">
+                        Resultats d'analyses (1 ligne = Nom | Valeur | Unite | Reference | Date)
+                      </Label>
+                      <Textarea
+                        id="analyses"
+                        value={analysesEditor}
+                        onChange={(event) => setAnalysesEditor(event.target.value)}
+                        className="min-h-[180px] font-mono text-xs"
+                        placeholder="LDH | 512 | U/L | 125-220 | 2026-03-12"
+                      />
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="pathology-summary">
-                      Resume de la pathologie
-                    </Label>
+                  <section className="space-y-2 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/70 to-purple-50/40 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-violet-900">Section 3 - Cancers primaires (JSON editable)</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Collez ici un tableau JSON correspondant a `primaryCancer`.
+                    </p>
                     <Textarea
-                      id="pathology-summary"
-                      value={pathologySummary}
-                      onChange={(event) => setPathologySummary(event.target.value)}
-                      className="min-h-[130px]"
-                      placeholder="Decrire le contexte pathologique, stade, evolution, facteurs de risque..."
+                      value={primaryCancerJson}
+                      onChange={(event) => setPrimaryCancerJson(event.target.value)}
+                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
                     />
-                  </div>
+                  </section>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="analyses">
-                      Resultats d'analyses (1 ligne = Nom | Valeur | Unite | Reference | Date)
-                    </Label>
+                  <section className="space-y-2 rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-amber-900">Section 4 - Specimens biologiques (JSON editable)</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Collez ici un tableau JSON correspondant a `biologicalSpecimenList`.
+                    </p>
                     <Textarea
-                      id="analyses"
-                      value={analysesEditor}
-                      onChange={(event) => setAnalysesEditor(event.target.value)}
-                      className="min-h-[180px] font-mono text-xs"
-                      placeholder="LDH | 512 | U/L | 125-220 | 2026-03-12"
+                      value={specimenJson}
+                      onChange={(event) => setSpecimenJson(event.target.value)}
+                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
                     />
-                  </div>
+                  </section>
 
-                  <div className="flex flex-wrap gap-3">
+                  <section className="space-y-2 rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-green-50/40 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-emerald-900">Section 5 - Mesures cliniques (JSON editable)</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Collez ici un tableau JSON correspondant a `mesureList`.
+                    </p>
+                    <Textarea
+                      value={measureJson}
+                      onChange={(event) => setMeasureJson(event.target.value)}
+                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
+                    />
+                  </section>
+
+                  <section className="space-y-3 rounded-2xl border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-pink-50/40 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-rose-900">Section 6 - Traitements et gestes (JSON editable)</h3>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="medication-json">Medication</Label>
+                        <Textarea
+                          id="medication-json"
+                          value={medicationJson}
+                          onChange={(event) => setMedicationJson(event.target.value)}
+                          className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="surgery-json">Surgery</Label>
+                        <Textarea
+                          id="surgery-json"
+                          value={surgeryJson}
+                          onChange={(event) => setSurgeryJson(event.target.value)}
+                          className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
                     <Button onClick={handleGenerateReport}>
                       <Sparkles className="mr-2 h-4 w-4" />
                       Generate Report

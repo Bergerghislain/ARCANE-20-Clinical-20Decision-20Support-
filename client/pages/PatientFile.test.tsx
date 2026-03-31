@@ -202,7 +202,7 @@ describe("PatientFile flow", () => {
 
     expect(
       await screen.findByText(
-        /Le JSON est invalide\. Verifiez patientId, pathology, analyses et report\./i,
+        /Le JSON est invalide\./i,
       ),
     ).toBeInTheDocument();
   });

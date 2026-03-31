@@ -14,6 +14,24 @@ export const simulatedIaReportSchema = z.object({
   sources: z.array(z.string().min(1)).min(1),
 });
 
+export const patientClinicalDataSchema = z.object({
+  ipp: z.string(),
+  birthDateYear: z.number().int().nullable(),
+  birthDateMonth: z.number().int().nullable(),
+  sex: z.string(),
+  deathDateYear: z.number().int().nullable(),
+  deathDateMonth: z.number().int().nullable(),
+  lastVisitDateYear: z.number().int().nullable(),
+  lastVisitDateMonth: z.number().int().nullable(),
+  lastNewsDateYear: z.number().int().nullable(),
+  lastNewsDateMonth: z.number().int().nullable(),
+  medication: z.array(z.record(z.unknown())),
+  surgery: z.array(z.record(z.unknown())),
+  primaryCancer: z.array(z.record(z.unknown())),
+  biologicalSpecimenList: z.array(z.record(z.unknown())),
+  mesureList: z.array(z.record(z.unknown())),
+});
+
 export const patientReportProfileSchema = z.object({
   schemaVersion: z.number().int().positive().default(1),
   patientId: z.string().min(1),
@@ -21,6 +39,7 @@ export const patientReportProfileSchema = z.object({
   pathologySummary: z.string().min(1),
   analyses: z.array(patientAnalysisEntrySchema).default([]),
   report: simulatedIaReportSchema,
+  clinicalData: patientClinicalDataSchema.optional(),
 });
 
 export const storedPatientProfileDraftSchema = z.object({

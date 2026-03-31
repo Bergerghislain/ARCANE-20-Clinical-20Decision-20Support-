@@ -39,6 +39,53 @@ describe("patientReport utils", () => {
     expect(normalized?.report.sources).toEqual(["Source A"]);
   });
 
+  it("normalise un JSON patient detaille type import backend", () => {
+    const raw = {
+      ipp: "arcane1",
+      birthDateYear: 1962,
+      birthDateMonth: 1,
+      sex: "MALE",
+      primaryCancer: [
+        {
+          topographyCode: "C42.2",
+          morphologyCode: "8000/3",
+          cancerDiagnosisDateYear: 2002,
+          cancerDiagnosisDateMonth: 7,
+        },
+      ],
+      biologicalSpecimenList: [
+        {
+          specimenIdentifier: "15H10881",
+          specimenCollectDateYear: 2015,
+          specimenCollectDateMonth: 11,
+        },
+      ],
+      mesureList: [
+        {
+          measureType: "HEIGHT",
+          measureValue: 167.0,
+          measureUnit: "CM",
+          measureDateYear: 2010,
+          measureDateMonth: 3,
+        },
+      ],
+      report: {
+        conclusion: "Conclusion clinique test",
+        reasoning: "Raisonnement clinique test",
+        sources: ["Source test"],
+      },
+    };
+
+    const normalized = normalizePatientReportProfile(raw, "1");
+    expect(normalized).not.toBeNull();
+    expect(normalized?.patientId).toBe("arcane1");
+    expect(normalized?.clinicalData?.ipp).toBe("arcane1");
+    expect(normalized?.clinicalData?.primaryCancer.length).toBe(1);
+    expect(normalized?.clinicalData?.biologicalSpecimenList.length).toBe(1);
+    expect(normalized?.analyses.length).toBeGreaterThan(0);
+    expect(normalized?.diagnosis).toContain("Cancer primaire");
+  });
+
   it("retourne null sans patientId ni fallback", () => {
     const normalized = normalizePatientReportProfile({
       diagnosis: "Sans identifiant",

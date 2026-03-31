@@ -48,6 +48,7 @@ class PatientProfileIn(BaseModel):
   pathologySummary: str
   analyses: list[dict[str, Any]] = Field(default_factory=list)
   report: dict[str, Any]
+  clinicalData: dict[str, Any] | None = None
 
 
 class PatientProfileOut(BaseModel):

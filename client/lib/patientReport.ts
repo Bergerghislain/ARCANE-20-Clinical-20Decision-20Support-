@@ -14,6 +14,24 @@ export interface SimulatedIaReport {
   sources: string[];
 }
 
+export interface PatientClinicalData {
+  ipp: string;
+  birthDateYear: number | null;
+  birthDateMonth: number | null;
+  sex: string;
+  deathDateYear: number | null;
+  deathDateMonth: number | null;
+  lastVisitDateYear: number | null;
+  lastVisitDateMonth: number | null;
+  lastNewsDateYear: number | null;
+  lastNewsDateMonth: number | null;
+  medication: Record<string, unknown>[];
+  surgery: Record<string, unknown>[];
+  primaryCancer: Record<string, unknown>[];
+  biologicalSpecimenList: Record<string, unknown>[];
+  mesureList: Record<string, unknown>[];
+}
+
 export interface PatientReportProfile {
   schemaVersion: number;
   patientId: string;
@@ -21,10 +39,20 @@ export interface PatientReportProfile {
   pathologySummary: string;
   analyses: PatientAnalysisEntry[];
   report: SimulatedIaReport;
+  clinicalData?: PatientClinicalData;
 }
 
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Number(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function readStringArray(value: unknown): string[] {
@@ -32,6 +60,70 @@ function readStringArray(value: unknown): string[] {
   return value
     .map((item) => (typeof item === "string" ? item : ""))
     .filter(Boolean);
+}
+
+function readObjectArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({ ...(item as Record<string, unknown>) }));
+}
+
+function toMonthYearLabel(year: number | null, month: number | null): string | undefined {
+  if (!year) return undefined;
+  const safeMonth = month && month > 0 && month <= 12 ? month : null;
+  return safeMonth ? `${year}-${String(safeMonth).padStart(2, "0")}` : String(year);
+}
+
+function buildClinicalData(source: Record<string, unknown>): PatientClinicalData {
+  const root =
+    source.clinicalData && typeof source.clinicalData === "object"
+      ? (source.clinicalData as Record<string, unknown>)
+      : source;
+
+  return {
+    ipp: readString(root.ipp || source.ipp),
+    birthDateYear: readNumber(root.birthDateYear ?? root.birth_date_year),
+    birthDateMonth: readNumber(root.birthDateMonth ?? root.birth_date_month),
+    sex: readString(root.sex || source.sex),
+    deathDateYear: readNumber(root.deathDateYear ?? root.death_date_year),
+    deathDateMonth: readNumber(root.deathDateMonth ?? root.death_date_month),
+    lastVisitDateYear: readNumber(root.lastVisitDateYear ?? root.last_visit_date_year),
+    lastVisitDateMonth: readNumber(root.lastVisitDateMonth ?? root.last_visit_date_month),
+    lastNewsDateYear: readNumber(root.lastNewsDateYear ?? root.last_news_date_year),
+    lastNewsDateMonth: readNumber(root.lastNewsDateMonth ?? root.last_news_date_month),
+    medication: readObjectArray(root.medication),
+    surgery: readObjectArray(root.surgery),
+    primaryCancer: readObjectArray(root.primaryCancer),
+    biologicalSpecimenList: readObjectArray(
+      root.biologicalSpecimenList ?? root.biological_specimen_list,
+    ),
+    mesureList: readObjectArray(root.mesureList ?? root.measureList ?? root.measure_list),
+  };
+}
+
+function analysesFromMeasureList(measures: Record<string, unknown>[]): PatientAnalysisEntry[] {
+  return measures
+    .map((measure) => {
+      const name = readString(measure.measureType || measure.name || measure.type);
+      const valueRaw = measure.measureValue ?? measure.value;
+      const value =
+        typeof valueRaw === "number"
+          ? String(valueRaw)
+          : typeof valueRaw === "string"
+            ? valueRaw
+            : "";
+      if (!name && !value) return null;
+      const year = readNumber(measure.measureDateYear ?? measure.year);
+      const month = readNumber(measure.measureDateMonth ?? measure.month);
+      return {
+        name: name || "Mesure",
+        value: value || "Non renseigne",
+        unit: readString(measure.measureUnit || measure.unit) || undefined,
+        date: toMonthYearLabel(year, month),
+      } satisfies PatientAnalysisEntry;
+    })
+    .filter(Boolean) as PatientAnalysisEntry[];
 }
 
 function normalizeAnalyses(raw: unknown): PatientAnalysisEntry[] {
@@ -58,12 +150,32 @@ function normalizeAnalyses(raw: unknown): PatientAnalysisEntry[] {
     .filter(Boolean) as PatientAnalysisEntry[];
 }
 
+function inferDiagnosis(clinicalData: PatientClinicalData): string {
+  const firstCancer =
+    clinicalData.primaryCancer.length > 0 ? clinicalData.primaryCancer[0] : null;
+  if (!firstCancer) return "";
+  const topography = readString(firstCancer.topographyCode);
+  const morphology = readString(firstCancer.morphologyCode);
+  if (!topography && !morphology) return "";
+  return `Cancer primaire ${topography || "non code"}${morphology ? ` (${morphology})` : ""}`;
+}
+
+function inferPathologySummary(clinicalData: PatientClinicalData): string {
+  const parts = [
+    `${clinicalData.primaryCancer.length} cancer(s) primaire(s)`,
+    `${clinicalData.biologicalSpecimenList.length} specimen(s) biologique(s)`,
+    `${clinicalData.mesureList.length} mesure(s) clinique(s)`,
+  ];
+  return `Profil clinique structure: ${parts.join(", ")}.`;
+}
+
 export function normalizePatientReportProfile(
   raw: unknown,
   fallbackPatientId?: string,
 ): PatientReportProfile | null {
   if (!raw || typeof raw !== "object") return null;
   const source = raw as Record<string, unknown>;
+  const clinicalData = buildClinicalData(source);
   const pathology =
     source.pathology && typeof source.pathology === "object"
       ? (source.pathology as Record<string, unknown>)
@@ -78,23 +190,32 @@ export function normalizePatientReportProfile(
           : {}) || {};
 
   const patientId = readString(
-    source.patientId || source.patient_id || source.id_patient,
+    source.patientId || source.patient_id || source.id_patient || clinicalData.ipp,
     fallbackPatientId || "",
   );
   if (!patientId) return null;
 
-  const diagnosis = readString(
+  const rawDiagnosis = readString(
     source.diagnosis || pathology.diagnosis || source.condition,
   );
-  const pathologySummary = readString(
+  const rawPathologySummary = readString(
     source.pathologySummary || pathology.summary || source.summary,
   );
-  const analyses = normalizeAnalyses(source.analyses);
+  const analysesFromPayload = normalizeAnalyses(source.analyses);
+  const analyses =
+    analysesFromPayload.length > 0
+      ? analysesFromPayload
+      : analysesFromMeasureList(clinicalData.mesureList);
   const sources = readStringArray(
     reportContainer.sources ||
       reportContainer.references ||
       reportContainer.bibliography,
   );
+  const diagnosis = rawDiagnosis || inferDiagnosis(clinicalData) || "Diagnostic non precise";
+  const pathologySummary =
+    rawPathologySummary ||
+    inferPathologySummary(clinicalData) ||
+    "Resume pathologique non renseigne pour ce patient.";
 
   const candidate: PatientReportProfile = {
     schemaVersion:
@@ -102,9 +223,8 @@ export function normalizePatientReportProfile(
         ? Number(source.schemaVersion)
         : 1,
     patientId,
-    diagnosis: diagnosis || "Diagnostic non precise",
-    pathologySummary:
-      pathologySummary || "Resume pathologique non renseigne pour ce patient.",
+    diagnosis,
+    pathologySummary,
     analyses,
     report: {
       conclusion:
@@ -118,6 +238,7 @@ export function normalizePatientReportProfile(
           ? sources
           : ["Sources non renseignees dans le JSON de simulation."],
     },
+    clinicalData,
   };
 
   const parsed = patientReportProfileSchema.safeParse(candidate);
@@ -207,6 +328,16 @@ export function buildArgosContextFromProfile(
   patientName: string,
   mrn?: string,
 ): string {
+  const clinicalLines = profile.clinicalData
+    ? [
+        `IPP: ${profile.clinicalData.ipp || "Non renseigne"}`,
+        `Sexe: ${profile.clinicalData.sex || "Non renseigne"}`,
+        `Cancers primaires: ${profile.clinicalData.primaryCancer.length}`,
+        `Specimens: ${profile.clinicalData.biologicalSpecimenList.length}`,
+        `Mesures: ${profile.clinicalData.mesureList.length}`,
+      ]
+    : [];
+
   const analysesBlock =
     profile.analyses.length > 0
       ? profile.analyses
@@ -223,6 +354,7 @@ export function buildArgosContextFromProfile(
     `Resume pathologique: ${profile.pathologySummary}`,
     "Resultats d'analyses:",
     analysesBlock,
+    ...(clinicalLines.length > 0 ? ["Donnees structurees:", ...clinicalLines] : []),
     "Conclusion IA de reference:",
     profile.report.conclusion,
   ].join("\n");
