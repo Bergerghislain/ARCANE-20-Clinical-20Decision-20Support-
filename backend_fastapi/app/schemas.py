@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
+from enum import StrEnum
+from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field, constr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, constr
+
+
+class StrictModel(BaseModel):
+  model_config = ConfigDict(extra="forbid")
 
 
 class UserOut(BaseModel):
@@ -41,20 +46,152 @@ class PatientCreateIn(BaseModel):
   health_info: dict | None = None
 
 
-class PatientProfileIn(BaseModel):
-  schemaVersion: int = 1
-  patientId: str | None = None
-  diagnosis: str
-  pathologySummary: str
-  analyses: list[dict[str, Any]] = Field(default_factory=list)
-  report: dict[str, Any]
-  clinicalData: dict[str, Any] | None = None
+class SexValue(StrEnum):
+  MALE = "MALE"
+  FEMALE = "FEMALE"
+  OTHER = "OTHER"
+  UNKNOWN = "UNKNOWN"
+
+
+class MeasureTypeValue(StrEnum):
+  HEIGHT = "HEIGHT"
+  WEIGHT = "WEIGHT"
+  BMI = "BMI"
+  BSA = "BSA"
+  OTHER = "OTHER"
+
+
+class SpecimenTypeValue(StrEnum):
+  BIOPSY = "BIOPSY"
+  BLOOD = "BLOOD"
+  SURGERY = "SURGERY"
+  CYTOLOGY = "CYTOLOGY"
+  OTHER = "OTHER"
+
+
+class SpecimenNatureValue(StrEnum):
+  TUMORAL = "TUMORAL"
+  BENIGN = "BENIGN"
+  NORMAL = "NORMAL"
+  OTHER = "OTHER"
+
+
+class PatientAnalysisIn(StrictModel):
+  name: constr(min_length=1, max_length=150)
+  value: constr(min_length=1, max_length=150)
+  unit: constr(max_length=50) | None = None
+  referenceRange: constr(max_length=100) | None = None
+  date: constr(pattern=r"^\d{4}(-\d{2}(-\d{2})?)?$") | None = None
+
+
+class PatientReportIn(StrictModel):
+  conclusion: constr(min_length=1, max_length=5000)
+  reasoning: constr(min_length=1, max_length=10000)
+  sources: list[constr(min_length=1, max_length=500)] = Field(min_length=1)
+
+
+class PatientReportMetaIn(StrictModel):
+  generator: constr(min_length=1, max_length=80) = "argos-simulated"
+  generatedAt: constr(pattern=r"^\d{4}-\d{2}-\d{2}T.*Z$") | None = None
+
+
+class MedicationIn(StrictModel):
+  medicationName: constr(max_length=200) | None = None
+  dosage: constr(max_length=100) | None = None
+  frequency: constr(max_length=100) | None = None
+  startDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  startDateMonth: int | None = Field(default=None, ge=1, le=12)
+  endDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  endDateMonth: int | None = Field(default=None, ge=1, le=12)
+  indication: constr(max_length=500) | None = None
+
+
+class SurgeryIn(StrictModel):
+  surgeryType: constr(max_length=120) | None = None
+  surgeryDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  surgeryDateMonth: int | None = Field(default=None, ge=1, le=12)
+  topographyCode: constr(max_length=20) | None = None
+  procedureDetails: constr(max_length=1000) | None = None
+
+
+class PrimaryCancerIn(StrictModel):
+  cancerOrder: int | None = Field(default=None, ge=1, le=20)
+  topographyCode: constr(max_length=20) | None = None
+  topographyGroup: constr(max_length=100) | None = None
+  morphologyCode: constr(max_length=20) | None = None
+  morphologyGroup: constr(max_length=100) | None = None
+  cancerDiagnosisDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  cancerDiagnosisDateMonth: int | None = Field(default=None, ge=1, le=12)
+  laterality: constr(max_length=30) | None = None
+  cancerDiagnosisInCenter: bool | None = None
+  cancerDiagnosisMethod: constr(max_length=100) | None = None
+  cancerDiagnosisCode: constr(max_length=50) | None = None
+  cancerCareInCenter: bool | None = None
+  primaryCancerGrade: list[dict[str, Any]] = Field(default_factory=list)
+  primaryCancerStage: list[dict[str, Any]] = Field(default_factory=list)
+  tumorPathoEvent: list[dict[str, Any]] = Field(default_factory=list)
+  tnmEvent: list[dict[str, Any]] = Field(default_factory=list)
+  tumorSize: list[dict[str, Any]] = Field(default_factory=list)
+  imaging: list[dict[str, Any]] = Field(default_factory=list)
+  surgery: list[SurgeryIn] = Field(default_factory=list)
+  radiotherapy: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class BiologicalSpecimenIn(StrictModel):
+  specimenIdentifier: constr(max_length=150) | None = None
+  specimenCollectDateMonth: int | None = Field(default=None, ge=1, le=12)
+  specimenCollectDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  specimenType: SpecimenTypeValue | None = None
+  specimenNature: SpecimenNatureValue | None = None
+  specimenTopographyCode: constr(max_length=20) | None = None
+  biomarker: list[dict[str, Any]] = Field(default_factory=list)
+  imaging: dict[str, Any] | None = None
+
+
+class MeasureIn(StrictModel):
+  measureType: MeasureTypeValue
+  measureValue: float | None = Field(default=None, ge=0, le=500)
+  measureUnit: constr(min_length=1, max_length=20)
+  measureDateMonth: int | None = Field(default=None, ge=1, le=12)
+  measureDateYear: int | None = Field(default=None, ge=1900, le=2100)
+
+
+class PatientClinicalDataIn(StrictModel):
+  ipp: constr(min_length=1, max_length=120)
+  birthDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  birthDateMonth: int | None = Field(default=None, ge=1, le=12)
+  sex: SexValue = SexValue.UNKNOWN
+  deathDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  deathDateMonth: int | None = Field(default=None, ge=1, le=12)
+  lastVisitDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  lastVisitDateMonth: int | None = Field(default=None, ge=1, le=12)
+  lastNewsDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  lastNewsDateMonth: int | None = Field(default=None, ge=1, le=12)
+  medication: list[MedicationIn] = Field(default_factory=list)
+  surgery: list[SurgeryIn] = Field(default_factory=list)
+  primaryCancer: list[PrimaryCancerIn] = Field(default_factory=list)
+  biologicalSpecimenList: list[BiologicalSpecimenIn] = Field(default_factory=list)
+  mesureList: list[MeasureIn] = Field(default_factory=list)
+
+
+class PatientProfileIn(StrictModel):
+  schemaVersion: Literal[1, 2] = 1
+  profileVersion: int | None = Field(default=None, ge=0)
+  patientId: constr(min_length=1, max_length=120) | None = None
+  diagnosis: constr(min_length=1, max_length=500)
+  pathologySummary: constr(min_length=1, max_length=8000)
+  analyses: list[PatientAnalysisIn] = Field(default_factory=list)
+  report: PatientReportIn
+  reportMeta: PatientReportMetaIn | None = None
+  clinicalData: PatientClinicalDataIn | None = None
 
 
 class PatientProfileOut(BaseModel):
   patient_id: int
   source: str
   profile: dict[str, Any] | None = None
+  profile_version: int | None = None
+  stored_schema_version: int | None = None
 
 
 class ArgosDiscussionCreateIn(BaseModel):

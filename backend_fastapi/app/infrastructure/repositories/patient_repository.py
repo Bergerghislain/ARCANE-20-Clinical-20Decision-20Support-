@@ -6,6 +6,10 @@ from typing import Any
 from ...db import fetch_all, fetch_one
 from ..db.unit_of_work import DbUnitOfWork
 
+MANUAL_PROFILE_KEY = "manual_profile"
+MANUAL_PROFILE_VERSION_KEY = "manual_profile_version"
+MANUAL_PROFILE_SCHEMA_VERSION_KEY = "manual_profile_schema_version"
+
 
 class SqlPatientRepository:
   def list_patients(self) -> list[dict[str, Any]]:
@@ -78,47 +82,90 @@ class SqlPatientRepository:
       return None
 
     health_info = _coerce_health_info(row.get("health_info"))
-    profile = health_info.get("manual_profile")
-    return profile if isinstance(profile, dict) else None
+    return _extract_profile_record(health_info)
 
   def save_patient_profile(
     self,
     patient_id: int,
     profile: dict[str, Any],
+    expected_version: int | None = None,
   ) -> dict[str, Any] | None:
-    row = fetch_one(
-      """
-      SELECT health_info
-      FROM patients
-      WHERE id_patient = %s
-      LIMIT 1
-      """,
-      (patient_id,),
-    )
-    if not row:
-      return None
+    with DbUnitOfWork() as uow:
+      cur = uow.cursor
+      if cur is None:
+        raise RuntimeError("Transaction cursor not initialized")
 
-    health_info = _coerce_health_info(row.get("health_info"))
-    health_info["manual_profile"] = profile
+      cur.execute(
+        """
+        SELECT health_info
+        FROM patients
+        WHERE id_patient = %s
+        LIMIT 1
+        FOR UPDATE
+        """,
+        (patient_id,),
+      )
+      row = cur.fetchone()
+      if not row:
+        return None
 
-    updated = fetch_one(
-      """
-      UPDATE patients
-      SET health_info = %s,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id_patient = %s
-      RETURNING health_info
-      """,
-      (json.dumps(health_info), patient_id),
-    )
-    if not updated:
-      return None
+      health_info = _coerce_health_info(row.get("health_info"))
+      current_record = _extract_profile_record(health_info)
+      current_version = (
+        int(current_record["profile_version"]) if current_record is not None else 0
+      )
 
-    updated_health_info = _coerce_health_info(updated.get("health_info"))
-    updated_profile = updated_health_info.get("manual_profile")
-    if isinstance(updated_profile, dict):
-      return updated_profile
-    return profile
+      # Compatibilite legacy:
+      # - profil inexistant => on accepte une creation sans version attendue.
+      # - profil existant => version requise pour activer l'optimistic locking.
+      if expected_version is None and current_version > 0:
+        return {
+          "status": "conflict",
+          "current_version": current_version,
+          "reason": "missing_expected_version",
+        }
+
+      if expected_version is not None and expected_version != current_version:
+        return {
+          "status": "conflict",
+          "current_version": current_version,
+          "reason": "version_mismatch",
+        }
+
+      next_version = current_version + 1
+      normalized_profile = dict(profile)
+      normalized_profile["patientId"] = str(patient_id)
+
+      health_info[MANUAL_PROFILE_KEY] = normalized_profile
+      health_info[MANUAL_PROFILE_VERSION_KEY] = next_version
+      health_info[MANUAL_PROFILE_SCHEMA_VERSION_KEY] = _to_int(
+        normalized_profile.get("schemaVersion"),
+        default=1,
+      )
+
+      cur.execute(
+        """
+        UPDATE patients
+        SET health_info = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id_patient = %s
+        RETURNING health_info
+        """,
+        (json.dumps(health_info), patient_id),
+      )
+      updated = cur.fetchone()
+      if not updated:
+        return None
+
+      uow.commit()
+      updated_health_info = _coerce_health_info(updated.get("health_info"))
+      saved_record = _extract_profile_record(updated_health_info)
+      if not saved_record:
+        return None
+      return {
+        "status": "saved",
+        **saved_record,
+      }
 
   def import_patient_payload(self, payload: dict[str, Any]) -> int:
     with DbUnitOfWork() as uow:
@@ -557,4 +604,32 @@ def _coerce_health_info(raw: Any) -> dict[str, Any]:
     except ValueError:
       return {}
   return {}
+
+
+def _to_int(value: Any, default: int = 0) -> int:
+  if isinstance(value, int):
+    return int(value)
+  if isinstance(value, str):
+    try:
+      return int(value)
+    except ValueError:
+      return default
+  return default
+
+
+def _extract_profile_record(health_info: dict[str, Any]) -> dict[str, Any] | None:
+  profile = health_info.get(MANUAL_PROFILE_KEY)
+  if not isinstance(profile, dict):
+    return None
+
+  profile_version = _to_int(health_info.get(MANUAL_PROFILE_VERSION_KEY), default=0)
+  schema_version = _to_int(
+    health_info.get(MANUAL_PROFILE_SCHEMA_VERSION_KEY),
+    default=_to_int(profile.get("schemaVersion"), default=1),
+  )
+  return {
+    "profile": profile,
+    "profile_version": profile_version,
+    "schema_version": schema_version,
+  }
 

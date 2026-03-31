@@ -26,6 +26,7 @@ class PatientRepositoryPort(Protocol):
     self,
     patient_id: int,
     profile: dict[str, Any],
+    expected_version: int | None = None,
   ) -> dict[str, Any] | None:
     ...
 

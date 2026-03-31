@@ -14,6 +14,11 @@ export const simulatedIaReportSchema = z.object({
   sources: z.array(z.string().min(1)).min(1),
 });
 
+export const patientReportMetaSchema = z.object({
+  generator: z.string().min(1),
+  generatedAt: z.string().nullable().optional(),
+});
+
 export const patientClinicalDataSchema = z.object({
   ipp: z.string(),
   birthDateYear: z.number().int().nullable(),
@@ -34,11 +39,13 @@ export const patientClinicalDataSchema = z.object({
 
 export const patientReportProfileSchema = z.object({
   schemaVersion: z.number().int().positive().default(1),
+  profileVersion: z.number().int().nonnegative().optional(),
   patientId: z.string().min(1),
   diagnosis: z.string().min(1),
   pathologySummary: z.string().min(1),
   analyses: z.array(patientAnalysisEntrySchema).default([]),
   report: simulatedIaReportSchema,
+  reportMeta: patientReportMetaSchema.optional(),
   clinicalData: patientClinicalDataSchema.optional(),
 });
 

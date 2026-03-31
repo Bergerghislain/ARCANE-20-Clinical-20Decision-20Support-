@@ -14,6 +14,11 @@ export interface SimulatedIaReport {
   sources: string[];
 }
 
+export interface PatientReportMeta {
+  generator: string;
+  generatedAt?: string | null;
+}
+
 export interface PatientClinicalData {
   ipp: string;
   birthDateYear: number | null;
@@ -34,11 +39,13 @@ export interface PatientClinicalData {
 
 export interface PatientReportProfile {
   schemaVersion: number;
+  profileVersion?: number;
   patientId: string;
   diagnosis: string;
   pathologySummary: string;
   analyses: PatientAnalysisEntry[];
   report: SimulatedIaReport;
+  reportMeta?: PatientReportMeta;
   clinicalData?: PatientClinicalData;
 }
 
@@ -216,12 +223,26 @@ export function normalizePatientReportProfile(
     rawPathologySummary ||
     inferPathologySummary(clinicalData) ||
     "Resume pathologique non renseigne pour ce patient.";
+  const reportMetaSource =
+    source.reportMeta && typeof source.reportMeta === "object"
+      ? (source.reportMeta as Record<string, unknown>)
+      : null;
+  const profileVersionValue =
+    typeof source.profileVersion === "number" && Number.isFinite(source.profileVersion)
+      ? Number(source.profileVersion)
+      : typeof source.profile_version === "number" && Number.isFinite(source.profile_version)
+        ? Number(source.profile_version)
+        : undefined;
 
   const candidate: PatientReportProfile = {
     schemaVersion:
       typeof source.schemaVersion === "number" && Number.isFinite(source.schemaVersion)
         ? Number(source.schemaVersion)
         : 1,
+    profileVersion:
+      typeof profileVersionValue === "number" && profileVersionValue >= 0
+        ? profileVersionValue
+        : undefined,
     patientId,
     diagnosis,
     pathologySummary,
@@ -238,6 +259,12 @@ export function normalizePatientReportProfile(
           ? sources
           : ["Sources non renseignees dans le JSON de simulation."],
     },
+    reportMeta: reportMetaSource
+      ? {
+          generator: readString(reportMetaSource.generator, "argos-profile"),
+          generatedAt: readString(reportMetaSource.generatedAt, "") || null,
+        }
+      : undefined,
     clinicalData,
   };
 

@@ -8,6 +8,8 @@ interface PatientProfileApiOut {
   patient_id: number;
   source: string;
   profile: unknown | null;
+  profile_version?: number | null;
+  stored_schema_version?: number | null;
 }
 
 export async function fetchPatientProfileFromApi(
@@ -19,7 +21,21 @@ export async function fetchPatientProfileFromApi(
   }
   const payload = (await res.json()) as PatientProfileApiOut;
   if (!payload.profile) return null;
-  return normalizePatientReportProfile(payload.profile, patientId);
+  const profileWithMeta =
+    payload.profile && typeof payload.profile === "object"
+      ? ({
+          ...(payload.profile as Record<string, unknown>),
+          profileVersion:
+            typeof payload.profile_version === "number"
+              ? payload.profile_version
+              : undefined,
+          schemaVersion:
+            typeof payload.stored_schema_version === "number"
+              ? payload.stored_schema_version
+              : (payload.profile as Record<string, unknown>).schemaVersion,
+        } as Record<string, unknown>)
+      : payload.profile;
+  return normalizePatientReportProfile(profileWithMeta, patientId);
 }
 
 export async function savePatientProfileToApi(
@@ -30,7 +46,11 @@ export async function savePatientProfileToApi(
     method: "PUT",
     body: JSON.stringify({
       ...profile,
-      schemaVersion: 1,
+      schemaVersion: profile.schemaVersion || 1,
+      profileVersion:
+        typeof profile.profileVersion === "number"
+          ? profile.profileVersion
+          : undefined,
       patientId: String(patientId),
     }),
   });
@@ -39,6 +59,20 @@ export async function savePatientProfileToApi(
   }
   const payload = (await res.json()) as PatientProfileApiOut;
   if (!payload.profile) return null;
-  return normalizePatientReportProfile(payload.profile, patientId);
+  const profileWithMeta =
+    payload.profile && typeof payload.profile === "object"
+      ? ({
+          ...(payload.profile as Record<string, unknown>),
+          profileVersion:
+            typeof payload.profile_version === "number"
+              ? payload.profile_version
+              : undefined,
+          schemaVersion:
+            typeof payload.stored_schema_version === "number"
+              ? payload.stored_schema_version
+              : (payload.profile as Record<string, unknown>).schemaVersion,
+        } as Record<string, unknown>)
+      : payload.profile;
+  return normalizePatientReportProfile(profileWithMeta, patientId);
 }
 

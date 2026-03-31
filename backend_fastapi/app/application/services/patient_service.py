@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from ..errors import ApplicationError
 from ..ports.patient_ports import PatientRepositoryPort
+
+CURRENT_PROFILE_SCHEMA_VERSION = 2
+SUPPORTED_PROFILE_SCHEMA_VERSIONS = {1, 2}
 
 
 class PatientService:
@@ -113,11 +116,35 @@ class PatientService:
     patient = self._repository.find_patient(patient_id)
     if not patient:
       raise ApplicationError("Patient not found", 404)
-    profile = self._repository.find_patient_profile(patient_id)
+    record = self._repository.find_patient_profile(patient_id)
+    if not record:
+      return {
+        "patient_id": patient_id,
+        "source": "none",
+        "profile": None,
+        "profile_version": None,
+        "stored_schema_version": None,
+      }
+
+    raw_profile = record.get("profile")
+    if not isinstance(raw_profile, dict):
+      return {
+        "patient_id": patient_id,
+        "source": "none",
+        "profile": None,
+        "profile_version": None,
+        "stored_schema_version": None,
+      }
+    migrated_profile = _migrate_profile_to_current(raw_profile, patient_id)
+    profile_version = _safe_int(record.get("profile_version"), default=0)
+    migrated_profile["profileVersion"] = profile_version
+    stored_schema_version = _safe_int(record.get("schema_version"), default=1)
     return {
       "patient_id": patient_id,
-      "source": "persisted" if profile else "none",
-      "profile": profile,
+      "source": "persisted",
+      "profile": migrated_profile,
+      "profile_version": profile_version,
+      "stored_schema_version": stored_schema_version,
     }
 
   def save_patient_profile(self, patient_id: int, payload: dict[str, Any]) -> dict[str, Any]:
@@ -125,16 +152,49 @@ class PatientService:
     if not patient:
       raise ApplicationError("Patient not found", 404)
 
+    expected_version = _read_expected_profile_version(payload)
     profile = dict(payload)
-    profile["patientId"] = str(patient_id)
-    saved = self._repository.save_patient_profile(patient_id, profile)
-    if not saved:
+    profile.pop("profileVersion", None)
+    migrated_profile = _migrate_profile_to_current(profile, patient_id)
+    save_result = self._repository.save_patient_profile(
+      patient_id,
+      migrated_profile,
+      expected_version=expected_version,
+    )
+    if not save_result:
       raise ApplicationError("Failed to save patient profile", 500)
+    if save_result.get("status") == "conflict":
+      current_version = _safe_int(save_result.get("current_version"), default=0)
+      if expected_version is None:
+        raise ApplicationError(
+          (
+            "Profile version is required to update an existing profile. "
+            f"Current version is {current_version}. Reload the profile and retry."
+          ),
+          409,
+        )
+      raise ApplicationError(
+        (
+          "Profile version conflict detected. "
+          f"Expected {expected_version}, current {current_version}. Reload before saving."
+        ),
+        409,
+      )
+
+    saved_profile = save_result.get("profile")
+    if not isinstance(saved_profile, dict):
+      raise ApplicationError("Failed to save patient profile", 500)
+    saved_profile["profileVersion"] = _safe_int(save_result.get("profile_version"), default=0)
 
     return {
       "patient_id": patient_id,
       "source": "persisted",
-      "profile": saved,
+      "profile": saved_profile,
+      "profile_version": _safe_int(save_result.get("profile_version"), default=0),
+      "stored_schema_version": _safe_int(
+        save_result.get("schema_version"),
+        default=CURRENT_PROFILE_SCHEMA_VERSION,
+      ),
     }
 
 
@@ -184,4 +244,66 @@ def _parse_birth_parts(payload: dict[str, Any]) -> tuple[int | None, int | None,
   if isinstance(age, float):
     return datetime.now().year - int(age), None, None
   return None, None, None
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+  if isinstance(value, int):
+    return int(value)
+  if isinstance(value, str):
+    try:
+      return int(value)
+    except ValueError:
+      return default
+  return default
+
+
+def _read_expected_profile_version(payload: dict[str, Any]) -> int | None:
+  version_value = payload.get("profileVersion")
+  if version_value is None:
+    return None
+  version = _safe_int(version_value, default=-1)
+  if version < 0:
+    raise ApplicationError("Invalid profileVersion", 400)
+  return version
+
+
+def _now_utc_iso() -> str:
+  return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _migrate_profile_to_current(profile: dict[str, Any], patient_id: int) -> dict[str, Any]:
+  migrated = dict(profile)
+  raw_schema = migrated.get("schemaVersion")
+  schema_version = _safe_int(raw_schema, default=1)
+  if schema_version not in SUPPORTED_PROFILE_SCHEMA_VERSIONS:
+    raise ApplicationError(
+      (
+        "Unsupported schemaVersion. "
+        f"Supported values are {sorted(SUPPORTED_PROFILE_SCHEMA_VERSIONS)}."
+      ),
+      400,
+    )
+
+  migrated["patientId"] = str(patient_id)
+  if schema_version == 1:
+    # Migration v1 -> v2:
+    # - on preserve le payload clinique
+    # - on enrichit avec reportMeta pour tracer la generation/compatibilite
+    migrated["schemaVersion"] = CURRENT_PROFILE_SCHEMA_VERSION
+    report_meta = migrated.get("reportMeta")
+    if not isinstance(report_meta, dict):
+      migrated["reportMeta"] = {
+        "generator": "argos-profile-migrator-v2",
+        "generatedAt": _now_utc_iso(),
+      }
+  else:
+    migrated["schemaVersion"] = CURRENT_PROFILE_SCHEMA_VERSION
+    report_meta = migrated.get("reportMeta")
+    if not isinstance(report_meta, dict):
+      report_meta = {}
+    report_meta.setdefault("generator", "argos-profile-v2")
+    report_meta.setdefault("generatedAt", _now_utc_iso())
+    migrated["reportMeta"] = report_meta
+
+  return migrated
 

@@ -268,6 +268,7 @@ export default function PatientFile() {
   const [measureJson, setMeasureJson] = useState("[]");
   const [medicationJson, setMedicationJson] = useState("[]");
   const [surgeryJson, setSurgeryJson] = useState("[]");
+  const [profileVersion, setProfileVersion] = useState<number | null>(null);
 
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -319,6 +320,9 @@ export default function PatientFile() {
     setMeasureJson(formatJsonArray(clinicalData.mesureList));
     setMedicationJson(formatJsonArray(clinicalData.medication));
     setSurgeryJson(formatJsonArray(clinicalData.surgery));
+    setProfileVersion(
+      typeof profile.profileVersion === "number" ? profile.profileVersion : null,
+    );
     setInfoMessage(`Profil patient charge depuis ${sourceLabel}.`);
     setErrorMessage(null);
     if (options?.markAsPersisted) {
@@ -376,6 +380,7 @@ export default function PatientFile() {
       setLastSavedAt(null);
       isAutosaveReadyRef.current = false;
       lastSyncedFingerprintRef.current = null;
+      setProfileVersion(null);
       try {
         const res = await apiFetch(`/api/patients/${patientId}`);
         if (!res.ok) {
@@ -523,7 +528,9 @@ export default function PatientFile() {
       });
 
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      profileVersion:
+        typeof profileVersion === "number" ? profileVersion : undefined,
       patientId: patient.id,
       diagnosis: diagnosisValue,
       pathologySummary: summaryValue,
@@ -548,6 +555,7 @@ export default function PatientFile() {
     lastVisitDateMonth,
     lastNewsDateYear,
     lastNewsDateMonth,
+    profileVersion,
   ]);
 
   const handleGenerateReport = () => {
@@ -593,6 +601,11 @@ export default function PatientFile() {
         .then((savedProfile) => {
           if (savedProfile) {
             lastSyncedFingerprintRef.current = JSON.stringify(savedProfile);
+            setProfileVersion(
+              typeof savedProfile.profileVersion === "number"
+                ? savedProfile.profileVersion
+                : null,
+            );
           } else {
             lastSyncedFingerprintRef.current = fingerprint;
           }
