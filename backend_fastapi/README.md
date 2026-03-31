@@ -1,15 +1,30 @@
-# Backend FastAPI
+# Backend FastAPI ARCANE
 
-Ce dossier contient désormais le backend **FastAPI unique** du projet ARCANE.
+Ce dossier contient le backend FastAPI unique du projet.
 
-## Prérequis
+## Etat actuel
 
-- Python 3.11+ (recommandé)
-- Une base PostgreSQL avec le schéma de `setup_database.sql`
+- Architecture refactorisee selon une separation:
+  - `app/domain`
+  - `app/application`
+  - `app/infrastructure`
+  - `app/routers`
+- Services metier isoles (auth, admin, patients, argos).
+- Compatibilite payload legacy patient maintenue (`age`, `gender`, `birthDate`).
+- Endpoint de persistence de profil patient ajoute:
+  - `GET /api/patients/{id}/profile`
+  - `PUT /api/patients/{id}/profile`
 
-## Variables d’environnement
+Pour l'architecture detaillee: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
 
-Créer un fichier `.env` (exemple ci-dessous) à la racine de `backend_fastapi/` ou exporter ces variables.
+## Prerequis
+
+- Python 3.11+
+- PostgreSQL (base `arcane` preparee via les scripts SQL du projet)
+
+## Variables d'environnement
+
+Creer un `.env` a la racine projet (ou exporter les variables):
 
 ```env
 DB_HOST=localhost
@@ -22,12 +37,20 @@ JWT_SECRET=change_me_dev_only
 JWT_ISSUER=arcane
 JWT_AUDIENCE=arcane-client
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+REFRESH_TOKEN_EXPIRE_DAYS=7
 
-# Mettre à false en production
-ALLOW_DEMO_PASSWORD_FALLBACK=true
+PING_MESSAGE=ping
 
-# CORS (séparé par des virgules). Ex: http://localhost:8080
+# Cookies refresh token
+COOKIE_DOMAIN=
+COOKIE_SECURE=false
+COOKIE_SAMESITE=lax
+
+# CORS (liste separee par virgules)
 CORS_ORIGINS=http://localhost:8080
+
+# Mettre a false en production
+ALLOW_DEMO_PASSWORD_FALLBACK=true
 ```
 
 ## Installation
@@ -36,38 +59,70 @@ CORS_ORIGINS=http://localhost:8080
 cd backend_fastapi
 python -m venv .venv
 # Windows:
-.venv\\Scripts\\activate
+.venv\Scripts\activate
 # macOS/Linux:
 # source .venv/bin/activate
 
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-## Lancer en local
+## Lancement local
 
+Depuis la racine:
+```bash
+python -m uvicorn backend_fastapi.app.main:app --reload --port 8000
+```
+
+Depuis `backend_fastapi/`:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-## Endpoints disponibles
+## Endpoints exposes
 
+### Systeme
 - `GET /api/ping`
 - `GET /api/demo`
-- `POST /api/auth/login` -> `{ token, user }`
+
+### Auth
+- `POST /api/auth/login`
 - `POST /api/auth/register`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
-- `GET /api/patients` (protégé)
-- `GET /api/patients/{id}` (protégé)
-- `POST /api/patients` (protégé)
-- `PUT /api/patients/{id}` (protégé)
-- `POST /api/patients/import` (protégé)
-- `GET /api/admin/users` (admin)
-- `POST /api/admin/users/{id}/validate` (admin)
 
-## Notes migration
+### Patients (clinician/admin)
+- `GET /api/patients`
+- `GET /api/patients/{id}`
+- `POST /api/patients`
+- `PUT /api/patients/{id}`
+- `POST /api/patients/import`
+- `GET /api/patients/{id}/profile`
+- `PUT /api/patients/{id}/profile`
 
-- Le frontend doit envoyer `Authorization: Bearer <token>` sur les routes protégées.
-- Les payloads patients historiques de l'ancien backend Express (`age`, `gender`, `birthDate`) sont supportés par FastAPI pour compatibilité.
-- La structure backend suit désormais une séparation `domain` / `application` / `infrastructure` / `routers`.
-- Voir le guide: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
+### Admin
+- `GET /api/admin/users`
+- `POST /api/admin/users/{id}/validate`
+
+### ARGOS (clinician)
+- `POST /api/argos/discussions`
+- `GET /api/argos/discussions`
+- `GET /api/argos/discussions/{discussion_id}`
+- `GET /api/argos/discussions/{discussion_id}/messages`
+- `POST /api/argos/discussions/{discussion_id}/messages`
+
+## Tests backend
+
+```bash
+python -m pytest backend_fastapi/tests -q
+python -m pytest backend_fastapi/tests --cov=backend_fastapi/app --cov-report=term-missing
+```
+
+Dernier snapshot local:
+- `21` tests passes
+- couverture `backend_fastapi/app`: **68%**
+
+## Notes d'implementation
+
+- Les routes HTTP sont fines et deleguent la logique metier aux services applicatifs.
+- Les erreurs metier passent par `ApplicationError`, converties en `HTTPException` dans les routeurs.
+- La persistence du profil patient est actuellement stockee dans `health_info.manual_profile` (strategie transitoire avant table dediee).
