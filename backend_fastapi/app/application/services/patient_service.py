@@ -372,7 +372,7 @@ def _normalize_sex(value: Any) -> str | None:
   if not isinstance(value, str):
     return None
   normalized = value.strip().upper()
-  return normalized if normalized in ("MALE", "FEMALE", "OTHER") else None
+  return normalized if normalized in ("MALE", "FEMALE", "OTHER", "UNKNOWN") else None
 
 
 def _normalize_status_create(value: Any) -> str:

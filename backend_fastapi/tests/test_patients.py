@@ -174,6 +174,21 @@ def test_create_patient_accepts_legacy_express_payload():
       execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
 
 
+def test_create_patient_rejects_unknown_fields_with_strict_dto():
+  token = _login_admin()
+  headers = {"Authorization": f"Bearer {token}"}
+  resp = client.post(
+    "/api/patients",
+    headers=headers,
+    json={
+      "name": "Strict DTO",
+      "status": "active",
+      "unexpected_field": "should_fail",
+    },
+  )
+  assert resp.status_code == 422
+
+
 def test_update_patient_endpoint_matches_previous_express_behavior():
   token = _login_admin()
   headers = {"Authorization": f"Bearer {token}"}
@@ -207,6 +222,31 @@ def test_update_patient_endpoint_matches_previous_express_behavior():
     assert payload["birth_date_year"] == expected_year
     assert payload["birth_date"] == f"{expected_year}-01-01"
     assert payload["birth_date_precision"] == "year"
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+
+
+def test_update_patient_rejects_unknown_fields_with_strict_dto():
+  token = _login_admin()
+  headers = {"Authorization": f"Bearer {token}"}
+  created_patient_id: int | None = None
+
+  try:
+    create = client.post(
+      "/api/patients",
+      headers=headers,
+      json={"name": "Strict Update Target", "status": "pending"},
+    )
+    assert create.status_code == 201, create.text
+    created_patient_id = int(create.json()["id"])
+
+    update = client.put(
+      f"/api/patients/{created_patient_id}",
+      headers=headers,
+      json={"unexpected_field": "should_fail"},
+    )
+    assert update.status_code == 422
   finally:
     if created_patient_id is not None:
       execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))

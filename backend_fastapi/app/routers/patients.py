@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..application.errors import ApplicationError
 from ..application.services.patient_service import PatientService
 from ..deps import AdminUser, ClinicianOrAdminUser, get_patient_service
-from ..schemas import PatientProfileIn, PatientProfileOut
+from ..schemas import PatientCreateIn, PatientProfileIn, PatientProfileOut, PatientUpdateIn
 
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
@@ -47,13 +47,13 @@ def get_patient(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def add_patient(
-  payload: dict[str, Any],
+  payload: PatientCreateIn,
   user: ClinicianOrAdminUser,
   patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ) -> dict[str, Any]:
   try:
     return patient_service.add_patient(
-      payload,
+      payload.model_dump(exclude_none=True),
       int(user["id"]),
       str(user.get("role") or ""),
     )
@@ -64,14 +64,14 @@ def add_patient(
 @router.put("/{patient_id}")
 def update_patient(
   patient_id: int,
-  payload: dict[str, Any],
+  payload: PatientUpdateIn,
   user: ClinicianOrAdminUser,
   patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ) -> dict[str, Any]:
   try:
     return patient_service.update_patient(
       patient_id,
-      payload,
+      payload.model_dump(exclude_unset=True),
       requester_id=int(user["id"]),
       requester_role=str(user.get("role") or ""),
     )

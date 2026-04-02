@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, constr
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, constr
 
 
 class StrictModel(BaseModel):
@@ -34,16 +34,31 @@ class RegisterIn(BaseModel):
   # Bcrypt tronque au-delà de 72 octets : on borne aussi côté DTO.
   password: constr(min_length=8, max_length=72)
 
-class PatientCreateIn(BaseModel):
-  name: str | None = None
-  ipp: str | None = None
-  condition: str | None = None
-  status: str | None = None
-  birth_date_year: int | None = None
-  birth_date_month: int | None = None
-  birth_date_day: int | None = None
+class PatientCreateIn(StrictModel):
+  name: constr(min_length=1, max_length=255) | None = None
+  ipp: constr(min_length=1, max_length=120) | None = None
+  condition: constr(max_length=5000) | None = None
+  status: Literal["pending", "active", "completed"] | None = None
+  birth_date_year: int | None = Field(default=None, ge=1900, le=2100)
+  birth_date_month: int | None = Field(default=None, ge=1, le=12)
+  birth_date_day: int | None = Field(default=None, ge=1, le=31)
   sex: str | None = None
-  health_info: dict | None = None
+  health_info: dict[str, Any] | None = Field(
+    default=None,
+    validation_alias=AliasChoices("health_info", "healthInfo"),
+  )
+  assigned_clinician_id: int | None = Field(
+    default=None,
+    ge=1,
+    validation_alias=AliasChoices("assigned_clinician_id", "assignedClinicianId"),
+  )
+  age: int | float | None = Field(default=None, ge=0, le=130)
+  gender: str | None = None
+  birthDate: constr(max_length=40) | None = None
+
+
+class PatientUpdateIn(PatientCreateIn):
+  pass
 
 
 class SexValue(StrEnum):
@@ -58,6 +73,7 @@ class MeasureTypeValue(StrEnum):
   WEIGHT = "WEIGHT"
   BMI = "BMI"
   BSA = "BSA"
+  BLOOD_PRESSURE = "BLOOD_PRESSURE"
   OTHER = "OTHER"
 
 
@@ -73,6 +89,7 @@ class SpecimenNatureValue(StrEnum):
   TUMORAL = "TUMORAL"
   BENIGN = "BENIGN"
   NORMAL = "NORMAL"
+  METASTATIC = "METASTATIC"
   OTHER = "OTHER"
 
 
