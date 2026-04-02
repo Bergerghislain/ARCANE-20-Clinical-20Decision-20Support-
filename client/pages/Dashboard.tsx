@@ -27,6 +27,7 @@ interface Patient {
 }
 
 const PATIENTS_PAGE_SIZE = 24;
+const DASHBOARD_AUTO_REFRESH_MS = 15000;
 
 function normalizePatient(row: any, index: number): Patient {
   const id =
@@ -118,10 +119,14 @@ export default function Dashboard() {
     [],
   );
 
+  const refreshPatients = useCallback(async () => {
+    await fetchPatientsPage(0, "replace");
+  }, [fetchPatientsPage]);
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        await fetchPatientsPage(0, "replace");
+        await refreshPatients();
       } catch (error) {
         console.error("Failed to load patients:", error);
       } finally {
@@ -129,7 +134,32 @@ export default function Dashboard() {
       }
     };
     void fetchPatients();
-  }, [fetchPatientsPage]);
+  }, [refreshPatients]);
+
+  useEffect(() => {
+    const refreshSafely = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshPatients().catch((error) => {
+        console.error("Failed to auto-refresh dashboard patients:", error);
+      });
+    };
+
+    const onPatientsUpdated = () => refreshSafely();
+    const onFocus = () => refreshSafely();
+    const onVisibilityChange = () => refreshSafely();
+
+    window.addEventListener("arcane:patients-updated", onPatientsUpdated as EventListener);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    const intervalId = window.setInterval(refreshSafely, DASHBOARD_AUTO_REFRESH_MS);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("arcane:patients-updated", onPatientsUpdated as EventListener);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshPatients]);
 
   const handleImportJson = async (file: File) => {
     setImportError(null);
@@ -157,6 +187,7 @@ export default function Dashboard() {
         throw new Error(message);
       }
       await fetchPatientsPage(0, "replace");
+      window.dispatchEvent(new Event("arcane:patients-updated"));
     } catch (error) {
       setImportError(
         error instanceof Error ? error.message : "Unable to import file",

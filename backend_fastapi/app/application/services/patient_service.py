@@ -352,16 +352,14 @@ class PatientService:
       return requester_id
 
     requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
+    # Regle metier demandee:
+    # - creation sans assignee explicite => patient assigne au createur (admin ou clinicien)
+    # - assignee explicite (payload) => doit etre un compte clinicien
     if requested_assignee is None:
-      requested_assignee = self._repository.get_default_active_clinician_id()
-      if requested_assignee is None:
-        raise ApplicationError(
-          (
-            "No active clinician found. "
-            "Create or activate at least one clinician before adding a patient."
-          ),
-          400,
-        )
+      return requester_id
+
+    if _is_admin_role(requester_role) and requested_assignee == requester_id:
+      return requested_assignee
 
     if not self._repository.is_clinician(requested_assignee):
       raise ApplicationError("Assigned clinician must be a clinician account", 400)

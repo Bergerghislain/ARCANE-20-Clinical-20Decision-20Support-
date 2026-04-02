@@ -265,6 +265,7 @@ export default function AdminPatientHandler() {
       setSuccessMessage(
         `Patient ${patient.name} (${patient.ipp}) reassigne vers ${targetLabel}.`,
       );
+      window.dispatchEvent(new Event("arcane:patients-updated"));
     } catch (reassignError) {
       setError(
         reassignError instanceof Error

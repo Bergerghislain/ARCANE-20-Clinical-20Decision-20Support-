@@ -288,5 +288,56 @@ describe("Dashboard flow", () => {
     expect(await screen.findByText("Patient 25")).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith(SECOND_PAGE_PATH);
   });
+
+  it("rafraichit automatiquement apres un evenement de mise a jour patient", async () => {
+    let firstPageCalls = 0;
+    vi.mocked(apiFetch).mockImplementation(async (path) => {
+      if (path === FIRST_PAGE_PATH) {
+        firstPageCalls += 1;
+        if (firstPageCalls === 1) {
+          return jsonResponse([
+            {
+              id_patient: 1,
+              name: "Marie Dubois",
+              ipp: "MRN-001",
+              condition: "Lymphome rare",
+              birth_date_year: 1980,
+              status: "active",
+            },
+          ]);
+        }
+        return jsonResponse([
+          {
+            id_patient: 1,
+            name: "Marie Dubois",
+            ipp: "MRN-001",
+            condition: "Lymphome rare",
+            birth_date_year: 1980,
+            status: "active",
+          },
+          {
+            id_patient: 2,
+            name: "Jean Martin",
+            ipp: "MRN-002",
+            condition: "Sarcome mandibulaire",
+            birth_date_year: 1975,
+            status: "pending",
+          },
+        ]);
+      }
+      if (typeof path === "string" && path.startsWith("/api/patients?")) {
+        return jsonResponse([]);
+      }
+      return jsonResponse({}, false);
+    });
+
+    renderDashboard();
+    expect(await screen.findByText("Marie Dubois")).toBeInTheDocument();
+    expect(screen.queryByText("Jean Martin")).not.toBeInTheDocument();
+
+    window.dispatchEvent(new Event("arcane:patients-updated"));
+
+    expect(await screen.findByText("Jean Martin")).toBeInTheDocument();
+  });
 });
 

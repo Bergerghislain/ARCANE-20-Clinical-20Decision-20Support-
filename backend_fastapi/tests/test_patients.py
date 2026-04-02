@@ -190,6 +190,58 @@ def test_create_patient_accepts_legacy_express_payload():
       execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
 
 
+def test_admin_create_assigns_patient_to_creator_by_default():
+  token = _login_admin()
+  headers = {"Authorization": f"Bearer {token}"}
+  admin_id = _user_id_by_email("admin@arcane.com")
+  created_patient_id: int | None = None
+
+  try:
+    create = client.post(
+      "/api/patients",
+      headers=headers,
+      json={
+        "name": "Default Assignee Admin",
+        "status": "active",
+      },
+    )
+    assert create.status_code == 201, create.text
+    created_patient_id = int(create.json()["id"])
+
+    fetched = client.get(f"/api/patients/{created_patient_id}", headers=headers)
+    assert fetched.status_code == 200, fetched.text
+    assert int(fetched.json()["assigned_clinician_id"]) == admin_id
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+
+
+def test_clinician_create_assigns_patient_to_creator_by_default():
+  token = _login_martin()
+  headers = {"Authorization": f"Bearer {token}"}
+  martin_id = _user_id_by_email("martin@hospital.com")
+  created_patient_id: int | None = None
+
+  try:
+    create = client.post(
+      "/api/patients",
+      headers=headers,
+      json={
+        "name": "Default Assignee Clinician",
+        "status": "pending",
+      },
+    )
+    assert create.status_code == 201, create.text
+    created_patient_id = int(create.json()["id"])
+
+    fetched = client.get(f"/api/patients/{created_patient_id}", headers=headers)
+    assert fetched.status_code == 200, fetched.text
+    assert int(fetched.json()["assigned_clinician_id"]) == martin_id
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+
+
 def test_create_patient_rejects_unknown_fields_with_strict_dto():
   token = _login_admin()
   headers = {"Authorization": f"Bearer {token}"}

@@ -21,10 +21,12 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
   - `GET /api/patients`
   - `GET /api/admin/users?status=ACTIF|EN_ATTENTE`
   - `POST /api/patients/{id}/assign`
+- Regle d'assignation a la creation: par defaut, le patient est assigne au createur (admin ou clinicien), sauf assignee explicite.
 - Gestion d'erreurs metier uniformisee via `ApplicationError`.
 
 ### Frontend
 - Dashboard patient avec recherche, filtres et import JSON.
+- Auto-refresh du dashboard (event local + polling) pour reflet immediat des reaffectations.
 - Dossier patient par onglets (`Patient Infos`, `Report`, `ARGOS`).
 - Vue admin `Patient Handler` exposee sur `/admin/patient-handler` pour reaffecter un patient a un clinicien.
 - Generation de rapport IA simulee (conclusion, raisonnement, sources).

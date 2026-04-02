@@ -107,6 +107,7 @@ Payload reaffectation (`POST /api/patients/{id}/assign`):
 Regles d'acces patient:
 - `clinician`: acces uniquement aux patients qui lui sont affectes (`assigned_clinician_id`)
 - `admin`: acces a tous les dossiers patients + reaffectation possible
+- creation patient: assignation par defaut au createur (admin ou clinicien) si aucun assignee explicite
 
 ### Admin
 - `GET /api/admin/users`
