@@ -38,13 +38,22 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
 
         <div className="flex items-center gap-4">
           {storedUser?.role === "admin" && (
-            <button
-              type="button"
-              onClick={() => navigate("/admin/users")}
-              className="hidden md:inline-flex text-xs font-medium text-secondary hover:text-secondary/80"
-            >
-              Dashboard admin
-            </button>
+            <div className="hidden items-center gap-3 md:flex">
+              <button
+                type="button"
+                onClick={() => navigate("/admin/users")}
+                className="text-xs font-medium text-secondary hover:text-secondary/80"
+              >
+                Dashboard admin
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/patient-handler")}
+                className="text-xs font-medium text-secondary hover:text-secondary/80"
+              >
+                Patient handler
+              </button>
+            </div>
           )}
           <div className="hidden items-center gap-2 sm:flex">
             <User className="h-5 w-5 text-muted-foreground" />

@@ -28,6 +28,9 @@ class PatientRepositoryPort(Protocol):
   def is_active_clinician(self, clinician_id: int) -> bool:
     ...
 
+  def is_clinician(self, clinician_id: int) -> bool:
+    ...
+
   def get_default_active_clinician_id(self) -> int | None:
     ...
 

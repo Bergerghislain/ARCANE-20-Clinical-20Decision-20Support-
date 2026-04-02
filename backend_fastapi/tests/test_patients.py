@@ -45,6 +45,22 @@ def _create_active_clinician(prefix: str = "test.clin") -> tuple[int, str]:
   return int(row["id"]), email
 
 
+def _create_pending_clinician(prefix: str = "test.pending.clin") -> tuple[int, str]:
+  suffix = uuid4().hex[:8]
+  email = f"{prefix}.{suffix}@arcane.com"
+  username = f"{prefix}_{suffix}".replace(".", "_")
+  execute(
+    """
+    INSERT INTO users (username, email, password_hash, role, full_name, is_active)
+    VALUES (%s, %s, %s, 'clinician', %s, FALSE)
+    """,
+    (username, email, "$2a$10$YourHashedPasswordHere", f"Dr Pending {suffix}"),
+  )
+  row = fetch_one("SELECT id FROM users WHERE email = %s LIMIT 1", (email,))
+  assert row is not None
+  return int(row["id"]), email
+
+
 def _delete_user_by_email(email: str) -> None:
   execute("DELETE FROM users WHERE email = %s", (email,))
 
@@ -303,6 +319,76 @@ def test_admin_can_reassign_patient_to_another_clinician():
       headers=other_clinician_headers,
     )
     assert other_after.status_code == 200, other_after.text
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+    if other_email is not None:
+      _delete_user_by_email(other_email)
+
+
+def test_admin_can_reassign_existing_patient_to_pending_clinician():
+  admin_token = _login_admin()
+  martin_id = _user_id_by_email("martin@hospital.com")
+  admin_headers = {"Authorization": f"Bearer {admin_token}"}
+  created_patient_id: int | None = None
+  pending_email: str | None = None
+
+  try:
+    pending_clinician_id, pending_email = _create_pending_clinician("reassign.pending")
+    create_resp = client.post(
+      "/api/patients",
+      headers=admin_headers,
+      json={
+        "name": "Reassign Pending Target",
+        "status": "pending",
+        "assigned_clinician_id": martin_id,
+      },
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    created_patient_id = int(create_resp.json()["id"])
+
+    reassign_resp = client.post(
+      f"/api/patients/{created_patient_id}/assign",
+      headers=admin_headers,
+      json={"clinician_id": pending_clinician_id},
+    )
+    assert reassign_resp.status_code == 200, reassign_resp.text
+    assert reassign_resp.json()["assigned_clinician_id"] == pending_clinician_id
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+    if pending_email is not None:
+      _delete_user_by_email(pending_email)
+
+
+def test_admin_reassign_accepts_assigned_clinician_alias_payload():
+  admin_token = _login_admin()
+  martin_id = _user_id_by_email("martin@hospital.com")
+  admin_headers = {"Authorization": f"Bearer {admin_token}"}
+  created_patient_id: int | None = None
+  other_email: str | None = None
+
+  try:
+    other_clinician_id, other_email = _create_active_clinician("reassign.alias")
+    create_resp = client.post(
+      "/api/patients",
+      headers=admin_headers,
+      json={
+        "name": "Alias Reassign Target",
+        "status": "pending",
+        "assigned_clinician_id": martin_id,
+      },
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    created_patient_id = int(create_resp.json()["id"])
+
+    reassign_resp = client.post(
+      f"/api/patients/{created_patient_id}/assign",
+      headers=admin_headers,
+      json={"assigned_clinician_id": other_clinician_id},
+    )
+    assert reassign_resp.status_code == 200, reassign_resp.text
+    assert reassign_resp.json()["assigned_clinician_id"] == other_clinician_id
   finally:
     if created_patient_id is not None:
       execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))

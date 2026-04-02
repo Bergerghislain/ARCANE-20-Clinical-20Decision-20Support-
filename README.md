@@ -17,11 +17,16 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 - Endpoints patient enrichis avec la persistence de profil:
   - `GET /api/patients/{id}/profile`
   - `PUT /api/patients/{id}/profile`
+- Endpoints utilises par le Patient Handler admin:
+  - `GET /api/patients`
+  - `GET /api/admin/users?status=ACTIF|EN_ATTENTE`
+  - `POST /api/patients/{id}/assign`
 - Gestion d'erreurs metier uniformisee via `ApplicationError`.
 
 ### Frontend
 - Dashboard patient avec recherche, filtres et import JSON.
 - Dossier patient par onglets (`Patient Infos`, `Report`, `ARGOS`).
+- Vue admin `Patient Handler` exposee sur `/admin/patient-handler` pour reaffecter un patient a un clinicien.
 - Generation de rapport IA simulee (conclusion, raisonnement, sources).
 - Transfert automatique du contexte patient vers ARGOS.
 - Validation de profil patient via schema Zod (`schemaVersion`).

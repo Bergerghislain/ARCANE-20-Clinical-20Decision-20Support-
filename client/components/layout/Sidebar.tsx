@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Users, Bot, Settings, HelpCircle, Shield, X } from "lucide-react";
+import { Users, Bot, Settings, HelpCircle, Shield, RefreshCw, X } from "lucide-react";
 import { getStoredUser } from "@/lib/auth";
 
 interface NavItem {
@@ -39,6 +39,11 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       label: "Administration",
       icon: <Shield className="h-5 w-5" />,
       href: "/admin/users",
+    });
+    navItems.push({
+      label: "Patient Handler",
+      icon: <RefreshCw className="h-5 w-5" />,
+      href: "/admin/patient-handler",
     });
   }
 

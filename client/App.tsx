@@ -9,14 +9,30 @@ import ArgosSpace from "./pages/ArgosSpace";
 import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
 import AdminUsers from "./pages/AdminUsers";
+import AdminPatientHandler from "./pages/AdminPatientHandler";
 import ForgotPassword from "./pages/ForgotPassword";
-import { isAuthenticated } from "./lib/auth";
+import { getStoredUser, isAuthenticated } from "./lib/auth";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const location = useLocation();
   if (!isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+  return children;
+}
+
+function RequireAdmin({ children }: { children: React.ReactElement }) {
+  const location = useLocation();
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const user = getStoredUser();
+  const role = String(user?.role || "").toLowerCase();
+  if (role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 }
 
@@ -37,9 +53,17 @@ const App: React.FC = () => (
       <Route
         path="/admin/users"
         element={
-          <RequireAuth>
+          <RequireAdmin>
             <AdminUsers />
-          </RequireAuth>
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/patient-handler"
+        element={
+          <RequireAdmin>
+            <AdminPatientHandler />
+          </RequireAdmin>
         }
       />
       <Route

@@ -100,6 +100,10 @@ uvicorn app.main:app --reload --port 8000
 - `GET /api/patients/{id}/profile`
 - `PUT /api/patients/{id}/profile`
 
+Payload reaffectation (`POST /api/patients/{id}/assign`):
+- accepte `clinician_id` (alias supportes: `assigned_clinician_id`, `assignedClinicianId`)
+- compte cible: role `clinician` (actif ou en attente)
+
 Regles d'acces patient:
 - `clinician`: acces uniquement aux patients qui lui sont affectes (`assigned_clinician_id`)
 - `admin`: acces a tous les dossiers patients + reaffectation possible

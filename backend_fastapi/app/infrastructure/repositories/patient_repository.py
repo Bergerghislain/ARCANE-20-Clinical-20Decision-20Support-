@@ -75,6 +75,19 @@ class SqlPatientRepository:
     )
     return row is not None
 
+  def is_clinician(self, clinician_id: int) -> bool:
+    row = fetch_one(
+      """
+      SELECT id
+      FROM users
+      WHERE id = %s
+        AND role = 'clinician'
+      LIMIT 1
+      """,
+      (clinician_id,),
+    )
+    return row is not None
+
   def get_default_active_clinician_id(self) -> int | None:
     row = fetch_one(
       """

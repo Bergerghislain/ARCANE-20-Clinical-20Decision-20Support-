@@ -187,8 +187,8 @@ class PatientService:
       if _is_admin_role(requester_role):
         requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
         if requested_assignee is not None:
-          if not self._repository.is_active_clinician(requested_assignee):
-            raise ApplicationError("Assigned clinician must be an active clinician", 400)
+          if not self._repository.is_clinician(requested_assignee):
+            raise ApplicationError("Assigned clinician must be a clinician account", 400)
           assigned_clinician_id = requested_assignee
     else:
       assigned_clinician_id = self._resolve_assigned_clinician_id_for_creation(
@@ -326,8 +326,8 @@ class PatientService:
     if not patient:
       raise ApplicationError("Patient not found", 404)
 
-    if not self._repository.is_active_clinician(new_clinician_id):
-      raise ApplicationError("Assigned clinician must be an active clinician", 400)
+    if not self._repository.is_clinician(new_clinician_id):
+      raise ApplicationError("Assigned clinician must be a clinician account", 400)
 
     current_assignee = _read_optional_int(patient.get("assigned_clinician_id"))
     if current_assignee == new_clinician_id:
@@ -363,8 +363,8 @@ class PatientService:
           400,
         )
 
-    if not self._repository.is_active_clinician(requested_assignee):
-      raise ApplicationError("Assigned clinician must be an active clinician", 400)
+    if not self._repository.is_clinician(requested_assignee):
+      raise ApplicationError("Assigned clinician must be a clinician account", 400)
     return requested_assignee
 
 

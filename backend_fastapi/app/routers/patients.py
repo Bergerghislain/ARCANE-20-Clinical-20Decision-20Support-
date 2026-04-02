@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from ..application.errors import ApplicationError
 from ..application.services.patient_service import PatientService
@@ -80,7 +80,11 @@ def update_patient(
 
 
 class PatientAssignIn(BaseModel):
-  clinician_id: int = Field(ge=1)
+  model_config = ConfigDict(extra="forbid")
+  clinician_id: int = Field(
+    ge=1,
+    validation_alias=AliasChoices("clinician_id", "assigned_clinician_id", "assignedClinicianId"),
+  )
 
 
 @router.post("/{patient_id}/assign")
