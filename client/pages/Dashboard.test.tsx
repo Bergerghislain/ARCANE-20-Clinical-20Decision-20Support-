@@ -42,6 +42,9 @@ function renderDashboard() {
   );
 }
 
+const FIRST_PAGE_PATH = "/api/patients?limit=24&offset=0";
+const SECOND_PAGE_PATH = "/api/patients?limit=24&offset=24";
+
 const basePatients = [
   {
     id_patient: 1,
@@ -72,7 +75,15 @@ const basePatients = [
 describe("Dashboard flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(apiFetch).mockResolvedValue(jsonResponse(basePatients));
+    vi.mocked(apiFetch).mockImplementation(async (path) => {
+      if (path === FIRST_PAGE_PATH) {
+        return jsonResponse(basePatients);
+      }
+      if (typeof path === "string" && path.startsWith("/api/patients?")) {
+        return jsonResponse([]);
+      }
+      return jsonResponse({}, false);
+    });
   });
 
   it("charge les patients et affiche la liste", async () => {
@@ -81,7 +92,7 @@ describe("Dashboard flow", () => {
     expect(await screen.findByText("Marie Dubois")).toBeInTheDocument();
     expect(screen.getByText("Jean Martin")).toBeInTheDocument();
     expect(screen.getByText("Sophie Bernard")).toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledWith("/api/patients");
+    expect(apiFetch).toHaveBeenCalledWith(FIRST_PAGE_PATH);
   });
 
   it("filtre par recherche puis par statut", async () => {
@@ -158,7 +169,7 @@ describe("Dashboard flow", () => {
     let patientsFetchCount = 0;
 
     vi.mocked(apiFetch).mockImplementation(async (path, init) => {
-      if (path === "/api/patients") {
+      if (path === FIRST_PAGE_PATH) {
         patientsFetchCount += 1;
         if (patientsFetchCount === 1) {
           return jsonResponse(basePatients.slice(0, 1));
@@ -173,6 +184,9 @@ describe("Dashboard flow", () => {
             status: "active",
           },
         ]);
+      }
+      if (typeof path === "string" && path.startsWith("/api/patients?")) {
+        return jsonResponse([]);
       }
       if (path === "/api/patients/import") {
         expect(init).toMatchObject({
@@ -208,8 +222,11 @@ describe("Dashboard flow", () => {
     const user = userEvent.setup();
 
     vi.mocked(apiFetch).mockImplementation(async (path) => {
-      if (path === "/api/patients") {
+      if (path === FIRST_PAGE_PATH) {
         return jsonResponse(basePatients.slice(0, 1));
+      }
+      if (typeof path === "string" && path.startsWith("/api/patients?")) {
+        return jsonResponse([]);
       }
       if (path === "/api/patients/import") {
         return jsonResponse({ error: "Payload invalide" }, false);
@@ -230,6 +247,46 @@ describe("Dashboard flow", () => {
     await user.upload(fileInput, file);
 
     expect(await screen.findByText(/Payload invalide/i)).toBeInTheDocument();
+  });
+
+  it("charge une page supplementaire quand on clique sur Load more", async () => {
+    const user = userEvent.setup();
+    const firstPage = Array.from({ length: 24 }, (_, index) => ({
+      id_patient: index + 1,
+      name: `Patient ${index + 1}`,
+      ipp: `MRN-${String(index + 1).padStart(3, "0")}`,
+      condition: "Condition test",
+      birth_date_year: 1980,
+      status: "active",
+    }));
+    const secondPage = [
+      {
+        id_patient: 25,
+        name: "Patient 25",
+        ipp: "MRN-025",
+        condition: "Condition test",
+        birth_date_year: 1982,
+        status: "pending",
+      },
+    ];
+
+    vi.mocked(apiFetch).mockImplementation(async (path) => {
+      if (path === FIRST_PAGE_PATH) return jsonResponse(firstPage);
+      if (path === SECOND_PAGE_PATH) return jsonResponse(secondPage);
+      if (typeof path === "string" && path.startsWith("/api/patients?")) {
+        return jsonResponse([]);
+      }
+      return jsonResponse({}, false);
+    });
+
+    renderDashboard();
+    expect(await screen.findByText("Patient 1")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /Load more patients/i }),
+    );
+
+    expect(await screen.findByText("Patient 25")).toBeInTheDocument();
+    expect(apiFetch).toHaveBeenCalledWith(SECOND_PAGE_PATH);
   });
 });
 

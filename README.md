@@ -77,7 +77,8 @@ python -m pip install -r backend_fastapi/requirements.txt
 
 ## 5) Initialiser la base
 - Creer la base `arcane`.
-- Executer `setup_database.sql` (et/ou le script SQL de setup utilise dans votre environnement).
+- Executer `setup_database.sql` (script SQL unique).
+- Le script inclut deja les evolutions recentes (`birth_date`, `birth_date_precision`) et l'assignation obligatoire d'un clinicien par patient.
 
 ## Lancer le projet en developpement
 

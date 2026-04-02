@@ -95,9 +95,14 @@ uvicorn app.main:app --reload --port 8000
 - `GET /api/patients/{id}`
 - `POST /api/patients`
 - `PUT /api/patients/{id}`
+- `POST /api/patients/{id}/assign` (admin)
 - `POST /api/patients/import`
 - `GET /api/patients/{id}/profile`
 - `PUT /api/patients/{id}/profile`
+
+Regles d'acces patient:
+- `clinician`: acces uniquement aux patients qui lui sont affectes (`assigned_clinician_id`)
+- `admin`: acces a tous les dossiers patients + reaffectation possible
 
 ### Admin
 - `GET /api/admin/users`

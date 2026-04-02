@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from ..errors import ApplicationError
@@ -16,22 +16,54 @@ class PatientService:
   def __init__(self, repository: PatientRepositoryPort):
     self._repository = repository
 
-  def list_patients(self) -> list[dict[str, Any]]:
-    return self._repository.list_patients()
+  def list_patients(
+    self,
+    requester_id: int,
+    requester_role: str,
+    limit: int | None = None,
+    offset: int = 0,
+  ) -> list[dict[str, Any]]:
+    if _is_admin_role(requester_role):
+      return self._repository.list_patients(limit=limit, offset=offset)
+    return self._repository.list_patients_by_clinician(
+      clinician_id=requester_id,
+      limit=limit,
+      offset=offset,
+    )
 
-  def get_patient(self, patient_id: int) -> dict[str, Any]:
+  def get_patient(
+    self,
+    patient_id: int,
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
     row = self._repository.find_patient(patient_id)
     if not row:
       raise ApplicationError("Patient not found", 404)
+    _assert_can_access_patient(
+      patient=row,
+      requester_id=requester_id,
+      requester_role=requester_role,
+    )
     return row
 
-  def add_patient(self, payload: dict[str, Any], user_id: int) -> dict[str, Any]:
+  def add_patient(self, payload: dict[str, Any], user_id: int, user_role: str) -> dict[str, Any]:
     ipp_raw = payload.get("ipp")
     ipp = ipp_raw.strip() if isinstance(ipp_raw, str) and ipp_raw.strip() else None
     if ipp is None:
       ipp = f"ARC-{user_id}-{int(time.time() * 1000)}"
 
+    assigned_clinician_id = self._resolve_assigned_clinician_id_for_creation(
+      payload=payload,
+      requester_id=user_id,
+      requester_role=user_role,
+    )
     birth_year, birth_month, birth_day = _parse_birth_parts(payload)
+    birth_date, birth_date_precision = _compose_partial_date(
+      birth_year,
+      birth_month,
+      birth_day,
+    )
     health_info_payload = payload.get("health_info")
     if health_info_payload is None:
       health_info_payload = payload.get("healthInfo")
@@ -44,10 +76,13 @@ class PatientService:
         "birth_date_year": birth_year,
         "birth_date_month": birth_month,
         "birth_date_day": birth_day,
+        "birth_date": birth_date,
+        "birth_date_precision": birth_date_precision,
         "sex": _normalize_sex(payload.get("sex") or payload.get("gender")),
         "condition": payload.get("condition"),
         "status": _normalize_status_create(payload.get("status")),
         "health_info": health_info_json,
+        "assigned_clinician_id": assigned_clinician_id,
         "created_by": user_id,
         "updated_by": user_id,
       }
@@ -56,10 +91,21 @@ class PatientService:
       raise ApplicationError("Failed to create patient", 500)
     return {"id": patient_id}
 
-  def update_patient(self, patient_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+  def update_patient(
+    self,
+    patient_id: int,
+    payload: dict[str, Any],
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
     existing = self._repository.find_patient(patient_id)
     if not existing:
       raise ApplicationError("Patient not found", 404)
+    _assert_can_access_patient(
+      patient=existing,
+      requester_id=requester_id,
+      requester_role=requester_role,
+    )
 
     updates: dict[str, Any] = {}
     if "name" in payload:
@@ -88,34 +134,92 @@ class PatientService:
       or "age" in payload
     ):
       birth_year, birth_month, birth_day = _parse_birth_parts(payload)
+      birth_date, birth_date_precision = _compose_partial_date(
+        birth_year,
+        birth_month,
+        birth_day,
+      )
       updates["birth_date_year"] = birth_year
       updates["birth_date_month"] = birth_month
       updates["birth_date_day"] = birth_day
+      updates["birth_date"] = birth_date
+      updates["birth_date_precision"] = birth_date_precision
 
     if "gender" in payload or "sex" in payload:
       updates["sex"] = _normalize_sex(payload.get("sex") or payload.get("gender"))
 
+    if "assigned_clinician_id" in payload or "assignedClinicianId" in payload:
+      raise ApplicationError(
+        "Use the admin reassignment endpoint to change assigned clinician",
+        400,
+      )
+
     if not updates:
       raise ApplicationError("No fields to update", 400)
 
+    updates["updated_by"] = requester_id
     updated = self._repository.update_patient(patient_id, updates)
     if not updated:
       raise ApplicationError("Failed to update patient", 500)
     return updated
 
-  def import_patient_json(self, payload: dict[str, Any]) -> dict[str, Any]:
+  def import_patient_json(
+    self,
+    payload: dict[str, Any],
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
     if not payload or not payload.get("ipp"):
       raise ApplicationError("Missing ipp in payload", 400)
+    ipp_raw = payload.get("ipp")
+    ipp = str(ipp_raw).strip() if ipp_raw is not None else ""
+    if not ipp:
+      raise ApplicationError("Missing ipp in payload", 400)
+
+    existing = self._repository.find_patient_by_ipp(ipp)
+    assigned_clinician_id: int | None = None
+    if existing:
+      _assert_can_access_patient(
+        patient=existing,
+        requester_id=requester_id,
+        requester_role=requester_role,
+      )
+      if _is_admin_role(requester_role):
+        requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
+        if requested_assignee is not None:
+          if not self._repository.is_active_clinician(requested_assignee):
+            raise ApplicationError("Assigned clinician must be an active clinician", 400)
+          assigned_clinician_id = requested_assignee
+    else:
+      assigned_clinician_id = self._resolve_assigned_clinician_id_for_creation(
+        payload=payload,
+        requester_id=requester_id,
+        requester_role=requester_role,
+      )
+
     try:
-      patient_id = self._repository.import_patient_payload(payload)
+      patient_id = self._repository.import_patient_payload(
+        payload,
+        assigned_clinician_id=assigned_clinician_id,
+      )
     except Exception as exc:
       raise ApplicationError(f"Failed to import patient: {exc}", 500)
     return {"id": patient_id}
 
-  def get_patient_profile(self, patient_id: int) -> dict[str, Any]:
+  def get_patient_profile(
+    self,
+    patient_id: int,
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
     patient = self._repository.find_patient(patient_id)
     if not patient:
       raise ApplicationError("Patient not found", 404)
+    _assert_can_access_patient(
+      patient=patient,
+      requester_id=requester_id,
+      requester_role=requester_role,
+    )
     record = self._repository.find_patient_profile(patient_id)
     if not record:
       return {
@@ -147,10 +251,21 @@ class PatientService:
       "stored_schema_version": stored_schema_version,
     }
 
-  def save_patient_profile(self, patient_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+  def save_patient_profile(
+    self,
+    patient_id: int,
+    payload: dict[str, Any],
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
     patient = self._repository.find_patient(patient_id)
     if not patient:
       raise ApplicationError("Patient not found", 404)
+    _assert_can_access_patient(
+      patient=patient,
+      requester_id=requester_id,
+      requester_role=requester_role,
+    )
 
     expected_version = _read_expected_profile_version(payload)
     profile = dict(payload)
@@ -196,6 +311,61 @@ class PatientService:
         default=CURRENT_PROFILE_SCHEMA_VERSION,
       ),
     }
+
+  def reassign_patient(
+    self,
+    patient_id: int,
+    new_clinician_id: int,
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
+    if not _is_admin_role(requester_role):
+      raise ApplicationError("Only admins can reassign patients", 403)
+
+    patient = self._repository.find_patient(patient_id)
+    if not patient:
+      raise ApplicationError("Patient not found", 404)
+
+    if not self._repository.is_active_clinician(new_clinician_id):
+      raise ApplicationError("Assigned clinician must be an active clinician", 400)
+
+    current_assignee = _read_optional_int(patient.get("assigned_clinician_id"))
+    if current_assignee == new_clinician_id:
+      return patient
+
+    updated = self._repository.reassign_patient(
+      patient_id=patient_id,
+      clinician_id=new_clinician_id,
+      updated_by=requester_id,
+    )
+    if not updated:
+      raise ApplicationError("Failed to reassign patient", 500)
+    return updated
+
+  def _resolve_assigned_clinician_id_for_creation(
+    self,
+    payload: dict[str, Any],
+    requester_id: int,
+    requester_role: str,
+  ) -> int:
+    if not _is_admin_role(requester_role):
+      return requester_id
+
+    requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
+    if requested_assignee is None:
+      requested_assignee = self._repository.get_default_active_clinician_id()
+      if requested_assignee is None:
+        raise ApplicationError(
+          (
+            "No active clinician found. "
+            "Create or activate at least one clinician before adding a patient."
+          ),
+          400,
+        )
+
+    if not self._repository.is_active_clinician(requested_assignee):
+      raise ApplicationError("Assigned clinician must be an active clinician", 400)
+    return requested_assignee
 
 
 def _normalize_sex(value: Any) -> str | None:
@@ -244,6 +414,30 @@ def _parse_birth_parts(payload: dict[str, Any]) -> tuple[int | None, int | None,
   if isinstance(age, float):
     return datetime.now().year - int(age), None, None
   return None, None, None
+
+
+def _compose_partial_date(
+  year: int | None,
+  month: int | None,
+  day: int | None,
+) -> tuple[str | None, str | None]:
+  if year is None:
+    return None, None
+
+  precision = "year"
+  normalized_month = 1
+  normalized_day = 1
+  if month is not None:
+    normalized_month = month
+    precision = "month"
+  if day is not None:
+    normalized_day = day
+    precision = "day"
+
+  try:
+    return date(year, normalized_month, normalized_day).isoformat(), precision
+  except ValueError:
+    raise ApplicationError("Invalid birth date components", 400)
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -306,4 +500,43 @@ def _migrate_profile_to_current(profile: dict[str, Any], patient_id: int) -> dic
     migrated["reportMeta"] = report_meta
 
   return migrated
+
+
+def _is_admin_role(role: str) -> bool:
+  return role.strip().lower() == "admin"
+
+
+def _read_optional_int(value: Any) -> int | None:
+  if isinstance(value, int):
+    return value
+  if isinstance(value, str):
+    try:
+      return int(value)
+    except ValueError:
+      return None
+  return None
+
+
+def _extract_assigned_clinician_id_from_payload(payload: dict[str, Any]) -> int | None:
+  raw = payload.get("assigned_clinician_id")
+  if raw is None:
+    raw = payload.get("assignedClinicianId")
+  return _read_optional_int(raw)
+
+
+def _assert_can_access_patient(
+  *,
+  patient: dict[str, Any],
+  requester_id: int,
+  requester_role: str,
+) -> None:
+  if _is_admin_role(requester_role):
+    return
+
+  assigned_clinician_id = _read_optional_int(patient.get("assigned_clinician_id"))
+  if assigned_clinician_id is None:
+    raise ApplicationError("Patient has no assigned clinician", 500)
+
+  if assigned_clinician_id != requester_id:
+    raise ApplicationError("Access denied for this patient", 403)
 

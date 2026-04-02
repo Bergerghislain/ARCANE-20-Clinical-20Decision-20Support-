@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any
 
 from ...db import fetch_all, fetch_one
@@ -12,11 +13,82 @@ MANUAL_PROFILE_SCHEMA_VERSION_KEY = "manual_profile_schema_version"
 
 
 class SqlPatientRepository:
-  def list_patients(self) -> list[dict[str, Any]]:
-    return fetch_all("SELECT * FROM patients ORDER BY id_patient")
+  def list_patients(
+    self,
+    limit: int | None = None,
+    offset: int = 0,
+  ) -> list[dict[str, Any]]:
+    if limit is None:
+      return fetch_all("SELECT * FROM patients ORDER BY id_patient")
+    return fetch_all(
+      "SELECT * FROM patients ORDER BY id_patient LIMIT %s OFFSET %s",
+      (limit, offset),
+    )
+
+  def list_patients_by_clinician(
+    self,
+    clinician_id: int,
+    limit: int | None = None,
+    offset: int = 0,
+  ) -> list[dict[str, Any]]:
+    if limit is None:
+      return fetch_all(
+        """
+        SELECT *
+        FROM patients
+        WHERE assigned_clinician_id = %s
+        ORDER BY id_patient
+        """,
+        (clinician_id,),
+      )
+    return fetch_all(
+      """
+      SELECT *
+      FROM patients
+      WHERE assigned_clinician_id = %s
+      ORDER BY id_patient
+      LIMIT %s OFFSET %s
+      """,
+      (clinician_id, limit, offset),
+    )
 
   def find_patient(self, patient_id: int) -> dict[str, Any] | None:
     return fetch_one("SELECT * FROM patients WHERE id_patient = %s", (patient_id,))
+
+  def find_patient_by_ipp(self, ipp: str) -> dict[str, Any] | None:
+    return fetch_one(
+      "SELECT * FROM patients WHERE ipp = %s LIMIT 1",
+      (ipp,),
+    )
+
+  def is_active_clinician(self, clinician_id: int) -> bool:
+    row = fetch_one(
+      """
+      SELECT id
+      FROM users
+      WHERE id = %s
+        AND role = 'clinician'
+        AND is_active = TRUE
+      LIMIT 1
+      """,
+      (clinician_id,),
+    )
+    return row is not None
+
+  def get_default_active_clinician_id(self) -> int | None:
+    row = fetch_one(
+      """
+      SELECT id
+      FROM users
+      WHERE role = 'clinician'
+        AND is_active = TRUE
+      ORDER BY id ASC
+      LIMIT 1
+      """,
+    )
+    if not row:
+      return None
+    return int(row["id"])
 
   def create_patient(self, payload: dict[str, Any]) -> int | None:
     inserted = fetch_one(
@@ -27,14 +99,17 @@ class SqlPatientRepository:
         birth_date_year,
         birth_date_month,
         birth_date_day,
+        birth_date,
+        birth_date_precision,
         sex,
         condition,
         status,
         health_info,
+        assigned_clinician_id,
         created_by,
         updated_by
       )
-      VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+      VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
       RETURNING id_patient
       """,
       (
@@ -43,10 +118,13 @@ class SqlPatientRepository:
         payload.get("birth_date_year"),
         payload.get("birth_date_month"),
         payload.get("birth_date_day"),
+        payload.get("birth_date"),
+        payload.get("birth_date_precision"),
         payload.get("sex"),
         payload.get("condition"),
         payload.get("status"),
         payload.get("health_info"),
+        payload.get("assigned_clinician_id"),
         payload.get("created_by"),
         payload.get("updated_by"),
       ),
@@ -67,6 +145,24 @@ class SqlPatientRepository:
     )
     values.append(patient_id)
     return fetch_one(query, tuple(values))
+
+  def reassign_patient(
+    self,
+    patient_id: int,
+    clinician_id: int,
+    updated_by: int | None = None,
+  ) -> dict[str, Any] | None:
+    return fetch_one(
+      """
+      UPDATE patients
+      SET assigned_clinician_id = %s,
+          updated_by = %s,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id_patient = %s
+      RETURNING *
+      """,
+      (clinician_id, updated_by, patient_id),
+    )
 
   def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
     row = fetch_one(
@@ -167,13 +263,13 @@ class SqlPatientRepository:
         **saved_record,
       }
 
-  def import_patient_payload(self, payload: dict[str, Any]) -> int:
+  def import_patient_payload(self, payload: dict[str, Any], assigned_clinician_id: int | None = None) -> int:
     with DbUnitOfWork() as uow:
       cur = uow.cursor
       if cur is None:
         raise RuntimeError("Transaction cursor not initialized")
 
-      patient_id = self._upsert_patient(cur, payload)
+      patient_id = self._upsert_patient(cur, payload, assigned_clinician_id=assigned_clinician_id)
 
       primary_cancers = payload.get("primaryCancer") or []
       has_primary_cancer_surgery = any(
@@ -202,7 +298,12 @@ class SqlPatientRepository:
       uow.commit()
       return patient_id
 
-  def _upsert_patient(self, cur: Any, payload: dict[str, Any]) -> int:
+  def _upsert_patient(
+    self,
+    cur: Any,
+    payload: dict[str, Any],
+    assigned_clinician_id: int | None = None,
+  ) -> int:
     cur.execute(
       "SELECT id_patient FROM patients WHERE ipp = %s",
       (payload["ipp"],),
@@ -221,7 +322,15 @@ class SqlPatientRepository:
       "last_visit_date_month": payload.get("lastVisitDateMonth"),
       "last_news_date_year": payload.get("lastNewsDateYear"),
       "last_news_date_month": payload.get("lastNewsDateMonth"),
+      "assigned_clinician_id": assigned_clinician_id,
     }
+    birth_date, birth_date_precision = _partial_date_from_parts(
+      patient_values["birth_date_year"],
+      patient_values["birth_date_month"],
+      patient_values["birth_date_day"],
+    )
+    patient_values["birth_date"] = birth_date
+    patient_values["birth_date_precision"] = birth_date_precision
 
     if existing:
       patient_id = int(existing["id_patient"])
@@ -243,15 +352,18 @@ class SqlPatientRepository:
         birth_date_year,
         birth_date_month,
         birth_date_day,
+        birth_date,
+        birth_date_precision,
         sex,
         death_date_year,
         death_date_month,
         last_visit_date_year,
         last_visit_date_month,
         last_news_date_year,
-        last_news_date_month
+        last_news_date_month,
+        assigned_clinician_id
       )
-      VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+      VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
       RETURNING id_patient
       """,
       (
@@ -259,6 +371,8 @@ class SqlPatientRepository:
         patient_values["birth_date_year"],
         patient_values["birth_date_month"],
         patient_values["birth_date_day"],
+        patient_values["birth_date"],
+        patient_values["birth_date_precision"],
         patient_values["sex"],
         patient_values["death_date_year"],
         patient_values["death_date_month"],
@@ -266,6 +380,7 @@ class SqlPatientRepository:
         patient_values["last_visit_date_month"],
         patient_values["last_news_date_year"],
         patient_values["last_news_date_month"],
+        patient_values["assigned_clinician_id"],
       ),
     )
     inserted = cur.fetchone()
@@ -632,4 +747,42 @@ def _extract_profile_record(health_info: dict[str, Any]) -> dict[str, Any] | Non
     "profile_version": profile_version,
     "schema_version": schema_version,
   }
+
+
+def _safe_int_or_none(value: Any) -> int | None:
+  if isinstance(value, int):
+    return value
+  if isinstance(value, str):
+    try:
+      return int(value)
+    except ValueError:
+      return None
+  return None
+
+
+def _partial_date_from_parts(
+  year_raw: Any,
+  month_raw: Any,
+  day_raw: Any,
+) -> tuple[str | None, str | None]:
+  year = _safe_int_or_none(year_raw)
+  month = _safe_int_or_none(month_raw)
+  day = _safe_int_or_none(day_raw)
+  if year is None:
+    return None, None
+
+  precision = "year"
+  normalized_month = 1
+  normalized_day = 1
+  if month is not None:
+    normalized_month = month
+    precision = "month"
+  if day is not None:
+    normalized_day = day
+    precision = "day"
+
+  try:
+    return date(year, normalized_month, normalized_day).isoformat(), precision
+  except ValueError:
+    return None, None
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ interface Patient {
   lastVisit?: string | null;
   status?: "active" | "completed" | "pending" | null;
 }
+
+const PATIENTS_PAGE_SIZE = 24;
 
 function normalizePatient(row: any, index: number): Patient {
   const id =
@@ -76,31 +78,58 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMorePatients, setHasMorePatients] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const fetchPatientsPage = useCallback(
+    async (
+      offset: number,
+      mode: "replace" | "append" = "replace",
+    ): Promise<boolean> => {
+      const res = await apiFetch(
+        `/api/patients?limit=${PATIENTS_PAGE_SIZE}&offset=${offset}`,
+      );
+      if (!res.ok) {
+        if (mode === "replace") setPatients([]);
+        setHasMorePatients(false);
+        return false;
+      }
+      const data = await res.json();
+      const normalized = Array.isArray(data)
+        ? data.map((row, index) => normalizePatient(row, offset + index))
+        : [];
+      setHasMorePatients(normalized.length === PATIENTS_PAGE_SIZE);
+      if (mode === "replace") {
+        setPatients(normalized);
+      } else {
+        setPatients((current) => {
+          const existingIds = new Set(current.map((patient) => patient.id));
+          const incoming = normalized.filter((patient) => !existingIds.has(patient.id));
+          return [...current, ...incoming];
+        });
+      }
+      return true;
+    },
+    [],
+  );
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const res = await apiFetch("/api/patients");
-        if (res.ok) {
-          const data = await res.json();
-          const normalized = Array.isArray(data)
-            ? data.map((row, index) => normalizePatient(row, index))
-            : [];
-          setPatients(normalized);
-        }
+        await fetchPatientsPage(0, "replace");
       } catch (error) {
         console.error("Failed to load patients:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchPatients();
-  }, []);
+    void fetchPatients();
+  }, [fetchPatientsPage]);
 
   const handleImportJson = async (file: File) => {
     setImportError(null);
@@ -127,14 +156,7 @@ export default function Dashboard() {
         }
         throw new Error(message);
       }
-      const updated = await apiFetch("/api/patients");
-      if (updated.ok) {
-        const data = await updated.json();
-        const normalized = Array.isArray(data)
-          ? data.map((row, index) => normalizePatient(row, index))
-          : [];
-        setPatients(normalized);
-      }
+      await fetchPatientsPage(0, "replace");
     } catch (error) {
       setImportError(
         error instanceof Error ? error.message : "Unable to import file",
@@ -144,16 +166,48 @@ export default function Dashboard() {
     }
   };
 
-  const filteredPatients = patients.filter((patient) => {
-    const nameValue = patient.name ?? "";
-    const conditionValue = patient.condition ?? "";
-    const matchesSearch =
-      nameValue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conditionValue.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || patient.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredPatients = useMemo(
+    () =>
+      patients.filter((patient) => {
+        const nameValue = patient.name ?? "";
+        const conditionValue = patient.condition ?? "";
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          nameValue.toLowerCase().includes(normalizedSearch) ||
+          conditionValue.toLowerCase().includes(normalizedSearch);
+        const matchesStatus =
+          statusFilter === "all" || patient.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [patients, normalizedSearch, statusFilter],
+  );
+
+  const filteredStats = useMemo(
+    () =>
+      filteredPatients.reduce(
+        (acc, patient) => {
+          if (patient.status === "active") acc.active += 1;
+          if (patient.status === "pending") acc.pending += 1;
+          if (patient.status === "completed") acc.completed += 1;
+          return acc;
+        },
+        { active: 0, pending: 0, completed: 0 },
+      ),
+    [filteredPatients],
+  );
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMorePatients) return;
+    setIsLoadingMore(true);
+    try {
+      await fetchPatientsPage(patients.length, "append");
+    } catch (error) {
+      console.error("Failed to load more patients:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const getStatusColor = (status: Patient["status"]) => {
     switch (status) {
@@ -273,8 +327,17 @@ export default function Dashboard() {
           </div>
 
           {/* Liste des patients */}
+          <div className="mb-3 text-xs text-muted-foreground">
+            {isLoading
+              ? "Loading patients..."
+              : `${patients.length} patient(s) loaded`}
+          </div>
           <div className="space-y-3">
-            {filteredPatients.length > 0 ? (
+            {isLoading ? (
+              <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
+                <p className="text-muted-foreground">Loading patients...</p>
+              </div>
+            ) : filteredPatients.length > 0 ? (
               filteredPatients.map((patient) => (
                 <Link
                   key={patient.id}
@@ -381,6 +444,19 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          {!isLoading && hasMorePatients && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void handleLoadMore();
+                }}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? "Loading..." : "Load more patients"}
+              </Button>
+            </div>
+          )}
 
           {/* Statistiques */}
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
@@ -389,7 +465,7 @@ export default function Dashboard() {
                 Active Patients
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                {filteredPatients.filter((p) => p.status === "active").length}
+                {filteredStats.active}
               </p>
             </div>
             <div className="rounded-2xl border border-amber-200/50 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-md hover:shadow-lg transition-shadow">
@@ -397,7 +473,7 @@ export default function Dashboard() {
                 Pending Review
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-warning to-amber-600 bg-clip-text text-transparent">
-                {filteredPatients.filter((p) => p.status === "pending").length}
+                {filteredStats.pending}
               </p>
             </div>
             <div className="rounded-2xl border border-green-200/50 bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-md hover:shadow-lg transition-shadow">
@@ -405,7 +481,7 @@ export default function Dashboard() {
                 Completed Cases
               </p>
               <p className="mt-3 text-4xl font-bold bg-gradient-to-r from-success to-emerald-600 bg-clip-text text-transparent">
-                {filteredPatients.filter((p) => p.status === "completed").length}
+                {filteredStats.completed}
               </p>
             </div>
           </div>
