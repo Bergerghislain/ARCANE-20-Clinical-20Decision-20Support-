@@ -15,6 +15,17 @@ class Settings(BaseSettings):
   # Timeout TCP vers PostgreSQL (secondes). Evite les blocages longs si le serveur DB est arrete.
   db_connect_timeout_seconds: int = 15
 
+  @property
+  def database_url(self) -> str:
+    # SQLAlchemy URL (sync) pour PostgreSQL via psycopg3
+    # Exemple: postgresql+psycopg://user:pass@host:5432/dbname
+    user = self.db_user
+    password = self.db_password
+    host = self.db_host
+    port = self.db_port
+    name = self.db_name
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}"
+
   # Cache utilisateur pour resolve_access_token (find_by_id) — TTL court
   user_cache_ttl_seconds: float = 60.0
 

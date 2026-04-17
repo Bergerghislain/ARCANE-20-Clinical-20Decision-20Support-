@@ -1,0 +1,9 @@
+Dossier Alembic (migrations)
+
+- `env.py` résout l'URL DB depuis `app.settings.settings.database_url`
+- `versions/` contiendra les migrations générées
+
+Cas fréquent (DB déjà existante) :
+- créer une migration "baseline" vide puis `alembic stamp head`
+  pour aligner Alembic sur l'état actuel sans rien modifier.
+

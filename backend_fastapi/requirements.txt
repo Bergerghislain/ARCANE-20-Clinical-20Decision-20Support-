@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
 psycopg[binary]
+SQLAlchemy
+alembic
 pydantic-settings
 email-validator
 python-dotenv
