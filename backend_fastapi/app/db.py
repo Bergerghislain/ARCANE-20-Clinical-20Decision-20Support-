@@ -3,18 +3,26 @@ from __future__ import annotations
 from typing import Any
 
 import psycopg
+import psycopg.conninfo
 from psycopg.rows import dict_row
 
 from .settings import settings
 
 
-def _connect(autocommit: bool) -> psycopg.Connection[Any]:
-  return psycopg.connect(
+def _conninfo() -> str:
+  return psycopg.conninfo.make_conninfo(
     host=settings.db_host,
     port=settings.db_port,
+    dbname=settings.db_name,
     user=settings.db_user,
     password=settings.db_password,
-    dbname=settings.db_name,
+    connect_timeout=settings.db_connect_timeout_seconds,
+  )
+
+
+def _connect(autocommit: bool) -> psycopg.Connection[Any]:
+  return psycopg.connect(
+    conninfo=_conninfo(),
     row_factory=dict_row,
     autocommit=autocommit,
   )
@@ -50,4 +58,3 @@ def execute(query: str, params: tuple[Any, ...] = ()) -> int:
     with conn.cursor() as cur:
       cur.execute(query, params)
       return cur.rowcount
-

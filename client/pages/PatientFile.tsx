@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
+import { findPatientRowInListCache } from "@/lib/dashboardPatientsCache";
 import {
   analysesToEditorText,
   buildArgosContextFromProfile,
@@ -245,6 +246,8 @@ export default function PatientFile() {
   const lastSyncedFingerprintRef = useRef<string | null>(null);
 
   const [patient, setPatient] = useState<PatientViewModel | null>(null);
+  /** Apercu depuis le cache liste (dashboard) pendant GET /api/patients/:id (BD). */
+  const [listCachePreview, setListCachePreview] = useState<PatientViewModel | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isJsonLoading, setIsJsonLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState("patient-info");
@@ -373,6 +376,17 @@ export default function PatientFile() {
 
   useEffect(() => {
     const fetchPatient = async () => {
+      setListCachePreview(null);
+      if (patientId) {
+        const fromList = findPatientRowInListCache(patientId);
+        if (fromList) {
+          try {
+            setListCachePreview(normalizePatientDetail(fromList as PatientApiRow));
+          } catch {
+            setListCachePreview(null);
+          }
+        }
+      }
       setIsLoading(true);
       setInfoMessage(null);
       setErrorMessage(null);
@@ -451,6 +465,7 @@ export default function PatientFile() {
       } catch {
         setPatient(null);
       } finally {
+        setListCachePreview(null);
         setIsLoading(false);
       }
     };
@@ -676,7 +691,26 @@ export default function PatientFile() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="p-6">Chargement du dossier patient...</div>
+        <div className="space-y-4 p-6">
+          <p className="text-sm text-muted-foreground">
+            {listCachePreview
+              ? "Chargement des donnees completes depuis la base de donnees..."
+              : "Chargement du dossier patient..."}
+          </p>
+          {listCachePreview ? (
+            <div className="max-w-xl rounded-lg border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Apercu (liste — cache navigateur)
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-foreground">
+                {listCachePreview.name}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                MRN / IP : {listCachePreview.mrn}
+              </p>
+            </div>
+          ) : null}
+        </div>
       </MainLayout>
     );
   }

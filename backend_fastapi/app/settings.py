@@ -12,6 +12,15 @@ class Settings(BaseSettings):
   db_password: str = "postgres"
   db_name: str = "arcane"
 
+  # Timeout TCP vers PostgreSQL (secondes). Evite les blocages longs si le serveur DB est arrete.
+  db_connect_timeout_seconds: int = 15
+
+  # Cache utilisateur pour resolve_access_token (find_by_id) — TTL court
+  user_cache_ttl_seconds: float = 60.0
+
+  # Cout bcrypt pour les **nouveaux** mots de passe (verify utilise le cout du hash existant)
+  bcrypt_rounds: int = 10
+
   jwt_secret: str = "change_me_dev_only"
   jwt_issuer: str = "arcane"
   jwt_audience: str = "arcane-client"

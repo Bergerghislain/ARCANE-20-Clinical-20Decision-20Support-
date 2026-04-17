@@ -8,8 +8,6 @@ from ...security import (
   pwd_context,
   verify_password,
 )
-
-
 class PasswordGateway:
   def verify(self, plain_password: str, password_hash: str) -> bool:
     return verify_password(plain_password, password_hash)

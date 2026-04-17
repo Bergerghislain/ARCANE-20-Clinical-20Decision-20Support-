@@ -4,6 +4,16 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
+import {
+  clearPatientsListCache,
+  readPatientsListCache,
+  stashPatientsListPayload,
+} from "@/lib/dashboardPatientsCache";
+import {
+  normalizePatient,
+  PATIENTS_PAGE_SIZE,
+  type Patient,
+} from "@/lib/patientNormalize";
 
 import {
   Search,
@@ -15,70 +25,15 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-interface Patient {
-  id: string;
-  name?: string | null;
-  age?: number | null;
-  condition?: string | null;
-  mrn?: string | null;
-  birthDate?: string | null;
-  lastVisit?: string | null;
-  status?: "active" | "completed" | "pending" | null;
-}
-
-const PATIENTS_PAGE_SIZE = 24;
 const DASHBOARD_AUTO_REFRESH_MS = 15000;
-
-function normalizePatient(row: any, index: number): Patient {
-  const id =
-    row?.id ??
-    row?.id_patient ??
-    row?.patient_id ??
-    row?.ipp ??
-    `row_${index}`;
-  const lastVisit = row?.lastVisit ?? row?.last_visit_date;
-  const lastVisitIso =
-    typeof lastVisit === "string" && lastVisit
-      ? lastVisit
-      : row?.last_visit_date_year
-        ? new Date(
-            Number(row.last_visit_date_year),
-            Math.max(0, Number(row.last_visit_date_month || 1) - 1),
-            1,
-          ).toISOString()
-        : null;
-  const birthDateIso =
-    row?.birth_date_year
-      ? new Date(
-          Number(row.birth_date_year),
-          Math.max(0, Number(row.birth_date_month || 1) - 1),
-          Math.max(1, Number(row.birth_date_day || 1)),
-        ).toISOString()
-      : null;
-
-  const fallbackName = row?.ipp ? `IPP ${row.ipp}` : null;
-
-  return {
-    id: String(id),
-    name: row?.name ?? row?.full_name ?? fallbackName,
-    age:
-      typeof row?.age === "number"
-        ? row.age
-        : row?.birth_date_year
-          ? new Date().getFullYear() - Number(row.birth_date_year)
-          : null,
-    condition: row?.condition ?? row?.diagnosis ?? null,
-    mrn: row?.ipp ?? String(id),
-    birthDate: birthDateIso,
-    lastVisit: lastVisitIso,
-    status: row?.status ?? "active",
-  };
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>(() => {
+    const raw = readPatientsListCache();
+    return raw?.map((row, index) => normalizePatient(row, index)) ?? [];
+  });
+  const [isLoading, setIsLoading] = useState(() => readPatientsListCache() === null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMorePatients, setHasMorePatients] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -104,6 +59,9 @@ export default function Dashboard() {
       const normalized = Array.isArray(data)
         ? data.map((row, index) => normalizePatient(row, offset + index))
         : [];
+      if (mode === "replace" && offset === 0 && Array.isArray(data)) {
+        stashPatientsListPayload(data);
+      }
       setHasMorePatients(normalized.length === PATIENTS_PAGE_SIZE);
       if (mode === "replace") {
         setPatients(normalized);
@@ -187,6 +145,7 @@ export default function Dashboard() {
         throw new Error(message);
       }
       await fetchPatientsPage(0, "replace");
+      clearPatientsListCache();
       window.dispatchEvent(new Event("arcane:patients-updated"));
     } catch (error) {
       setImportError(

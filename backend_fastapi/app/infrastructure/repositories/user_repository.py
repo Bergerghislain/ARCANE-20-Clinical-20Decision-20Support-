@@ -4,6 +4,7 @@ from typing import Any
 
 from ...db import execute, fetch_all, fetch_one
 from ...domain.users import User
+from ..cache.user_by_id_cache import get_cached_user, invalidate_user, set_cached_user
 
 
 class SqlUserRepository:
@@ -22,6 +23,9 @@ class SqlUserRepository:
     return User.from_row(row)
 
   def find_by_id(self, user_id: int) -> User | None:
+    cached = get_cached_user(user_id)
+    if cached is not None:
+      return cached
     row = fetch_one(
       """
       SELECT id, username, email, role, full_name, is_active
@@ -33,7 +37,9 @@ class SqlUserRepository:
     )
     if not row:
       return None
-    return User.from_row(row)
+    user = User.from_row(row)
+    set_cached_user(user_id, user)
+    return user
 
   def exists_by_email_or_username(self, email: str, username: str) -> bool:
     existing = fetch_one(
@@ -107,6 +113,7 @@ class SqlUserRepository:
       """,
       (role, user_id),
     )
+    invalidate_user(user_id)
 
   def reject_user(self, user_id: int) -> None:
     execute(
@@ -118,4 +125,5 @@ class SqlUserRepository:
       """,
       (user_id,),
     )
+    invalidate_user(user_id)
 

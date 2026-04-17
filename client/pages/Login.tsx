@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Lock, Mail, AlertCircle } from "lucide-react";
 import { isAuthenticated, setAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { stashPatientsListPayload } from "@/lib/dashboardPatientsCache";
+import { PATIENTS_PAGE_SIZE } from "@/lib/patientNormalize";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,7 +42,24 @@ export default function Login() {
         throw new Error("Invalid credentials");
       }
       const data = await res.json();
-      setAuth(data.token, data.user);
+      const token = data.token as string;
+      setAuth(token, data.user);
+      const patientsRes = await apiFetch(
+        `/api/patients?limit=${PATIENTS_PAGE_SIZE}&offset=0`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (patientsRes.ok) {
+        try {
+          stashPatientsListPayload(await patientsRes.json());
+        } catch {
+          /* ignore cache hydrate errors */
+        }
+      }
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
