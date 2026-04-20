@@ -251,6 +251,7 @@ export default function PatientFile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isJsonLoading, setIsJsonLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState("patient-info");
+  const [selectedPatientSection, setSelectedPatientSection] = useState("clinical");
 
   const [diagnosis, setDiagnosis] = useState("");
   const [pathologySummary, setPathologySummary] = useState("");
@@ -481,15 +482,15 @@ export default function PatientFile() {
       medication: [] as Record<string, unknown>[],
       surgery: [] as Record<string, unknown>[],
     };
-    const primaryCancer = parseJsonArraySection(primaryCancerJson, "Primary Cancer");
+    const primaryCancer = parseJsonArraySection(primaryCancerJson, "primaryCancer");
     if ("error" in primaryCancer) return { error: primaryCancer.error, data: baseData };
-    const specimens = parseJsonArraySection(specimenJson, "Biological Specimen List");
+    const specimens = parseJsonArraySection(specimenJson, "biologicalSpecimenList");
     if ("error" in specimens) return { error: specimens.error, data: baseData };
-    const measures = parseJsonArraySection(measureJson, "Mesure List");
+    const measures = parseJsonArraySection(measureJson, "mesureList");
     if ("error" in measures) return { error: measures.error, data: baseData };
-    const medications = parseJsonArraySection(medicationJson, "Medication");
+    const medications = parseJsonArraySection(medicationJson, "medication");
     if ("error" in medications) return { error: medications.error, data: baseData };
-    const surgeries = parseJsonArraySection(surgeryJson, "Surgery");
+    const surgeries = parseJsonArraySection(surgeryJson, "surgery");
     if ("error" in surgeries) return { error: surgeries.error, data: baseData };
     return {
       error: null as string | null,
@@ -877,10 +878,7 @@ export default function PatientFile() {
 
               <Card className="overflow-hidden border-indigo-200/60 bg-gradient-to-br from-white via-violet-50/50 to-indigo-50/60 shadow-sm">
                 <CardHeader className="border-b border-indigo-100/70">
-                  <CardTitle className="text-xl">Patient Infos</CardTitle>
-                  <CardDescription>
-                    Informations cliniques pour ce patient (JSON ou saisie manuelle).
-                  </CardDescription>
+                  <CardTitle className="text-xl">Dossier patient</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6 bg-white/70">
                   {parsedClinicalSections.error && (
@@ -889,242 +887,345 @@ export default function PatientFile() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    <div className="rounded-xl border border-blue-200/60 bg-blue-50/70 p-3 text-xs text-blue-900">
-                      <div className="font-semibold">Cancers primaires</div>
-                      <div className="mt-1 text-lg font-bold">
-                        {parsedClinicalSections.data.primaryCancer.length}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-amber-200/60 bg-amber-50/70 p-3 text-xs text-amber-900">
-                      <div className="font-semibold">Specimens</div>
-                      <div className="mt-1 text-lg font-bold">
-                        {parsedClinicalSections.data.biologicalSpecimenList.length}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 p-3 text-xs text-emerald-900">
-                      <div className="font-semibold">Mesures</div>
-                      <div className="mt-1 text-lg font-bold">
-                        {parsedClinicalSections.data.mesureList.length}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-violet-200/60 bg-violet-50/70 p-3 text-xs text-violet-900">
-                      <div className="font-semibold">Analyses report</div>
-                      <div className="mt-1 text-lg font-bold">
-                        {currentProfile?.analyses.length || 0}
-                      </div>
-                    </div>
-                  </div>
+                  <Tabs
+                    value={selectedPatientSection}
+                    onValueChange={setSelectedPatientSection}
+                    className="w-full"
+                  >
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+                      <aside className="lg:sticky lg:top-6 lg:self-start">
+                        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 p-1 lg:flex lg:flex-col lg:items-stretch lg:justify-start">
+                          <TabsTrigger value="identity" className="justify-start">
+                            Identite
+                          </TabsTrigger>
+                          <TabsTrigger value="clinical" className="justify-start">
+                            Synthese
+                          </TabsTrigger>
+                          <TabsTrigger value="primaryCancer" className="justify-start">
+                            primaryCancer
+                          </TabsTrigger>
+                          <TabsTrigger value="specimens" className="justify-start">
+                            biologicalSpecimenList
+                          </TabsTrigger>
+                          <TabsTrigger value="measures" className="justify-start">
+                            mesureList
+                          </TabsTrigger>
+                          <TabsTrigger value="treatments" className="justify-start">
+                            medication / surgery
+                          </TabsTrigger>
+                        </TabsList>
+                      </aside>
 
-                  <section className="space-y-3 rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-blue-900">Section 1 - Identite et temporalite patient</h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="ipp">IPP</Label>
-                        <Input
-                          id="ipp"
-                          value={ipp}
-                          onChange={(event) => setIpp(event.target.value)}
-                          placeholder="Ex: arcane1"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sex">Sexe</Label>
-                        <Input
-                          id="sex"
-                          value={clinicalSex}
-                          onChange={(event) => setClinicalSex(event.target.value)}
-                          placeholder="MALE / FEMALE / OTHER"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birth-year">Naissance annee</Label>
-                        <Input
-                          id="birth-year"
-                          value={birthDateYear}
-                          onChange={(event) => setBirthDateYear(event.target.value)}
-                          placeholder="1962"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birth-month">Naissance mois</Label>
-                        <Input
-                          id="birth-month"
-                          value={birthDateMonth}
-                          onChange={(event) => setBirthDateMonth(event.target.value)}
-                          placeholder="1"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="death-year">Deces annee</Label>
-                        <Input
-                          id="death-year"
-                          value={deathDateYear}
-                          onChange={(event) => setDeathDateYear(event.target.value)}
-                          placeholder="2022"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="death-month">Deces mois</Label>
-                        <Input
-                          id="death-month"
-                          value={deathDateMonth}
-                          onChange={(event) => setDeathDateMonth(event.target.value)}
-                          placeholder="3"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last-visit-year">Derniere visite annee</Label>
-                        <Input
-                          id="last-visit-year"
-                          value={lastVisitDateYear}
-                          onChange={(event) => setLastVisitDateYear(event.target.value)}
-                          placeholder="2022"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last-visit-month">Derniere visite mois</Label>
-                        <Input
-                          id="last-visit-month"
-                          value={lastVisitDateMonth}
-                          onChange={(event) => setLastVisitDateMonth(event.target.value)}
-                          placeholder="3"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last-news-year">Dernieres nouvelles annee</Label>
-                        <Input
-                          id="last-news-year"
-                          value={lastNewsDateYear}
-                          onChange={(event) => setLastNewsDateYear(event.target.value)}
-                          placeholder="2022"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last-news-month">Dernieres nouvelles mois</Label>
-                        <Input
-                          id="last-news-month"
-                          value={lastNewsDateMonth}
-                          onChange={(event) => setLastNewsDateMonth(event.target.value)}
-                          placeholder="3"
-                        />
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                          <div className="rounded-xl border border-blue-200/60 bg-blue-50/70 p-3 text-xs text-blue-900">
+                            <div className="font-semibold">primaryCancer</div>
+                            <div className="mt-1 text-lg font-bold">
+                              {parsedClinicalSections.data.primaryCancer.length}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-amber-200/60 bg-amber-50/70 p-3 text-xs text-amber-900">
+                            <div className="font-semibold">biologicalSpecimenList</div>
+                            <div className="mt-1 text-lg font-bold">
+                              {parsedClinicalSections.data.biologicalSpecimenList.length}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 p-3 text-xs text-emerald-900">
+                            <div className="font-semibold">mesureList</div>
+                            <div className="mt-1 text-lg font-bold">
+                              {parsedClinicalSections.data.mesureList.length}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-violet-200/60 bg-violet-50/70 p-3 text-xs text-violet-900">
+                            <div className="font-semibold">analyses (report)</div>
+                            <div className="mt-1 text-lg font-bold">
+                              {currentProfile?.analyses.length || 0}
+                            </div>
+                          </div>
+                        </div>
+
+                        <TabsContent value="identity" className="m-0 space-y-6">
+                          <section className="space-y-3 rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-blue-900">
+                              Identite & temporalite
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                              <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="ipp">IPP</Label>
+                                <Input
+                                  id="ipp"
+                                  value={ipp}
+                                  onChange={(event) => setIpp(event.target.value)}
+                                  placeholder="Ex: arcane1"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sex">Sexe</Label>
+                                <Input
+                                  id="sex"
+                                  value={clinicalSex}
+                                  onChange={(event) => setClinicalSex(event.target.value)}
+                                  placeholder="MALE / FEMALE / OTHER"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="birth-year">Naissance annee</Label>
+                                <Input
+                                  id="birth-year"
+                                  value={birthDateYear}
+                                  onChange={(event) => setBirthDateYear(event.target.value)}
+                                  placeholder="1962"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="birth-month">Naissance mois</Label>
+                                <Input
+                                  id="birth-month"
+                                  value={birthDateMonth}
+                                  onChange={(event) => setBirthDateMonth(event.target.value)}
+                                  placeholder="1"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="death-year">Deces annee</Label>
+                                <Input
+                                  id="death-year"
+                                  value={deathDateYear}
+                                  onChange={(event) => setDeathDateYear(event.target.value)}
+                                  placeholder="2022"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="death-month">Deces mois</Label>
+                                <Input
+                                  id="death-month"
+                                  value={deathDateMonth}
+                                  onChange={(event) => setDeathDateMonth(event.target.value)}
+                                  placeholder="3"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="last-visit-year">Derniere visite annee</Label>
+                                <Input
+                                  id="last-visit-year"
+                                  value={lastVisitDateYear}
+                                  onChange={(event) => setLastVisitDateYear(event.target.value)}
+                                  placeholder="2022"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="last-visit-month">Derniere visite mois</Label>
+                                <Input
+                                  id="last-visit-month"
+                                  value={lastVisitDateMonth}
+                                  onChange={(event) => setLastVisitDateMonth(event.target.value)}
+                                  placeholder="3"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="last-news-year">Dernieres nouvelles annee</Label>
+                                <Input
+                                  id="last-news-year"
+                                  value={lastNewsDateYear}
+                                  onChange={(event) => setLastNewsDateYear(event.target.value)}
+                                  placeholder="2022"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="last-news-month">Dernieres nouvelles mois</Label>
+                                <Input
+                                  id="last-news-month"
+                                  value={lastNewsDateMonth}
+                                  onChange={(event) => setLastNewsDateMonth(event.target.value)}
+                                  placeholder="3"
+                                />
+                              </div>
+                            </div>
+                          </section>
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="clinical" className="m-0 space-y-6">
+                          <section className="space-y-3 rounded-2xl border border-cyan-200/60 bg-gradient-to-br from-cyan-50/70 to-teal-50/50 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-cyan-900">
+                              Synthese (pour report)
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="diagnosis">Pathologie principale</Label>
+                                <Input
+                                  id="diagnosis"
+                                  value={diagnosis}
+                                  onChange={(event) => setDiagnosis(event.target.value)}
+                                  placeholder="Ex: Sarcome epithelioide localement avance"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="patient-status">
+                                  Statut patient (lecture backend)
+                                </Label>
+                                <Input id="patient-status" value={patient.status} disabled />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="pathology-summary">Resume de la pathologie</Label>
+                              <Textarea
+                                id="pathology-summary"
+                                value={pathologySummary}
+                                onChange={(event) => setPathologySummary(event.target.value)}
+                                className="min-h-[130px]"
+                                placeholder="Decrire le contexte pathologique, stade, evolution, facteurs de risque..."
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="analyses">
+                                Resultats d'analyses (1 ligne = Nom | Valeur | Unite | Reference | Date)
+                              </Label>
+                              <Textarea
+                                id="analyses"
+                                value={analysesEditor}
+                                onChange={(event) => setAnalysesEditor(event.target.value)}
+                                className="min-h-[180px] font-mono text-xs"
+                                placeholder="LDH | 512 | U/L | 125-220 | 2026-03-12"
+                              />
+                            </div>
+                          </section>
+
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="primaryCancer" className="m-0 space-y-6">
+                          <section className="space-y-2 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/70 to-purple-50/40 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-violet-900">primaryCancer</h3>
+                            <p className="text-xs text-muted-foreground">
+                              Tableau JSON correspondant a <code>primaryCancer</code>.
+                            </p>
+                            <Textarea
+                              value={primaryCancerJson}
+                              onChange={(event) => setPrimaryCancerJson(event.target.value)}
+                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
+                            />
+                          </section>
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="specimens" className="m-0 space-y-6">
+                          <section className="space-y-2 rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-amber-900">
+                              biologicalSpecimenList
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              Tableau JSON correspondant a <code>biologicalSpecimenList</code>.
+                            </p>
+                            <Textarea
+                              value={specimenJson}
+                              onChange={(event) => setSpecimenJson(event.target.value)}
+                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
+                            />
+                          </section>
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="measures" className="m-0 space-y-6">
+                          <section className="space-y-2 rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-green-50/40 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-emerald-900">mesureList</h3>
+                            <p className="text-xs text-muted-foreground">
+                              Tableau JSON correspondant a <code>mesureList</code>.
+                            </p>
+                            <Textarea
+                              value={measureJson}
+                              onChange={(event) => setMeasureJson(event.target.value)}
+                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
+                            />
+                          </section>
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="treatments" className="m-0 space-y-6">
+                          <section className="space-y-3 rounded-2xl border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-pink-50/40 p-5 shadow-sm">
+                            <h3 className="text-base font-semibold text-rose-900">
+                              medication / surgery
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="medication-json">medication</Label>
+                                <Textarea
+                                  id="medication-json"
+                                  value={medicationJson}
+                                  onChange={(event) => setMedicationJson(event.target.value)}
+                                  className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="surgery-json">surgery</Label>
+                                <Textarea
+                                  id="surgery-json"
+                                  value={surgeryJson}
+                                  onChange={(event) => setSurgeryJson(event.target.value)}
+                                  className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
+                                />
+                              </div>
+                            </div>
+                          </section>
+                          <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
+                            <Button onClick={handleGenerateReport}>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Generate Report
+                            </Button>
+                            <Button variant="secondary" onClick={openArgosDiscussion}>
+                              <Bot className="mr-2 h-4 w-4" />
+                              Envoyer le contexte vers ARGOS
+                            </Button>
+                          </div>
+                        </TabsContent>
                       </div>
                     </div>
-                  </section>
-
-                  <section className="space-y-3 rounded-2xl border border-cyan-200/60 bg-gradient-to-br from-cyan-50/70 to-teal-50/50 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-cyan-900">Section 2 - Synthese clinique exploitable par le report IA</h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="diagnosis">Pathologie principale</Label>
-                        <Input
-                          id="diagnosis"
-                          value={diagnosis}
-                          onChange={(event) => setDiagnosis(event.target.value)}
-                          placeholder="Ex: Sarcome epithelioide localement avance"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="patient-status">Statut patient (lecture backend)</Label>
-                        <Input id="patient-status" value={patient.status} disabled />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pathology-summary">
-                        Resume de la pathologie
-                      </Label>
-                      <Textarea
-                        id="pathology-summary"
-                        value={pathologySummary}
-                        onChange={(event) => setPathologySummary(event.target.value)}
-                        className="min-h-[130px]"
-                        placeholder="Decrire le contexte pathologique, stade, evolution, facteurs de risque..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="analyses">
-                        Resultats d'analyses (1 ligne = Nom | Valeur | Unite | Reference | Date)
-                      </Label>
-                      <Textarea
-                        id="analyses"
-                        value={analysesEditor}
-                        onChange={(event) => setAnalysesEditor(event.target.value)}
-                        className="min-h-[180px] font-mono text-xs"
-                        placeholder="LDH | 512 | U/L | 125-220 | 2026-03-12"
-                      />
-                    </div>
-                  </section>
-
-                  <section className="space-y-2 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/70 to-purple-50/40 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-violet-900">Section 3 - Cancers primaires (JSON editable)</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Collez ici un tableau JSON correspondant a `primaryCancer`.
-                    </p>
-                    <Textarea
-                      value={primaryCancerJson}
-                      onChange={(event) => setPrimaryCancerJson(event.target.value)}
-                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                    />
-                  </section>
-
-                  <section className="space-y-2 rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-amber-900">Section 4 - Specimens biologiques (JSON editable)</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Collez ici un tableau JSON correspondant a `biologicalSpecimenList`.
-                    </p>
-                    <Textarea
-                      value={specimenJson}
-                      onChange={(event) => setSpecimenJson(event.target.value)}
-                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                    />
-                  </section>
-
-                  <section className="space-y-2 rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-green-50/40 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-emerald-900">Section 5 - Mesures cliniques (JSON editable)</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Collez ici un tableau JSON correspondant a `mesureList`.
-                    </p>
-                    <Textarea
-                      value={measureJson}
-                      onChange={(event) => setMeasureJson(event.target.value)}
-                      className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                    />
-                  </section>
-
-                  <section className="space-y-3 rounded-2xl border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-pink-50/40 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-rose-900">Section 6 - Traitements et gestes (JSON editable)</h3>
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="medication-json">Medication</Label>
-                        <Textarea
-                          id="medication-json"
-                          value={medicationJson}
-                          onChange={(event) => setMedicationJson(event.target.value)}
-                          className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="surgery-json">Surgery</Label>
-                        <Textarea
-                          id="surgery-json"
-                          value={surgeryJson}
-                          onChange={(event) => setSurgeryJson(event.target.value)}
-                          className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
-                        />
-                      </div>
-                    </div>
-                  </section>
-
-                  <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
-                    <Button onClick={handleGenerateReport}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Report
-                    </Button>
-                    <Button variant="secondary" onClick={openArgosDiscussion}>
-                      <Bot className="mr-2 h-4 w-4" />
-                      Envoyer le contexte vers ARGOS
-                    </Button>
-                  </div>
+                  </Tabs>
                 </CardContent>
               </Card>
             </TabsContent>
