@@ -333,6 +333,11 @@ export default function Dashboard() {
                   key={patient.id}
                   to={`/patient/${patient.id}`}
                   className="group block rounded-2xl border border-border bg-gradient-to-br from-white to-blue-50/30 p-6 transition-all hover:shadow-xl hover:border-secondary/50"
+                  onClick={() => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H2',location:'client/pages/Dashboard.tsx:~332',message:'navigate to patient file',data:{routePatientId:String(patient.id),routePatientIdType:typeof patient.id,mrn:String(patient.mrn??''),hasMrn:patient.mrn!=null},timestamp:Date.now()})}).catch(()=>{});
+                    // #endregion agent log
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">

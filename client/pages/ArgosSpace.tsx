@@ -15,7 +15,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useArgosHistory, Message } from "@/hooks/useArgosHistory";
+import { useArgosHistory, type UseArgosHistory, Message } from "@/hooks/useArgosHistory";
 import { WelcomeScreen } from "@/components/argos/WelcomeScreen";
 import { PatientSelector } from "@/components/argos/PatientSelector";
 import { ArgosSidebar } from "@/components/argos/ArgosSidebar";
@@ -130,7 +130,7 @@ function buildMockArgosResponse(patient: Patient | null) {
 
 export default function ArgosSpace() {
   const location = useLocation();
-  const argosHistory = useArgosHistory();
+  const argosHistory: UseArgosHistory = useArgosHistory();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -424,7 +424,7 @@ export default function ArgosSpace() {
 
     void (async () => {
       try {
-        const res = await apiFetch("/api/ai/argos/respond", {
+        const res = await apiFetch("/api/ai/argos/respond/stream", {
           method: "POST",
           body: JSON.stringify({
             patient_name: selectedPatient?.name,
@@ -435,27 +435,87 @@ export default function ArgosSpace() {
             history: historyForModel,
           }),
         });
-        if (!res.ok) throw new Error("IA indisponible");
-        const data = (await res.json()) as {
-          content: string;
-          sections?: any;
-        };
+        if (!res.ok || !res.body) throw new Error("IA indisponible");
 
+        // Message assistant "en cours" (on append au fil de l'eau)
         const assistantMessage = argosHistory.addMessage(
           {
             role: "assistant",
-            content: data.content || "Voici mon analyse clinique :",
+            content: "",
             timestamp: new Date(),
-            sections: data.sections,
           },
           conversation.id,
         );
 
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let jsonText = "";
+        let lastRendered = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          while (true) {
+            const idx = buffer.indexOf("\n");
+            if (idx === -1) break;
+            const line = buffer.slice(0, idx).trimEnd();
+            buffer = buffer.slice(idx + 1);
+
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (!data) continue;
+            if (data === "[DONE]") {
+              buffer = "";
+              break;
+            }
+
+            try {
+              const chunk = JSON.parse(data) as any;
+              const delta = chunk?.choices?.[0]?.delta?.content ?? "";
+              if (typeof delta === "string" && delta) {
+                jsonText += delta;
+                // affichage brut pendant le stream
+                if (assistantMessage) {
+                  const merged = jsonText;
+                  if (merged !== lastRendered) {
+                    lastRendered = merged;
+                    argosHistory.updateMessageContent(assistantMessage.id, merged);
+                  }
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        // Parsing final JSON pour sections + contenu "propre"
+        let finalContent = "";
+        let finalSections: any = undefined;
+        try {
+          const parsed = JSON.parse(jsonText) as any;
+          finalContent = String(parsed?.content ?? "");
+          finalSections = parsed?.sections;
+        } catch {
+          finalContent = jsonText;
+          finalSections = undefined;
+        }
+
+        if (assistantMessage) {
+          argosHistory.updateMessageContent(assistantMessage.id, finalContent || jsonText);
+          if (finalSections) {
+            argosHistory.updateMessageSections(assistantMessage.id, finalSections);
+          }
+        }
+
         if (backendDiscussionId && assistantMessage) {
           void postArgosMessage(backendDiscussionId, {
             message_type: "argos_response",
-            content: assistantMessage.content,
-            sections: assistantMessage.sections,
+            content: finalContent || jsonText,
+            sections: finalSections,
           }).catch(() => {
             // ignore error côté serveur
           });

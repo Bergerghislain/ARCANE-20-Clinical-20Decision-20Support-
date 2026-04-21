@@ -257,6 +257,8 @@ export default function PatientFile() {
   const [pathologySummary, setPathologySummary] = useState("");
   const [analysesEditor, setAnalysesEditor] = useState("");
   const [reportOutput, setReportOutput] = useState<SimulatedIaReport | null>(null);
+  const [reportStreamRaw, setReportStreamRaw] = useState<string>("");
+  const [isReportStreaming, setIsReportStreaming] = useState(false);
   const [ipp, setIpp] = useState("");
   const [clinicalSex, setClinicalSex] = useState("");
   const [birthDateYear, setBirthDateYear] = useState("");
@@ -377,6 +379,9 @@ export default function PatientFile() {
 
   useEffect(() => {
     const fetchPatient = async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H3',location:'client/pages/PatientFile.tsx:useEffect(fetchPatient)',message:'PatientFile fetch start',data:{patientId:String(patientId??''),patientIdIsNumeric:/^\d+$/.test(String(patientId??''))},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
       setListCachePreview(null);
       if (patientId) {
         const fromList = findPatientRowInListCache(patientId);
@@ -398,13 +403,30 @@ export default function PatientFile() {
       setProfileVersion(null);
       try {
         const res = await apiFetch(`/api/patients/${patientId}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H4',location:'client/pages/PatientFile.tsx:~apiFetch',message:'PatientFile fetch response',data:{url:`/api/patients/${String(patientId??'')}`,ok:res.ok,status:res.status},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         if (!res.ok) {
           setPatient(null);
           return;
         }
-        const data = (await res.json()) as PatientApiRow;
+        let data: PatientApiRow | null = null;
+        try {
+          data = (await res.json()) as PatientApiRow;
+          // #region agent log
+          fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H5',location:'client/pages/PatientFile.tsx:~res.json',message:'PatientFile json parsed',data:{hasData:!!data,keys:data&&typeof data==='object'?Object.keys(data).slice(0,25):[]},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
+        } catch (e) {
+          // #region agent log
+          fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H5',location:'client/pages/PatientFile.tsx:~res.json',message:'PatientFile json parse failed',data:{errorName:(e as any)?.name||'unknown',errorMessage:String((e as any)?.message||'')},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
+          throw e;
+        }
         const normalized = normalizePatientDetail(data);
         setPatient(normalized);
+        // #region agent log
+        fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H6',location:'client/pages/PatientFile.tsx:~setPatient',message:'PatientFile setPatient normalized',data:{normalizedId:normalized?.id,hasName:!!normalized?.name,status:normalized?.status},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
 
         // On pre-remplit les champs avec les infos backend puis on surcharge si un JSON existe.
         setDiagnosis(normalized.condition);
@@ -431,7 +453,13 @@ export default function PatientFile() {
         setSurgeryJson("[]");
 
         // 1) Base JSON statique (simulation locale)
+        // #region agent log
+        fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H7',location:'client/pages/PatientFile.tsx:~loadPatientReportProfile',message:'PatientFile loading JSON profile start',data:{id:normalized.id},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         const jsonProfile = await loadPatientReportProfile(normalized.id);
+        // #region agent log
+        fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H7',location:'client/pages/PatientFile.tsx:~loadPatientReportProfile',message:'PatientFile loading JSON profile done',data:{id:normalized.id,hasProfile:!!jsonProfile},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         if (jsonProfile) {
           hydrateFormFromProfile(
             jsonProfile,
@@ -442,13 +470,22 @@ export default function PatientFile() {
 
         // 2) Profil persiste cote API (si disponible)
         try {
+          // #region agent log
+          fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H8',location:'client/pages/PatientFile.tsx:~fetchPatientProfileFromApi',message:'PatientFile loading API profile start',data:{id:normalized.id},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
           const apiProfile = await fetchPatientProfileFromApi(normalized.id);
+          // #region agent log
+          fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H8',location:'client/pages/PatientFile.tsx:~fetchPatientProfileFromApi',message:'PatientFile loading API profile done',data:{id:normalized.id,hasProfile:!!apiProfile},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
           if (apiProfile) {
             hydrateFormFromProfile(apiProfile, "API backend", {
               markAsPersisted: true,
             });
           }
-        } catch {
+        } catch (e) {
+          // #region agent log
+          fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H8',location:'client/pages/PatientFile.tsx:~fetchPatientProfileFromApi',message:'PatientFile loading API profile failed',data:{id:normalized.id,errorName:(e as any)?.name||'unknown',errorMessage:String((e as any)?.message||'')},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
           // Le fallback local prend le relais en cas d'indisponibilite API.
         }
 
@@ -463,7 +500,10 @@ export default function PatientFile() {
         }
 
         isAutosaveReadyRef.current = true;
-      } catch {
+      } catch (e) {
+        // #region agent log
+        fetch('http://127.0.0.1:7401/ingest/84886cf9-a143-47ed-b36f-9883ce1f0e4b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e0cb1b'},body:JSON.stringify({sessionId:'e0cb1b',runId:'patient-not-found',hypothesisId:'H9',location:'client/pages/PatientFile.tsx:catch(fetchPatient)',message:'PatientFile fetchPatient failed -> setPatient(null)',data:{errorName:(e as any)?.name||'unknown',errorMessage:String((e as any)?.message||''),errorStack:String((e as any)?.stack||'')},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
         setPatient(null);
       } finally {
         setListCachePreview(null);
@@ -589,8 +629,10 @@ export default function PatientFile() {
     setSyncState("saving");
     setInfoMessage(null);
     setErrorMessage(null);
+    setReportStreamRaw("");
+    setIsReportStreaming(true);
     try {
-      const res = await apiFetch("/api/ai/report", {
+      const res = await apiFetch("/api/ai/report/stream", {
         method: "POST",
         body: JSON.stringify({
           patient_name: patient.name,
@@ -598,13 +640,78 @@ export default function PatientFile() {
           profile: currentProfile,
         }),
       });
-      if (!res.ok) {
-        throw new Error("IA indisponible");
-      }
-      const data = (await res.json()) as SimulatedIaReport;
-      setReportOutput(data);
-      setInfoMessage("Rapport IA genere via Qwen avec succes.");
+      if (!res.ok || !res.body) throw new Error("IA indisponible");
+
       setSelectedTab("report");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let jsonText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE lines
+        while (true) {
+          const idx = buffer.indexOf("\n");
+          if (idx === -1) break;
+          const line = buffer.slice(0, idx).trimEnd();
+          buffer = buffer.slice(idx + 1);
+
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (!data) continue;
+          if (data === "[DONE]") {
+            buffer = "";
+            break;
+          }
+          // vLLM stream chunks are JSON blobs.
+          try {
+            const chunk = JSON.parse(data) as any;
+            const delta = chunk?.choices?.[0]?.delta?.content ?? "";
+            if (typeof delta === "string" && delta) {
+              jsonText += delta;
+              setReportStreamRaw(jsonText);
+              // Tentative de parsing progressif pour afficher conclusion/raisonnement dès que possible
+              try {
+                const parsed = JSON.parse(jsonText) as any;
+                if (parsed && typeof parsed === "object") {
+                  const maybe: SimulatedIaReport = {
+                    conclusion: String(parsed.conclusion ?? ""),
+                    reasoning: String(parsed.reasoning ?? ""),
+                    sources: Array.isArray(parsed.sources)
+                      ? parsed.sources.map((s: any) => String(s))
+                      : [],
+                  };
+                  if (maybe.conclusion || maybe.reasoning || maybe.sources.length) {
+                    setReportOutput(maybe);
+                  }
+                }
+              } catch {
+                // JSON incomplet, normal pendant le streaming.
+              }
+            }
+          } catch {
+            // ignore chunks non JSON
+          }
+        }
+      }
+
+      // Parsing final
+      const finalParsed = JSON.parse(jsonText) as any;
+      const finalReport: SimulatedIaReport = {
+        conclusion: String(finalParsed?.conclusion ?? ""),
+        reasoning: String(finalParsed?.reasoning ?? ""),
+        sources: Array.isArray(finalParsed?.sources)
+          ? finalParsed.sources.map((s: any) => String(s))
+          : [],
+      };
+      setReportOutput(finalReport);
+      setInfoMessage("Rapport IA genere via Qwen (streaming) avec succes.");
+      setErrorMessage(null);
       setSyncState("saved");
     } catch {
       // Fallback local (simulation) si l'IA n'est pas configuree.
@@ -618,6 +725,8 @@ export default function PatientFile() {
       setInfoMessage("Rapport IA simule (fallback local). Configurez Qwen pour activer l'IA.");
       setSelectedTab("report");
       setSyncState("idle");
+    } finally {
+      setIsReportStreaming(false);
     }
   };
 
@@ -1304,8 +1413,15 @@ export default function PatientFile() {
                 <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
                   <AlertCircle className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
                   <p className="text-muted-foreground">
-                    Aucun rapport genere pour le moment.
+                    {isReportStreaming
+                      ? "Generation du rapport en cours..."
+                      : "Aucun rapport genere pour le moment."}
                   </p>
+                  {reportStreamRaw ? (
+                    <div className="mx-auto mt-4 max-w-3xl whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-4 text-left font-mono text-xs text-foreground">
+                      {reportStreamRaw}
+                    </div>
+                  ) : null}
                   <Button className="mt-4" onClick={() => setSelectedTab("patient-info")}>
                     Aller sur Patient Infos
                   </Button>

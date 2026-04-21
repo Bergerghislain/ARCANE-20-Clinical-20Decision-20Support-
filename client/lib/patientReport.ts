@@ -276,10 +276,35 @@ export function normalizePatientReportProfile(
 export async function loadPatientReportProfile(
   patientId: string,
 ): Promise<PatientReportProfile | null> {
-  const res = await fetch(`/patient-reports/${patientId}.json`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  return normalizePatientReportProfile(data, patientId);
+  try {
+    const res = await fetch(`/patient-reports/${patientId}.json`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.toLowerCase().includes("application/json")) {
+      const data = await res.json();
+      return normalizePatientReportProfile(data, patientId);
+    }
+
+    // Certains serveurs/dev servers renvoient index.html sur un 200 (SPA fallback).
+    // On ne doit jamais faire tomber la page patient pour un JSON de simulation manquant.
+    const raw = await res.text();
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("<")) return null;
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      return normalizePatientReportProfile(parsed, patientId);
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  }
 }
 
 export function analysesToEditorText(analyses: PatientAnalysisEntry[]): string {

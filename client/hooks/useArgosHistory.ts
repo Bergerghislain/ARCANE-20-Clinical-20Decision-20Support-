@@ -24,6 +24,33 @@ export interface Conversation {
   messages: Message[];
 }
 
+export interface UseArgosHistory {
+  conversations: Conversation[];
+  currentPatientId: string | null;
+  currentConversationId: string | null;
+  isLoaded: boolean;
+  getConversations: () => Conversation[];
+  getConversationsByPatient: (patientId: string) => Conversation[];
+  getCurrentConversation: () => Conversation | null;
+  createConversation: (patientId: string, patientName: string) => Conversation;
+  hydrateConversation: (conversation: Conversation) => void;
+  addMessage: (
+    message: Omit<Message, "id">,
+    conversationIdOverride?: string,
+  ) => Message | undefined;
+  updateMessageContent: (messageId: string, content: string) => void;
+  updateMessageSections: (messageId: string, sections: Message["sections"]) => void;
+  loadConversation: (conversationId: string) => Conversation | null;
+  deleteConversation: (conversationId: string) => void;
+  renameConversation: (conversationId: string, newTitle: string) => void;
+  autoGenerateTitle: (conversationId: string) => void;
+  updateTitleFromFirstMessage: (conversationId: string) => void;
+  getPatientGroups: () => { patientId: string; patientName: string; count: number; lastDate: Date }[];
+  getConversationsByDate: () => Conversation[];
+  setCurrentPatientId: (value: string | null) => void;
+  setCurrentConversationId: (value: string | null) => void;
+}
+
 const STORAGE_KEY = "argos_conversations";
 
 // Helper to serialize/deserialize dates
@@ -51,7 +78,7 @@ function deserializeConversation(data: any): Conversation {
   };
 }
 
-export function useArgosHistory() {
+export function useArgosHistory(): UseArgosHistory {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentPatientId, setCurrentPatientId] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -174,6 +201,38 @@ export function useArgosHistory() {
       return messageWithId;
     },
     [currentConversationId],
+  );
+
+  // Met à jour le contenu d'un message existant (utile pour streaming).
+  const updateMessageContent = useCallback(
+    (messageId: string, content: string) => {
+      setConversations((prev) =>
+        prev.map((conv) => ({
+          ...conv,
+          messages: conv.messages.map((msg) =>
+            msg.id === messageId ? { ...msg, content } : msg,
+          ),
+          updatedAt: new Date(),
+        })),
+      );
+    },
+    [],
+  );
+
+  // Met à jour les sections structurées d'un message existant.
+  const updateMessageSections = useCallback(
+    (messageId: string, sections: Message["sections"]) => {
+      setConversations((prev) =>
+        prev.map((conv) => ({
+          ...conv,
+          messages: conv.messages.map((msg) =>
+            msg.id === messageId ? { ...msg, sections } : msg,
+          ),
+          updatedAt: new Date(),
+        })),
+      );
+    },
+    [],
   );
 
   // Load a conversation
@@ -308,6 +367,8 @@ export function useArgosHistory() {
     getCurrentConversation,
     createConversation,
     addMessage,
+    updateMessageContent,
+    updateMessageSections,
     loadConversation,
     deleteConversation,
     renameConversation,
