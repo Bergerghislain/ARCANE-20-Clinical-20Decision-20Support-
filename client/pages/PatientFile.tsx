@@ -574,7 +574,7 @@ export default function PatientFile() {
     profileVersion,
   ]);
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!patient) return;
     if (parsedClinicalSections.error) {
       setInfoMessage(null);
@@ -586,16 +586,39 @@ export default function PatientFile() {
       setErrorMessage("Impossible de generer le report: donnees patient invalides.");
       return;
     }
-    const generated = buildSimulatedAiReport({
-      patientName: patient.name,
-      diagnosis: currentProfile.diagnosis,
-      pathologySummary: currentProfile.pathologySummary,
-      analyses: currentProfile.analyses,
-    });
-    setReportOutput(generated);
-    setInfoMessage("Rapport IA simule genere avec succes.");
+    setSyncState("saving");
+    setInfoMessage(null);
     setErrorMessage(null);
-    setSelectedTab("report");
+    try {
+      const res = await apiFetch("/api/ai/report", {
+        method: "POST",
+        body: JSON.stringify({
+          patient_name: patient.name,
+          patient_mrn: patient.mrn,
+          profile: currentProfile,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("IA indisponible");
+      }
+      const data = (await res.json()) as SimulatedIaReport;
+      setReportOutput(data);
+      setInfoMessage("Rapport IA genere via Qwen avec succes.");
+      setSelectedTab("report");
+      setSyncState("saved");
+    } catch {
+      // Fallback local (simulation) si l'IA n'est pas configuree.
+      const generated = buildSimulatedAiReport({
+        patientName: patient.name,
+        diagnosis: currentProfile.diagnosis,
+        pathologySummary: currentProfile.pathologySummary,
+        analyses: currentProfile.analyses,
+      });
+      setReportOutput(generated);
+      setInfoMessage("Rapport IA simule (fallback local). Configurez Qwen pour activer l'IA.");
+      setSelectedTab("report");
+      setSyncState("idle");
+    }
   };
 
   useEffect(() => {
@@ -700,9 +723,6 @@ export default function PatientFile() {
           </p>
           {listCachePreview ? (
             <div className="max-w-xl rounded-lg border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Apercu (liste — cache navigateur)
-              </p>
               <h2 className="mt-1 text-xl font-semibold text-foreground">
                 {listCachePreview.name}
               </h2>

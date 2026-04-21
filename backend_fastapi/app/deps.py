@@ -9,6 +9,7 @@ from .application.services.admin_service import AdminService
 from .application.services.argos_service import ArgosService
 from .application.services.auth_service import AuthService
 from .application.services.patient_service import PatientService
+from .application.services.ai_service import AiService
 from .infrastructure.repositories.argos_repository import (
   SqlActivityLogRepository,
   SqlArgosRepository,
@@ -16,6 +17,7 @@ from .infrastructure.repositories.argos_repository import (
 from .infrastructure.repositories.patient_repository import SqlPatientRepository
 from .infrastructure.repositories.user_repository import SqlUserRepository
 from .infrastructure.security.auth_gateways import PasswordGateway, TokenGateway
+from .infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
 
 
 def get_user_repository() -> SqlUserRepository:
@@ -67,6 +69,16 @@ def get_argos_service(
   activity_repo: Annotated[SqlActivityLogRepository, Depends(get_activity_log_repository)],
 ) -> ArgosService:
   return ArgosService(argos_repo, activity_repo)
+
+
+def get_llm_client() -> OpenAiCompatibleClient:
+  return OpenAiCompatibleClient()
+
+
+def get_ai_service(
+  llm: Annotated[OpenAiCompatibleClient, Depends(get_llm_client)],
+) -> AiService:
+  return AiService(llm)
 
 
 def get_current_user(

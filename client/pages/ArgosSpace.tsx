@@ -25,6 +25,7 @@ import {
   fetchArgosMessages,
   postArgosMessage,
 } from "@/lib/argosApi";
+import { apiFetch } from "@/lib/api";
 import {
   buildArgosContextFromProfile,
   buildSimulatedAiReport,
@@ -414,35 +415,80 @@ export default function ArgosSpace() {
       });
     }
 
-    // Simulate ARGOS response
-    setTimeout(() => {
-      const mockARGOSResponse = buildMockArgosResponse(selectedPatient);
-      const assistantMessage = argosHistory.addMessage(
-        {
-          role: "assistant",
-          content: "Here is my clinical assessment:",
-          timestamp: new Date(),
-          sections: mockARGOSResponse,
-        },
-        conversation.id,
-      );
-      if (backendDiscussionId && assistantMessage) {
-        void postArgosMessage(backendDiscussionId, {
-          message_type: "argos_response",
-          content: assistantMessage.content,
-          sections: {
-            clinicalSynthesis: mockARGOSResponse.clinicalSynthesis,
-            hypotheses: mockARGOSResponse.hypotheses,
-            arguments: mockARGOSResponse.arguments,
-            nextSteps: mockARGOSResponse.nextSteps,
-            traceability: mockARGOSResponse.traceability,
-          },
-        }).catch(() => {
-          // ignore error côté serveur
+    const historyForModel = (conversation.messages || [])
+      .slice(-12)
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+    void (async () => {
+      try {
+        const res = await apiFetch("/api/ai/argos/respond", {
+          method: "POST",
+          body: JSON.stringify({
+            patient_name: selectedPatient?.name,
+            patient_mrn: selectedPatient?.mrn,
+            context_message: selectedPatient?.contextMessage,
+            profile: selectedPatient?.contextProfile,
+            user_message: userMessage?.content || input,
+            history: historyForModel,
+          }),
         });
+        if (!res.ok) throw new Error("IA indisponible");
+        const data = (await res.json()) as {
+          content: string;
+          sections?: any;
+        };
+
+        const assistantMessage = argosHistory.addMessage(
+          {
+            role: "assistant",
+            content: data.content || "Voici mon analyse clinique :",
+            timestamp: new Date(),
+            sections: data.sections,
+          },
+          conversation.id,
+        );
+
+        if (backendDiscussionId && assistantMessage) {
+          void postArgosMessage(backendDiscussionId, {
+            message_type: "argos_response",
+            content: assistantMessage.content,
+            sections: assistantMessage.sections,
+          }).catch(() => {
+            // ignore error côté serveur
+          });
+        }
+      } catch {
+        // Fallback local (simulation) si l'IA n'est pas configuree.
+        const mockARGOSResponse = buildMockArgosResponse(selectedPatient);
+        const assistantMessage = argosHistory.addMessage(
+          {
+            role: "assistant",
+            content: "Here is my clinical assessment:",
+            timestamp: new Date(),
+            sections: mockARGOSResponse,
+          },
+          conversation.id,
+        );
+        if (backendDiscussionId && assistantMessage) {
+          void postArgosMessage(backendDiscussionId, {
+            message_type: "argos_response",
+            content: assistantMessage.content,
+            sections: {
+              clinicalSynthesis: mockARGOSResponse.clinicalSynthesis,
+              hypotheses: mockARGOSResponse.hypotheses,
+              arguments: mockARGOSResponse.arguments,
+              nextSteps: mockARGOSResponse.nextSteps,
+              traceability: mockARGOSResponse.traceability,
+            },
+          }).catch(() => {});
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 1500);
+    })();
   };
 
   return (

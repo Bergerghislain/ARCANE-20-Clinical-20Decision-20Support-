@@ -52,6 +52,19 @@ class Settings(BaseSettings):
   # À désactiver en production.
   allow_demo_password_fallback: bool = True
 
+  # === LLM / Qwen integration (backend-side proxy) ===
+  # Provider: "openai_compatible" (vLLM/sglang/TGI OpenAI-style) or "disabled"
+  llm_provider: str = "disabled"
+  llm_base_url: str = "http://127.0.0.1:8001/v1"
+  llm_api_key: str | None = None
+  llm_model: str = "Qwen/Qwen3-4B"
+  llm_timeout_seconds: float = 120.0
+
+  # Generation defaults
+  llm_temperature: float = 0.7
+  llm_top_p: float = 0.9
+  llm_max_tokens: int = 1200
+
 
 settings = Settings()
 
