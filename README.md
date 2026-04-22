@@ -38,8 +38,8 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 
 ### Tests
 - Frontend: tests unitaires + tests de flux composant (Vitest + Testing Library).
-- Backend: tests integration FastAPI (auth, admin, patients).
-- Dernier run backend local: **21 tests passes**.
+- Backend: tests integration FastAPI (auth, admin, patients, connexion IA API).
+- Dernier run backend local: **32 tests passes**.
 
 ## Stack technique
 
@@ -140,3 +140,4 @@ python -m pytest backend_fastapi/tests --cov=backend_fastapi/app --cov-report=te
 - Les reponses IA sont encore simulees (JSON local + generation mock).
 - La persistence profil est actuellement stockee dans `health_info.manual_profile` cote patient (etape intermediaire).
 - Objectif recommande: ajouter une table dediee de profils patients, renforcer les tests Argos backend et augmenter la couverture de la couche infrastructure SQL.
+- Augmenter les tests de performance sur tout ce qui a ete ajuste depuis lors
