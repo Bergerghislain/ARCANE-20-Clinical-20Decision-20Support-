@@ -36,7 +36,13 @@ class AiService:
       conclusion = str(payload.get("conclusion") or "").strip()
       reasoning = str(payload.get("reasoning") or "").strip()
       sources_raw = payload.get("sources") or []
-      sources = [str(s).strip() for s in list(sources_raw) if str(s).strip()]
+      sources: list[str] = []
+      for item in list(sources_raw) if isinstance(sources_raw, list) else []:
+        if item is None:
+          continue
+        value = str(item).strip()
+        if value:
+          sources.append(value)
     except Exception as exc:
       raise ApplicationError("LLM response JSON has unexpected shape.", 502) from exc
     if not conclusion or not reasoning:
