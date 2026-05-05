@@ -165,6 +165,9 @@ describe("patientReport utils", () => {
   it("charge un profil depuis le JSON statique", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: {
+        get: (key: string) => (key.toLowerCase() === "content-type" ? "application/json" : null),
+      },
       json: async () => ({
         patientId: "3",
         diagnosis: "Neuroendocrine Tumor",
@@ -181,7 +184,14 @@ describe("patientReport utils", () => {
 
     const profile = await loadPatientReportProfile("3");
 
-    expect(fetchMock).toHaveBeenCalledWith("/patient-reports/3.json");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/patient-reports/3.json",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: "application/json",
+        }),
+      }),
+    );
     expect(profile?.patientId).toBe("3");
     expect(profile?.schemaVersion).toBe(1);
   });
