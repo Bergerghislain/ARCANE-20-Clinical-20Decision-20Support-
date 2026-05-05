@@ -19,7 +19,7 @@ Pour l'architecture detaillee: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
 
 ## Prerequis
 
-- Python 3.11+
+- Python 3.
 - PostgreSQL (base `arcane` preparee via les scripts SQL du projet)
 
 ## Variables d'environnement
