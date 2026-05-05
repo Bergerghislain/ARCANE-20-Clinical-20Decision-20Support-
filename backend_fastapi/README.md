@@ -2,24 +2,26 @@
 
 Ce dossier contient le backend FastAPI unique du projet.
 
-## Etat actuel
+## État actuel (résumé)
 
-- Architecture refactorisee selon une separation:
+- Architecture refactorisée selon une séparation:
   - `app/domain`
   - `app/application`
   - `app/infrastructure`
   - `app/routers`
-- Services metier isoles (auth, admin, patients, argos).
-- Compatibilite payload legacy patient maintenue (`age`, `gender`, `birthDate`).
-- Endpoint de persistence de profil patient ajoute:
+- Services métier isolés (auth, admin, patients, ARGOS/IA).
+- Compatibilité payload legacy patient maintenue (`age`, `gender`, `birthDate`).
+- Endpoints de persistance de profil patient:
   - `GET /api/patients/{id}/profile`
   - `PUT /api/patients/{id}/profile`
+- **SQLAlchemy est la référence pour la DB** (pooling + connectivité). Le code historique (SQL brut) continue de fonctionner via `app/db.py`.
+- Migration progressive possible via feature flag `DB_IMPLEMENTATION` (cf. section SQLAlchemy).
 
 Pour l'architecture detaillee: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
 
 ## Prerequis
 
-- Python 3.
+- Python 3.12+ (recommandé)
 - PostgreSQL (base `arcane` preparee via les scripts SQL du projet)
 
 ## Variables d'environnement
@@ -32,6 +34,7 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=arcane
+DB_CONNECT_TIMEOUT_SECONDS=15
 
 JWT_SECRET=change_me_dev_only
 JWT_ISSUER=arcane
@@ -51,6 +54,14 @@ CORS_ORIGINS=http://localhost:8080
 
 # Mettre a false en production
 ALLOW_DEMO_PASSWORD_FALLBACK=true
+
+# SQLAlchemy
+SQLALCHEMY_ECHO=false
+
+# Migration contrôlée (par défaut: psycopg, mais SQLAlchemy est déjà utilisé pour le pooling)
+# - psycopg: repositories SQL brut uniquement
+# - sqlalchemy: lecture user via SQLAlchemy + fallback SQL brut pour le reste (démonstration)
+DB_IMPLEMENTATION=psycopg
 ```
 
 ## Installation
@@ -77,6 +88,21 @@ Depuis `backend_fastapi/`:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
+
+## SQLAlchemy (ce que ça change)
+
+### Pourquoi SQLAlchemy est “la référence”
+Le projet utilise SQLAlchemy comme **source de vérité** pour :
+- le **pool de connexions**
+- le **pre-ping**
+- la configuration driver via `settings.database_url` (`postgresql+psycopg://...`)
+
+Le code existant (repositories SQL brut) continue à utiliser `fetch_one/fetch_all/execute` et `DbUnitOfWork`, mais ces fonctions s’appuient maintenant sur des connexions fournies par l’engine SQLAlchemy.
+
+### Migration contrôlée (feature flag)
+Le flag `DB_IMPLEMENTATION` permet de démontrer une migration incrémentale :
+- `psycopg` (défaut) : repositories SQL brut
+- `sqlalchemy` : lecture user via SQLAlchemy (auth) + fallback SQL brut pour le reste
 
 ## Endpoints exposes
 
@@ -123,16 +149,16 @@ Regles d'acces patient:
 ## Tests backend
 
 ```bash
-python -m pytest backend_fastapi/tests -q
-python -m pytest backend_fastapi/tests --cov=backend_fastapi/app --cov-report=term-missing
+pytest
+pytest -q
 ```
 
-Dernier snapshot local:
-- `21` tests passes
-- couverture `backend_fastapi/app`: **68%**
+Dernier snapshot local (sur la machine de dev):
+- tests backend: **≈ 70+** tests OK
+- couverture backend (indicative): ~**65–70%** (elle varie selon l’accès DB/LLM activé)
 
 ## Notes d'implementation
 
-- Les routes HTTP sont fines et deleguent la logique metier aux services applicatifs.
-- Les erreurs metier passent par `ApplicationError`, converties en `HTTPException` dans les routeurs.
-- La persistence du profil patient est actuellement stockee dans `health_info.manual_profile` (strategie transitoire avant table dediee).
+- Les routes HTTP sont fines et délèguent la logique métier aux services applicatifs.
+- Les erreurs métier passent par `ApplicationError`, converties en `HTTPException` dans les routeurs.
+- La persistance du profil patient est actuellement stockée dans `health_info.manual_profile` (stratégie transitoire avant table dédiée).

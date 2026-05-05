@@ -39,7 +39,7 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 ### Tests
 - Frontend: tests unitaires + tests de flux composant (Vitest + Testing Library).
 - Backend: tests integration FastAPI (auth, admin, patients, connexion IA API).
-- Dernier run backend local: **32 tests passes**.
+- Dernier run backend local: **70+ tests passent** (selon disponibilité PostgreSQL).
 
 ## Stack technique
 
@@ -121,8 +121,8 @@ pnpm run test -- --coverage
 
 ### Backend
 ```bash
-python -m pytest backend_fastapi/tests -q
-python -m pytest backend_fastapi/tests --cov=backend_fastapi/app --cov-report=term-missing
+pytest
+pytest -q
 ```
 
 ## Notes de couverture (snapshot local recent)

@@ -16,11 +16,21 @@ from .infrastructure.repositories.argos_repository import (
 )
 from .infrastructure.repositories.patient_repository import SqlPatientRepository
 from .infrastructure.repositories.user_repository import SqlUserRepository
+from .infrastructure.repositories.user_repository_sqlalchemy import HybridUserRepository
 from .infrastructure.security.auth_gateways import PasswordGateway, TokenGateway
 from .infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
+from .db_sqlalchemy import get_db as get_sqlalchemy_db
+from .settings import settings
 
 
-def get_user_repository() -> SqlUserRepository:
+def get_user_repository(
+  sa_db: Annotated[Any, Depends(get_sqlalchemy_db)],
+) -> Any:
+  # Migration contrôlée:
+  # - par défaut on garde psycopg (SqlUserRepository)
+  # - en mode sqlalchemy: lecture via SQLAlchemy + fallback psycopg pour le reste
+  if settings.db_implementation == "sqlalchemy":
+    return HybridUserRepository(sa_db)
   return SqlUserRepository()
 
 

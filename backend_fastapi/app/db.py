@@ -2,59 +2,108 @@ from __future__ import annotations
 
 from typing import Any
 
-import psycopg
-import psycopg.conninfo
-from psycopg.rows import dict_row
-
-from .settings import settings
+from .db_sqlalchemy import get_engine
 
 
-def _conninfo() -> str:
-  return psycopg.conninfo.make_conninfo(
-    host=settings.db_host,
-    port=settings.db_port,
-    dbname=settings.db_name,
-    user=settings.db_user,
-    password=settings.db_password,
-    connect_timeout=settings.db_connect_timeout_seconds,
-  )
+def _rows_to_dicts(cursor, rows):  # noqa: ANN001
+  if not rows:
+    return []
+  columns = [col[0] for col in (cursor.description or [])]
+  out: list[dict[str, Any]] = []
+  for row in rows:
+    if isinstance(row, dict):
+      out.append(dict(row))
+    else:
+      out.append({columns[i]: row[i] for i in range(len(columns))})
+  return out
 
 
-def _connect(autocommit: bool) -> psycopg.Connection[Any]:
-  return psycopg.connect(
-    conninfo=_conninfo(),
-    row_factory=dict_row,
-    autocommit=autocommit,
-  )
+def _row_to_dict(cursor, row):  # noqa: ANN001
+  if row is None:
+    return None
+  if isinstance(row, dict):
+    return dict(row)
+  columns = [col[0] for col in (cursor.description or [])]
+  return {columns[i]: row[i] for i in range(len(columns))}
 
 
-def get_conn() -> psycopg.Connection[Any]:
-  """Connexion en autocommit (requêtes simples)."""
-  return _connect(autocommit=True)
+def get_conn():
+  """Retourne une connexion DBAPI depuis le pool SQLAlchemy.
+
+  SQLAlchemy devient la référence pour:
+  - pool de connexions
+  - pre-ping
+  - config driver (postgresql+psycopg)
+  """
+  conn = get_engine().raw_connection()
+  # Comportement historique: get_conn() était en autocommit.
+  try:
+    conn.autocommit = True
+  except Exception:
+    pass
+  return conn
 
 
-def get_conn_tx() -> psycopg.Connection[Any]:
-  """Connexion sans autocommit pour les transactions manuelles."""
-  return _connect(autocommit=False)
+def get_conn_tx():
+  """Connexion transactionnelle (autocommit désactivé)."""
+  conn = get_conn()
+  # DBAPI connection (psycopg3) expose généralement .autocommit
+  try:
+    conn.autocommit = False
+  except Exception:
+    pass
+  return conn
 
 
 def fetch_one(query: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
-  with get_conn() as conn:
-    with conn.cursor() as cur:
+  conn = get_conn()
+  try:
+    cur = conn.cursor()
+    try:
       cur.execute(query, params)
-      return cur.fetchone()
+      row = cur.fetchone()
+      # Les INSERT/UPDATE/DELETE peuvent être exécutés via fetch_one (RETURNING ...).
+      # En psycopg, on était en autocommit; ici on commit explicitement pour garder
+      # la compatibilité comportementale.
+      q = (query or "").lstrip().upper()
+      if q.startswith(("INSERT", "UPDATE", "DELETE")):
+        try:
+          conn.commit()
+        except Exception:
+          pass
+      return _row_to_dict(cur, row)
+    finally:
+      cur.close()
+  finally:
+    conn.close()
 
 
 def fetch_all(query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
-  with get_conn() as conn:
-    with conn.cursor() as cur:
+  conn = get_conn()
+  try:
+    cur = conn.cursor()
+    try:
       cur.execute(query, params)
       rows = cur.fetchall()
-      return list(rows or [])
+      return _rows_to_dicts(cur, rows)
+    finally:
+      cur.close()
+  finally:
+    conn.close()
 
 
 def execute(query: str, params: tuple[Any, ...] = ()) -> int:
-  with get_conn() as conn:
-    with conn.cursor() as cur:
+  conn = get_conn()
+  try:
+    cur = conn.cursor()
+    try:
       cur.execute(query, params)
-      return cur.rowcount
+      try:
+        conn.commit()
+      except Exception:
+        pass
+      return int(getattr(cur, "rowcount", 0) or 0)
+    finally:
+      cur.close()
+  finally:
+    conn.close()

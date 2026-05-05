@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 
 class Settings(BaseSettings):
@@ -64,6 +65,15 @@ class Settings(BaseSettings):
   llm_temperature: float = 0.7
   llm_top_p: float = 0.9
   llm_max_tokens: int = 1200
+
+  # === SQLAlchemy (optionnel, en parallèle de psycopg) ===
+  # Active l'affichage des requêtes SQL (debug). Laisser False en prod.
+  sqlalchemy_echo: bool = False
+
+  # Choix de l'implémentation DB (migration progressive).
+  # - "psycopg": accès SQL direct via backend_fastapi/app/db.py (actuel)
+  # - "sqlalchemy": lecture user via SQLAlchemy (démonstration) + fallback psycopg
+  db_implementation: Literal["psycopg", "sqlalchemy"] = "psycopg"
 
 
 settings = Settings()
