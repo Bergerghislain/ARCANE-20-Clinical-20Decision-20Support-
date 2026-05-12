@@ -68,7 +68,7 @@ class Settings(BaseSettings):
   allow_demo_password_fallback: bool = True
 
   # === LLM / Qwen integration (backend-side proxy) ===
-  # Provider: "openai_compatible" (vLLM/sglang/TGI OpenAI-style) or "disabled"
+  # Provider: "openai_compatible" (vLLM/sglang/TGI), "mock_json" (reponses JSON sans reseau), or "disabled"
   llm_provider: str = "disabled"
   llm_base_url: str = "http://127.0.0.1:8001/v1"
   llm_api_key: str | None = None

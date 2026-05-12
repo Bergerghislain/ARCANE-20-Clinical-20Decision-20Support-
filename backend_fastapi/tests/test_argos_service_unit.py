@@ -135,3 +135,54 @@ def test_add_message_sets_created_by_none_for_argos_response():
   assert msg["created_by"] is None
   assert log.events[-1]["action_type"] == "argos_message_created"
 
+
+def test_list_discussions_filters_by_patient_id():
+  repo = _Repo()
+  repo._patients.add(2)
+  service = ArgosService(repo, _ActivityLog())
+  service.create_discussion(payload={"patient_id": 1, "title": "A"}, clinician_id=2, ip_address=None, user_agent=None)
+  service.create_discussion(payload={"patient_id": 2, "title": "B"}, clinician_id=2, ip_address=None, user_agent=None)
+  all_rows = service.list_discussions(clinician_id=2)
+  assert len(all_rows) == 2
+  filtered = service.list_discussions(clinician_id=2, patient_id=2)
+  assert len(filtered) == 1
+  assert filtered[0]["patient_id"] == 2
+
+
+def test_list_messages_requires_discussion_ownership():
+  repo = _Repo()
+  service = ArgosService(repo, _ActivityLog())
+  disc = service.create_discussion(payload={"patient_id": 1}, clinician_id=9, ip_address=None, user_agent=None)
+  with pytest.raises(ApplicationError) as exc:
+    service.list_messages(discussion_id=int(disc["id"]), clinician_id=8)
+  assert exc.value.status_code == 404
+
+
+def test_add_message_requires_discussion_ownership():
+  repo = _Repo()
+  service = ArgosService(repo, _ActivityLog())
+  disc = service.create_discussion(payload={"patient_id": 1}, clinician_id=9, ip_address=None, user_agent=None)
+  with pytest.raises(ApplicationError) as exc:
+    service.add_message(
+      discussion_id=int(disc["id"]),
+      payload={"message_type": "user", "content": "x", "sections": None},
+      clinician_id=8,
+      ip_address=None,
+      user_agent=None,
+    )
+  assert exc.value.status_code == 404
+
+
+def test_get_discussion_returns_mapped_row():
+  repo = _Repo()
+  service = ArgosService(repo, _ActivityLog())
+  created = service.create_discussion(
+    payload={"patient_id": 1, "title": "T1", "context": "ctx"},
+    clinician_id=4,
+    ip_address=None,
+    user_agent=None,
+  )
+  got = service.get_discussion(discussion_id=int(created["id"]), clinician_id=4)
+  assert got["title"] == "T1"
+  assert got["context"] == "ctx"
+

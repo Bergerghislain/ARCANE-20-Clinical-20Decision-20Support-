@@ -537,6 +537,23 @@ def test_patient_profile_roundtrip_persisted_in_backend():
     assert saved_payload["stored_schema_version"] == 2
     assert isinstance(saved_payload["profile"]["reportMeta"]["generator"], str)
 
+    row_pp = fetch_one(
+      "SELECT profile_version FROM patient_profiles WHERE patient_id = %s",
+      (created_patient_id,),
+    )
+    assert row_pp is not None
+    assert int(row_pp["profile_version"]) == 1
+
+    prow = fetch_one("SELECT health_info FROM patients WHERE id_patient = %s", (created_patient_id,))
+    assert prow is not None
+    hi = prow.get("health_info")
+    if isinstance(hi, str):
+      import json as _json
+
+      hi = _json.loads(hi)
+    assert isinstance(hi, dict)
+    assert hi.get("manual_profile") is None
+
     loaded_profile = client.get(
       f"/api/patients/{created_patient_id}/profile",
       headers=headers,

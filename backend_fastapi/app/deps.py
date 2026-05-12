@@ -18,6 +18,7 @@ from .infrastructure.repositories.patient_repository import SqlPatientRepository
 from .infrastructure.repositories.user_repository import SqlUserRepository
 from .infrastructure.repositories.user_repository_sqlalchemy import HybridUserRepository
 from .infrastructure.security.auth_gateways import PasswordGateway, TokenGateway
+from .infrastructure.ai.mock_llm_client import MockJsonLlmClient
 from .infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
 from .db_sqlalchemy import get_db as get_sqlalchemy_db
 from .settings import settings
@@ -81,12 +82,14 @@ def get_argos_service(
   return ArgosService(argos_repo, activity_repo)
 
 
-def get_llm_client() -> OpenAiCompatibleClient:
+def get_llm_client() -> OpenAiCompatibleClient | MockJsonLlmClient:
+  if settings.llm_provider == "mock_json":
+    return MockJsonLlmClient()
   return OpenAiCompatibleClient()
 
 
 def get_ai_service(
-  llm: Annotated[OpenAiCompatibleClient, Depends(get_llm_client)],
+  llm: Annotated[OpenAiCompatibleClient | MockJsonLlmClient, Depends(get_llm_client)],
 ) -> AiService:
   return AiService(llm)
 

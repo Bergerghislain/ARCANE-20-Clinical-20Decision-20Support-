@@ -14,7 +14,7 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 - Refactorisation appliquee selon une architecture `domain` / `application` / `infrastructure` / `routers`.
 - Services metier centralises (`AuthService`, `AdminService`, `PatientService`, `ArgosService`).
 - Injection de dependances centralisee (`backend_fastapi/app/deps.py`).
-- Endpoints patient enrichis avec la persistence de profil:
+- Endpoints patient enrichis avec la persistence de profil (`patient_profiles` + lecture legacy `health_info`):
   - `GET /api/patients/{id}/profile`
   - `PUT /api/patients/{id}/profile`
 - Endpoints utilises par le Patient Handler admin:
@@ -29,12 +29,12 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 - Auto-refresh du dashboard (event local + polling) pour reflet immediat des reaffectations.
 - Dossier patient par onglets (`Patient Infos`, `Report`, `ARGOS`).
 - Vue admin `Patient Handler` exposee sur `/admin/patient-handler` pour reaffecter un patient a un clinicien.
-- Generation de rapport IA simulee (conclusion, raisonnement, sources).
+- Generation rapport / ARGOS: flux **reel** si `LLM_PROVIDER=openai_compatible` et endpoint LLM joignable; mode **`mock_json`** pour reponses JSON sans reseau (demos, tests).
 - Transfert automatique du contexte patient vers ARGOS.
 - Validation de profil patient via schema Zod (`schemaVersion`).
 - Persistence hybride des saisies:
   - draft local (`localStorage`)
-  - synchro backend via API profil patient.
+  - synchro backend via API profil patient (table `patient_profiles` cote serveur).
 
 ### Tests
 - Frontend: tests unitaires + tests de flux composant (Vitest + Testing Library).
@@ -168,7 +168,7 @@ pytest -q
 
 ## Limitations connues / prochaines etapes
 
-- Les reponses IA sont encore simulees (JSON local + generation mock).
-- La persistence profil est actuellement stockee dans `health_info.manual_profile` cote patient (etape intermediaire).
-- Objectif recommande: ajouter une table dediee de profils patients, renforcer les tests Argos backend et augmenter la couverture de la couche infrastructure SQL.
-- Augmenter les tests de performance sur tout ce qui a ete ajuste depuis lors
+- Generation **reelle** par LLM: definir `LLM_PROVIDER=openai_compatible` et un endpoint compatible OpenAI (`LLM_BASE_URL`, `LLM_MODEL`, etc.). Sans LLM, `LLM_PROVIDER=mock_json` fournit des reponses JSON valides pour demos / tests (pas de reseau).
+- Profils patients: la source de verite est la table **`patient_profiles`**; les champs `health_info.manual_profile*` restent en **lecture seule** pour migration (anciennes donnees). Apres sauvegarde via l'API, les cles legacy sont retirees de `health_info`. Bases existantes: executer `backend_fastapi/sql/migrate_patient_profiles.sql` une fois.
+- Poursuivre la couverture des routeurs (Argos HTTP, admin) et des repositories SQL avec des tests d'integration supplementaires si besoin.
+- Les tests de performance ajoutes (`test_performance_smoke_unit.py`) sont des **fumees** locales (seuils larges); pour du benchmarking serieux, envisager `pytest-benchmark` ou des outils externes.

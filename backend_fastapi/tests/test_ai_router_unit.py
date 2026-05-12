@@ -49,3 +49,35 @@ def test_stream_argos_returns_503_when_llm_provider_disabled():
       settings.llm_provider = old
       app.dependency_overrides.clear()
 
+
+def test_stream_report_mock_json_returns_sse_chunks():
+  with TestClient(app) as client:
+    from backend_fastapi.app import deps
+    from backend_fastapi.app.settings import settings
+
+    app.dependency_overrides[deps.get_current_user] = lambda: {"id": 1, "role": "admin"}
+    try:
+      old = settings.llm_provider
+      settings.llm_provider = "mock_json"
+      resp = client.post(
+        "/api/ai/report/stream",
+        json={
+          "patient_name": "A",
+          "patient_mrn": None,
+          "profile": {
+            "patientId": "1",
+            "schemaVersion": 1,
+            "diagnosis": "x",
+            "pathologySummary": "y",
+            "analyses": [],
+            "report": {"conclusion": "c", "reasoning": "r", "sources": ["s"]},
+          },
+        },
+      )
+      assert resp.status_code == 200
+      assert "[DONE]" in resp.text
+      assert "choices" in resp.text
+    finally:
+      settings.llm_provider = old
+      app.dependency_overrides.clear()
+

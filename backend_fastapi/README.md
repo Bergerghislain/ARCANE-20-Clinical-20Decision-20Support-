@@ -157,8 +157,14 @@ Dernier snapshot local (sur la machine de dev):
 - tests backend: **≈ 70+** tests OK
 - couverture backend (indicative): ~**65–70%** (elle varie selon l’accès DB/LLM activé)
 
+## Persistance profil patient
+
+- Les profils saisis via `PUT /api/patients/{id}/profile` sont stockes dans la table **`patient_profiles`** (JSONB + versionnement optimiste).
+- Les anciennes donnees dans `patients.health_info.manual_profile` sont encore **lues** si aucune ligne dediee n'existe (migration douce). Une sauvegarde via l'API ecrit dans `patient_profiles` et supprime les cles legacy dans `health_info`.
+- Nouvelle installation: executer `setup_database.sql` (inclut `patient_profiles`).
+- Base existante: executer une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+
 ## Notes d'implementation
 
 - Les routes HTTP sont fines et délèguent la logique métier aux services applicatifs.
 - Les erreurs métier passent par `ApplicationError`, converties en `HTTPException` dans les routeurs.
-- La persistance du profil patient est actuellement stockée dans `health_info.manual_profile` (stratégie transitoire avant table dédiée).

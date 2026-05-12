@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS primary_cancer_stages CASCADE;
 DROP TABLE IF EXISTS primary_cancer_grades CASCADE;
 DROP TABLE IF EXISTS primary_cancers CASCADE;
 DROP TABLE IF EXISTS patient_access CASCADE;
+DROP TABLE IF EXISTS patient_profiles CASCADE;
 DROP TABLE IF EXISTS patients CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -63,6 +64,18 @@ CREATE TABLE patients (
     created_by INTEGER REFERENCES users(id),
     updated_by INTEGER REFERENCES users(id)
 );
+
+-- 2b) Profils patients (persistes hors health_info JSONB)
+CREATE TABLE patient_profiles (
+    patient_id INTEGER PRIMARY KEY REFERENCES patients(id_patient) ON DELETE CASCADE,
+    profile_data JSONB NOT NULL,
+    profile_version INTEGER NOT NULL DEFAULT 0,
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_patient_profiles_updated ON patient_profiles(updated_at DESC);
 
 -- 3) Primary cancers
 CREATE TABLE primary_cancers (

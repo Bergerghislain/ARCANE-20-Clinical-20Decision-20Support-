@@ -180,17 +180,34 @@ class SqlPatientRepository:
   def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
     row = fetch_one(
       """
-      SELECT health_info
-      FROM patients
-      WHERE id_patient = %s
+      SELECT profile_data, profile_version, schema_version
+      FROM patient_profiles
+      WHERE patient_id = %s
       LIMIT 1
       """,
       (patient_id,),
     )
-    if not row:
-      return None
+    if row and row.get("profile_data") is not None:
+      profile = row["profile_data"]
+      if isinstance(profile, str):
+        try:
+          profile = json.loads(profile)
+        except ValueError:
+          profile = None
+      if isinstance(profile, dict):
+        return {
+          "profile": profile,
+          "profile_version": _to_int(row.get("profile_version"), default=0),
+          "schema_version": _to_int(row.get("schema_version"), default=1),
+        }
 
-    health_info = _coerce_health_info(row.get("health_info"))
+    prow = fetch_one(
+      "SELECT health_info FROM patients WHERE id_patient = %s LIMIT 1",
+      (patient_id,),
+    )
+    if not prow:
+      return None
+    health_info = _coerce_health_info(prow.get("health_info"))
     return _extract_profile_record(health_info)
 
   def save_patient_profile(
@@ -219,14 +236,40 @@ class SqlPatientRepository:
         return None
 
       health_info = _coerce_health_info(row.get("health_info"))
-      current_record = _extract_profile_record(health_info)
+
+      cur.execute(
+        """
+        SELECT profile_data, profile_version, schema_version
+        FROM patient_profiles
+        WHERE patient_id = %s
+        FOR UPDATE
+        """,
+        (patient_id,),
+      )
+      pp_row = cur.fetchone()
+
+      current_record: dict[str, Any] | None = None
+      if pp_row and pp_row.get("profile_data") is not None:
+        pd = pp_row["profile_data"]
+        if isinstance(pd, str):
+          try:
+            pd = json.loads(pd)
+          except ValueError:
+            pd = None
+        if isinstance(pd, dict):
+          current_record = {
+            "profile": pd,
+            "profile_version": _to_int(pp_row.get("profile_version"), default=0),
+            "schema_version": _to_int(pp_row.get("schema_version"), default=1),
+          }
+
+      if current_record is None:
+        current_record = _extract_profile_record(health_info)
+
       current_version = (
         int(current_record["profile_version"]) if current_record is not None else 0
       )
 
-      # Compatibilite legacy:
-      # - profil inexistant => on accepte une creation sans version attendue.
-      # - profil existant => version requise pour activer l'optimistic locking.
       if expected_version is None and current_version > 0:
         return {
           "status": "conflict",
@@ -244,36 +287,41 @@ class SqlPatientRepository:
       next_version = current_version + 1
       normalized_profile = dict(profile)
       normalized_profile["patientId"] = str(patient_id)
+      schema_v = _to_int(normalized_profile.get("schemaVersion"), default=1)
 
-      health_info[MANUAL_PROFILE_KEY] = normalized_profile
-      health_info[MANUAL_PROFILE_VERSION_KEY] = next_version
-      health_info[MANUAL_PROFILE_SCHEMA_VERSION_KEY] = _to_int(
-        normalized_profile.get("schemaVersion"),
-        default=1,
+      cur.execute(
+        """
+        INSERT INTO patient_profiles (patient_id, profile_data, profile_version, schema_version, updated_at)
+        VALUES (%s, %s::jsonb, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (patient_id) DO UPDATE SET
+          profile_data = EXCLUDED.profile_data,
+          profile_version = EXCLUDED.profile_version,
+          schema_version = EXCLUDED.schema_version,
+          updated_at = CURRENT_TIMESTAMP
+        """,
+        (patient_id, json.dumps(normalized_profile), next_version, schema_v),
       )
 
+      new_hi = dict(health_info)
+      new_hi.pop(MANUAL_PROFILE_KEY, None)
+      new_hi.pop(MANUAL_PROFILE_VERSION_KEY, None)
+      new_hi.pop(MANUAL_PROFILE_SCHEMA_VERSION_KEY, None)
       cur.execute(
         """
         UPDATE patients
         SET health_info = %s,
             updated_at = CURRENT_TIMESTAMP
         WHERE id_patient = %s
-        RETURNING health_info
         """,
-        (json.dumps(health_info), patient_id),
+        (json.dumps(new_hi), patient_id),
       )
-      updated = cur.fetchone()
-      if not updated:
-        return None
 
       uow.commit()
-      updated_health_info = _coerce_health_info(updated.get("health_info"))
-      saved_record = _extract_profile_record(updated_health_info)
-      if not saved_record:
-        return None
       return {
         "status": "saved",
-        **saved_record,
+        "profile": normalized_profile,
+        "profile_version": next_version,
+        "schema_version": schema_v,
       }
 
   def import_patient_payload(self, payload: dict[str, Any], assigned_clinician_id: int | None = None) -> int:
