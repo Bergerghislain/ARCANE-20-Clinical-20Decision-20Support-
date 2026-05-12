@@ -110,6 +110,37 @@ pnpm run build
 pnpm run start
 ```
 
+- `pnpm run start` lance FastAPI sur `0.0.0.0:8000` et, si `dist/spa` existe (apres `pnpm run build`), sert aussi le frontend (une seule URL pour le labo).
+
+## Deploiement sur serveur local (labo)
+
+### Principe
+
+1. PostgreSQL accessible depuis le serveur (installe sur la meme machine ou sur une VM du labo).
+2. Fichier `.env` a la racine du depot (voir `.env.example`): mots de passe forts, `JWT_SECRET` aleatoire long, `ALLOW_DEMO_PASSWORD_FALLBACK=false`, `CORS_ORIGINS` incluant l'URL utilisee par les navigateurs du labo (ex. `http://192.168.1.50:8000`).
+3. Build du SPA puis demarrage de l'API depuis la racine du clone:
+
+```bash
+pnpm install
+python -m pip install -r backend_fastapi/requirements.txt
+pnpm run build
+pnpm run start
+```
+
+Acces: `http://<ip-du-serveur>:8000`. Ne pas definir `VITE_API_BASE_URL` pour ce mode: le frontend appelle `/api/...` en meme origine.
+
+### Option Docker (PostgreSQL + app)
+
+Depuis la racine du depot (Docker / Docker Compose installes):
+
+```bash
+pnpm run compose:up
+```
+
+Adapter les variables dans `deploy/docker-compose.yml` (mots de passe, `JWT_SECRET`, `CORS_ORIGINS`). Le script SQL `setup_database.sql` est monte en initialisation de la base au premier demarrage du volume PostgreSQL.
+
+Arret: `pnpm run compose:down`.
+
 ## Commandes de test
 
 ### Frontend

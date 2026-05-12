@@ -1,11 +1,25 @@
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Fichiers .env: d'abord le dossier backend, puis la racine du depot (prioritaire).
+_APP_DIR = Path(__file__).resolve().parent
+_BACKEND_DIR = _APP_DIR.parent
+_REPO_ROOT = _BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
-  model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+  model_config = SettingsConfigDict(
+    env_file=(
+      str(_BACKEND_DIR / ".env"),
+      str(_REPO_ROOT / ".env"),
+    ),
+    env_file_encoding="utf-8",
+    extra="ignore",
+  )
 
   db_host: str = "localhost"
   db_port: int = 5432

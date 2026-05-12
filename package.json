@@ -14,6 +14,8 @@
     "build": "npm run build:client",
     "build:client": "vite build",
     "start": "python -m uvicorn backend_fastapi.app.main:app --host 0.0.0.0 --port 8000",
+    "compose:up": "docker compose -f deploy/docker-compose.yml up --build -d",
+    "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"

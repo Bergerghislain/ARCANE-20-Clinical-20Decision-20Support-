@@ -1,0 +1,44 @@
+# Deploiement labo (exemple). Lancer depuis ce dossier:
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# Puis ouvrir http://localhost:8000 (ou l'IP du serveur).
+# Adapter les mots de passe et CORS_ORIGINS avant la mise en production.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: arcane
+      POSTGRES_PASSWORD: arcane_change_me
+      POSTGRES_DB: arcane
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../setup_database.sql:/docker-entrypoint-initdb.d/01-arcane-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcane -d arcane"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: arcane
+      DB_PASSWORD: arcane_change_me
+      DB_NAME: arcane
+      JWT_SECRET: change_me_generate_a_long_random_secret
+      CORS_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+      ALLOW_DEMO_PASSWORD_FALLBACK: "false"
+      COOKIE_SECURE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -26,7 +26,7 @@ Pour l'architecture detaillee: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
 
 ## Variables d'environnement
 
-Creer un `.env` a la racine projet (ou exporter les variables):
+Creer un `.env` a la racine projet (ou exporter les variables). Les valeurs sont chargees depuis `backend_fastapi/.env` puis `.env` a la racine (la racine prevaut en cas de doublon).
 
 ```env
 DB_HOST=localhost
