@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import json
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
-import httpx
 
 from ..application.errors import ApplicationError
-from ..deps import ClinicianOrAdminUser, get_ai_service
-from ..schemas import PatientProfileIn
 from ..application.services.ai_service import AiService
+from ..application.use_cases.stream_llm_sse import StreamLlmSseUseCase
+from ..deps import ClinicianOrAdminUser, get_ai_service, get_stream_llm_sse_use_case
 from ..infrastructure.ai.prompts import build_argos_messages, build_report_messages
-from ..settings import settings
+from ..schemas import PatientProfileIn
 
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -52,68 +50,18 @@ def generate_report(
 async def stream_report(
   payload: ReportGenerateIn,
   _user: ClinicianOrAdminUser,
-  _request: Request,
+  stream_uc: Annotated[StreamLlmSseUseCase, Depends(get_stream_llm_sse_use_case)],
 ):
-  """Streaming SSE proxy vers le LLM (raisonnement visible en temps réel).
-
-  Retourne un flux `text/event-stream` de type OpenAI-compatible :
-  - `data: {json_chunk}\n\n` jusqu'à `data: [DONE]\n\n`
-  """
+  """Streaming SSE: cas d'usage StreamLlmSseUseCase (port LLM injecte)."""
   messages = build_report_messages(
     patient_name=payload.patient_name,
     patient_mrn=payload.patient_mrn,
     profile=payload.profile.model_dump(),
   )
-
-  if settings.llm_provider == "mock_json":
-    from ..infrastructure.ai.mock_llm_client import MockJsonLlmClient
-
-    async def _mock_stream():
-      text = MockJsonLlmClient().chat(messages)
-      chunk = json.dumps({"choices": [{"delta": {"content": text}}]}, ensure_ascii=False)
-      yield f"data: {chunk}\n\n"
-      yield "data: [DONE]\n\n"
-
-    return StreamingResponse(_mock_stream(), media_type="text/event-stream")
-
-  if settings.llm_provider != "openai_compatible":
-    raise HTTPException(status_code=503, detail="LLM provider is disabled.")
-
-  base = settings.llm_base_url.rstrip("/")
-  url = f"{base}/chat/completions"
-  headers: dict[str, str] = {"Content-Type": "application/json"}
-  if settings.llm_api_key:
-    headers["Authorization"] = f"Bearer {settings.llm_api_key}"
-
-  req_payload: dict[str, Any] = {
-    "model": settings.llm_model,
-    "messages": messages,
-    "temperature": settings.llm_temperature,
-    "top_p": settings.llm_top_p,
-    "max_tokens": settings.llm_max_tokens,
-    "stream": True,
-    # On garde JSON strict, mais en streaming : le client accumule et parse en fin.
-    "response_format": {"type": "json_object"},
-  }
-
-  async def _event_stream():
-    try:
-      async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
-        async with client.stream("POST", url, headers=headers, json=req_payload) as resp:
-          if resp.status_code >= 400:
-            detail = f"LLM request failed ({resp.status_code})."
-            yield f"data: {detail}\n\n"
-            yield "data: [DONE]\n\n"
-            return
-          async for chunk in resp.aiter_text():
-            if chunk:
-              # vLLM renvoie déjà du SSE "data: ...\n\n"
-              yield chunk
-    except httpx.RequestError:
-      yield "data: LLM endpoint is unreachable.\n\n"
-      yield "data: [DONE]\n\n"
-
-  return StreamingResponse(_event_stream(), media_type="text/event-stream")
+  try:
+    return StreamingResponse(stream_uc.iter_events(messages), media_type="text/event-stream")
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
 
 
 class ArgosRespondIn(BaseModel):
@@ -154,9 +102,8 @@ def argos_respond(
 async def stream_argos_respond(
   payload: ArgosRespondIn,
   _user: ClinicianOrAdminUser,
-  _request: Request,
+  stream_uc: Annotated[StreamLlmSseUseCase, Depends(get_stream_llm_sse_use_case)],
 ):
-  """Streaming SSE proxy vers le LLM pour ARGOS (réponse visible en temps réel)."""
   messages = build_argos_messages(
     patient_name=payload.patient_name,
     patient_mrn=payload.patient_mrn,
@@ -165,52 +112,7 @@ async def stream_argos_respond(
     user_message=payload.user_message,
     history=payload.history,
   )
-
-  if settings.llm_provider == "mock_json":
-    from ..infrastructure.ai.mock_llm_client import MockJsonLlmClient
-
-    async def _mock_stream_argos():
-      text = MockJsonLlmClient().chat(messages)
-      chunk = json.dumps({"choices": [{"delta": {"content": text}}]}, ensure_ascii=False)
-      yield f"data: {chunk}\n\n"
-      yield "data: [DONE]\n\n"
-
-    return StreamingResponse(_mock_stream_argos(), media_type="text/event-stream")
-
-  if settings.llm_provider != "openai_compatible":
-    raise HTTPException(status_code=503, detail="LLM provider is disabled.")
-
-  base = settings.llm_base_url.rstrip("/")
-  url = f"{base}/chat/completions"
-  headers: dict[str, str] = {"Content-Type": "application/json"}
-  if settings.llm_api_key:
-    headers["Authorization"] = f"Bearer {settings.llm_api_key}"
-
-  req_payload: dict[str, Any] = {
-    "model": settings.llm_model,
-    "messages": messages,
-    "temperature": settings.llm_temperature,
-    "top_p": settings.llm_top_p,
-    "max_tokens": settings.llm_max_tokens,
-    "stream": True,
-    "response_format": {"type": "json_object"},
-  }
-
-  async def _event_stream():
-    try:
-      async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
-        async with client.stream("POST", url, headers=headers, json=req_payload) as resp:
-          if resp.status_code >= 400:
-            detail = f"LLM request failed ({resp.status_code})."
-            yield f"data: {detail}\n\n"
-            yield "data: [DONE]\n\n"
-            return
-          async for chunk in resp.aiter_text():
-            if chunk:
-              yield chunk
-    except httpx.RequestError:
-      yield "data: LLM endpoint is unreachable.\n\n"
-      yield "data: [DONE]\n\n"
-
-  return StreamingResponse(_event_stream(), media_type="text/event-stream")
-
+  try:
+    return StreamingResponse(stream_uc.iter_events(messages), media_type="text/event-stream")
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)

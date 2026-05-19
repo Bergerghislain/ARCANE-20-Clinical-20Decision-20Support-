@@ -4,31 +4,32 @@ Ce dossier contient le backend FastAPI unique du projet.
 
 ## État actuel (résumé)
 
-- Architecture refactorisée selon une séparation:
-  - `app/domain`
-  - `app/application`
-  - `app/infrastructure`
-  - `app/routers`
-- Services métier isolés (auth, admin, patients, ARGOS/IA).
-- Compatibilité payload legacy patient maintenue (`age`, `gender`, `birthDate`).
-- Endpoints de persistance de profil patient:
-  - `GET /api/patients/{id}/profile`
-  - `PUT /api/patients/{id}/profile`
-- **SQLAlchemy est la référence pour la DB** (pooling + connectivité). Le code historique (SQL brut) continue de fonctionner via `app/db.py`.
-- Migration progressive possible via feature flag `DB_IMPLEMENTATION` (cf. section SQLAlchemy).
+- Architecture en couches :
+  - `app/domain` — entités et règles métier pures
+  - `app/application` — services, ports, cas d'usage, politiques
+  - `app/infrastructure` — SQL, sécurité, clients LLM
+  - `app/routers` — routes HTTP fines
+- Services métier : `AuthService`, `AdminService`, `PatientService`, `ArgosService`, `AiService`.
+- **Cas d'usage** extraits pour le profil patient et le streaming LLM (testables sans routeur).
+- Compatibilité payload legacy patient (`age`, `gender`, `birthDate`).
+- Persistance profil : table **`patient_profiles`** (JSONB + versionnement optimiste) avec repli lecture sur `health_info.manual_profile`.
+- **SQLAlchemy** : référence pour le pool de connexions ; accès SQL brut via `app/db.py` inchangé côté repositories.
+- **IA** : ports `LlmPort` (sync) et `LlmSsePort` (SSE) ; implémentations `MockJsonLlmClient` / `OpenAiCompatibleClient` ; streaming via `StreamLlmSseUseCase`.
 
-Pour l'architecture detaillee: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`.
+Architecture détaillée : [`ARCHITECTURE_SOLID_DDD.md`](ARCHITECTURE_SOLID_DDD.md).  
+Intégration Qwen / LLM : [`../docs/QWEN_INTEGRATION.md`](../docs/QWEN_INTEGRATION.md).
 
-## Prerequis
+## Prérequis
 
 - Python 3.12+ (recommandé)
-- PostgreSQL (base `arcane` preparee via les scripts SQL du projet)
+- PostgreSQL (base `arcane` via `setup_database.sql` ou Alembic)
 
 ## Variables d'environnement
 
-Creer un `.env` a la racine projet (ou exporter les variables). Les valeurs sont chargees depuis `backend_fastapi/.env` puis `.env` a la racine (la racine prevaut en cas de doublon).
+Créer un `.env` à la racine du dépôt ou dans `backend_fastapi/`. En cas de doublon, **la racine du dépôt l'emporte** (voir `app/settings.py`).
 
 ```env
+# PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
@@ -36,42 +37,51 @@ DB_PASSWORD=postgres
 DB_NAME=arcane
 DB_CONNECT_TIMEOUT_SECONDS=15
 
+# JWT
 JWT_SECRET=change_me_dev_only
 JWT_ISSUER=arcane
 JWT_AUDIENCE=arcane-client
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
+# Divers
 PING_MESSAGE=ping
-
-# Cookies refresh token
 COOKIE_DOMAIN=
 COOKIE_SECURE=false
 COOKIE_SAMESITE=lax
-
-# CORS (liste separee par virgules)
 CORS_ORIGINS=http://localhost:8080
-
-# Mettre a false en production
 ALLOW_DEMO_PASSWORD_FALLBACK=true
 
 # SQLAlchemy
 SQLALCHEMY_ECHO=false
-
-# Migration contrôlée (par défaut: psycopg, mais SQLAlchemy est déjà utilisé pour le pooling)
-# - psycopg: repositories SQL brut uniquement
-# - sqlalchemy: lecture user via SQLAlchemy + fallback SQL brut pour le reste (démonstration)
 DB_IMPLEMENTATION=psycopg
+
+# LLM (proxy backend — ne pas exposer la clé au navigateur)
+# Valeurs : disabled | mock_json | openai_compatible
+LLM_PROVIDER=disabled
+LLM_BASE_URL=http://127.0.0.1:8001/v1
+LLM_API_KEY=
+LLM_MODEL=Qwen/Qwen3-4B
+LLM_TIMEOUT_SECONDS=120
+LLM_TEMPERATURE=0.7
+LLM_TOP_P=0.9
+LLM_MAX_TOKENS=1200
 ```
+
+| `LLM_PROVIDER`        | Comportement |
+|-----------------------|--------------|
+| `disabled` (défaut)   | Chat sync → 503 ; streaming SSE → 503 via `StreamLlmSseUseCase` |
+| `mock_json`           | Réponses JSON déterministes (démos, CI, sans réseau) |
+| `openai_compatible`   | Appels vers vLLM / sglang / TGI (endpoint `/v1/chat/completions`) |
 
 ## Installation
 
 ```bash
 cd backend_fastapi
 python -m venv .venv
-# Windows:
+# Windows
 .venv\Scripts\activate
-# macOS/Linux:
+# macOS/Linux
 # source .venv/bin/activate
 
 python -m pip install -r requirements.txt
@@ -79,44 +89,61 @@ python -m pip install -r requirements.txt
 
 ## Lancement local
 
-Depuis la racine:
+Depuis la racine du dépôt :
+
 ```bash
 python -m uvicorn backend_fastapi.app.main:app --reload --port 8000
 ```
 
-Depuis `backend_fastapi/`:
+Depuis `backend_fastapi/` :
+
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-## SQLAlchemy (ce que ça change)
+## SQLAlchemy et migration DB
 
-### Pourquoi SQLAlchemy est “la référence”
-Le projet utilise SQLAlchemy comme **source de vérité** pour :
-- le **pool de connexions**
-- le **pre-ping**
-- la configuration driver via `settings.database_url` (`postgresql+psycopg://...`)
+- **Pool** : engine SQLAlchemy (`postgresql+psycopg://…`) avec pre-ping.
+- **Repositories** : SQL brut via `fetch_one` / `fetch_all` / `DbUnitOfWork` (connexions issues du pool).
+- **Flag `DB_IMPLEMENTATION`** :
+  - `psycopg` (défaut) : `SqlUserRepository` partout ;
+  - `sqlalchemy` : `HybridUserRepository` pour les utilisateurs (démo de migration incrémentale).
 
-Le code existant (repositories SQL brut) continue à utiliser `fetch_one/fetch_all/execute` et `DbUnitOfWork`, mais ces fonctions s’appuient maintenant sur des connexions fournies par l’engine SQLAlchemy.
+## Migrations Alembic
 
-### Migration contrôlée (feature flag)
-Le flag `DB_IMPLEMENTATION` permet de démontrer une migration incrémentale :
-- `psycopg` (défaut) : repositories SQL brut
-- `sqlalchemy` : lecture user via SQLAlchemy (auth) + fallback SQL brut pour le reste
+Révisions dans `alembic/versions/` (ex. `001_patient_profiles.py`). La première révision crée `patient_profiles` **si la table n'existe pas** (compatible avec un déploiement déjà initialisé via `setup_database.sql`).
 
-## Endpoints exposes
+```bash
+cd backend_fastapi
+alembic upgrade head
+alembic current
+```
 
-### Systeme
+Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+
+## Persistance profil patient
+
+- **Écriture** : `PUT /api/patients/{id}/profile` → table `patient_profiles` (conflit 409 si `profileVersion` obsolète).
+- **Lecture** : `GET /api/patients/{id}/profile` → `patient_profiles` en priorité, sinon `health_info.manual_profile` (migration douce).
+- **Politique** : `app/application/patient_profile_policy.py` (migration schéma v1→v2, contrôle d'accès clinician/admin).
+- **Cas d'usage** : `GetPatientProfileUseCase`, `SavePatientProfileUseCase` ; `PatientService` délègue à ces classes.
+
+## Endpoints exposés
+
+### Système
+
 - `GET /api/ping`
 - `GET /api/demo`
 
 ### Auth
+
 - `POST /api/auth/login`
 - `POST /api/auth/register`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 
-### Patients (clinician/admin)
+### Patients (clinician / admin)
+
 - `GET /api/patients`
 - `GET /api/patients/{id}`
 - `POST /api/patients`
@@ -126,45 +153,67 @@ Le flag `DB_IMPLEMENTATION` permet de démontrer une migration incrémentale :
 - `GET /api/patients/{id}/profile`
 - `PUT /api/patients/{id}/profile`
 
-Payload reaffectation (`POST /api/patients/{id}/assign`):
-- accepte `clinician_id` (alias supportes: `assigned_clinician_id`, `assignedClinicianId`)
-- compte cible: role `clinician` (actif ou en attente)
+**Réaffectation** (`POST /api/patients/{id}/assign`) : corps `clinician_id` (alias `assigned_clinician_id`, `assignedClinicianId`) ; cible = compte `clinician` actif ou en attente.
 
-Regles d'acces patient:
-- `clinician`: acces uniquement aux patients qui lui sont affectes (`assigned_clinician_id`)
-- `admin`: acces a tous les dossiers patients + reaffectation possible
-- creation patient: assignation par defaut au createur (admin ou clinicien) si aucun assignee explicite
+**Accès** :
+
+- `clinician` : patients dont `assigned_clinician_id` = utilisateur courant ;
+- `admin` : tous les dossiers + réaffectation ;
+- création : assignation par défaut au créateur si aucun assigné explicite.
 
 ### Admin
+
 - `GET /api/admin/users`
 - `POST /api/admin/users/{id}/validate`
 
-### ARGOS (clinician)
+### ARGOS (clinician / admin)
+
 - `POST /api/argos/discussions`
 - `GET /api/argos/discussions`
 - `GET /api/argos/discussions/{discussion_id}`
 - `GET /api/argos/discussions/{discussion_id}/messages`
 - `POST /api/argos/discussions/{discussion_id}/messages`
 
+### IA (clinician / admin)
+
+- `POST /api/ai/report` — rapport structuré (JSON)
+- `POST /api/ai/report/stream` — même entrée, réponse **SSE**
+- `POST /api/ai/argos/respond` — réponse ARGOS (JSON)
+- `POST /api/ai/argos/respond/stream` — même entrée, réponse **SSE**
+
+Le streaming passe par `StreamLlmSseUseCase` et un `LlmSsePort` injecté (`deps.get_stream_llm_sse_use_case`), ce qui permet de surcharger le port en tests sans modifier `settings` globalement.
+
+## Couche application (référence rapide)
+
+| Composant | Rôle |
+|-----------|------|
+| `patient_profile_policy.py` | Migration schéma, `profileVersion`, contrôle d'accès |
+| `use_cases/patient_profile.py` | GET/PUT profil |
+| `use_cases/stream_llm_sse.py` | Itération événements SSE |
+| `ports/llm_ports.py` | `LlmPort`, `LlmSsePort` |
+| `deps.py` | Injection FastAPI (repos, services, cas d'usage) |
+
+Les routeurs convertissent `ApplicationError` → `HTTPException`.
+
 ## Tests backend
 
 ```bash
+cd backend_fastapi
 pytest
 pytest -q
+pytest --benchmark-disable
+pytest tests/test_performance_smoke_unit.py -m perf -v
+pytest tests/test_stream_llm_sse_use_case_unit.py -v
+pytest tests/test_patient_repository_profile_sql_unit.py -v
 ```
 
-Dernier snapshot local (sur la machine de dev):
-- tests backend: **≈ 70+** tests OK
-- couverture backend (indicative): ~**65–70%** (elle varie selon l’accès DB/LLM activé)
+Dernier snapshot local (sans PostgreSQL requis pour la majorité des tests unitaires) :
 
-## Persistance profil patient
+- **90** tests collectés ; suite verte avec `--benchmark-disable` ;
+- couverture indicative **~69 %** (varie selon accès DB / LLM).
 
-- Les profils saisis via `PUT /api/patients/{id}/profile` sont stockes dans la table **`patient_profiles`** (JSONB + versionnement optimiste).
-- Les anciennes donnees dans `patients.health_info.manual_profile` sont encore **lues** si aucune ligne dediee n'existe (migration douce). Une sauvegarde via l'API ecrit dans `patient_profiles` et supprime les cles legacy dans `health_info`.
-- Nouvelle installation: executer `setup_database.sql` (inclut `patient_profiles`).
-- Base existante: executer une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+## Notes d'implémentation
 
-## Notes d'implementation
-
-- Les routes HTTP sont fines et délèguent la logique métier aux services applicatifs.
-- Les erreurs métier passent par `ApplicationError`, converties en `HTTPException` dans les routeurs.
+- Routes HTTP fines → services ou cas d'usage.
+- Erreurs métier : `ApplicationError` (`status_code`, `detail`).
+- Cache court sur `find_by_id` utilisateur (`USER_CACHE_TTL_SECONDS`).

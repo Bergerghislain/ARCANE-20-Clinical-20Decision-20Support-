@@ -6,11 +6,8 @@ from backend_fastapi.app.infrastructure.repositories.patient_repository import (
 
 
 def test_find_patient_profile_prefers_dedicated_table(monkeypatch):
-  calls: list[str] = []
-
   def fake_fetch_one(query: str, params: tuple = ()):  # noqa: ANN001
-    calls.append(query)
-    if "patient_profiles" in query:
+    if "FROM patient_profiles" in query:
       return {
         "profile_data": {"patientId": "7", "diagnosis": "dedie", "schemaVersion": 1},
         "profile_version": 4,
@@ -18,6 +15,10 @@ def test_find_patient_profile_prefers_dedicated_table(monkeypatch):
       }
     raise AssertionError("legacy health_info ne doit pas etre interroge si table remplie")
 
+  monkeypatch.setattr(
+    "backend_fastapi.app.infrastructure.repositories.patient_repository._patient_profiles_table_exists",
+    lambda: True,
+  )
   monkeypatch.setattr(
     "backend_fastapi.app.infrastructure.repositories.patient_repository.fetch_one",
     fake_fetch_one,
@@ -34,7 +35,7 @@ def test_find_patient_profile_falls_back_to_health_info(monkeypatch):
 
   def fake_fetch_one(query: str, params: tuple = ()):  # noqa: ANN001
     queries.append(query)
-    if "patient_profiles" in query:
+    if "FROM patient_profiles" in query:
       return None
     if "health_info" in query and "patients" in query:
       return {
@@ -46,6 +47,10 @@ def test_find_patient_profile_falls_back_to_health_info(monkeypatch):
       }
     return None
 
+  monkeypatch.setattr(
+    "backend_fastapi.app.infrastructure.repositories.patient_repository._patient_profiles_table_exists",
+    lambda: True,
+  )
   monkeypatch.setattr(
     "backend_fastapi.app.infrastructure.repositories.patient_repository.fetch_one",
     fake_fetch_one,

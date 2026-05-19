@@ -5,11 +5,13 @@ from typing import Annotated, Any
 from fastapi import Depends, Header, HTTPException, status
 
 from .application.errors import ApplicationError
+from .application.ports.llm_ports import LlmSsePort
 from .application.services.admin_service import AdminService
 from .application.services.argos_service import ArgosService
 from .application.services.auth_service import AuthService
 from .application.services.patient_service import PatientService
 from .application.services.ai_service import AiService
+from .application.use_cases.stream_llm_sse import StreamLlmSseUseCase
 from .infrastructure.repositories.argos_repository import (
   SqlActivityLogRepository,
   SqlArgosRepository,
@@ -82,10 +84,28 @@ def get_argos_service(
   return ArgosService(argos_repo, activity_repo)
 
 
-def get_llm_client() -> OpenAiCompatibleClient | MockJsonLlmClient:
+def _create_llm_client() -> OpenAiCompatibleClient | MockJsonLlmClient | None:
   if settings.llm_provider == "mock_json":
     return MockJsonLlmClient()
-  return OpenAiCompatibleClient()
+  if settings.llm_provider == "openai_compatible":
+    return OpenAiCompatibleClient()
+  return None
+
+
+def get_llm_client() -> OpenAiCompatibleClient | MockJsonLlmClient:
+  """Client sync (AiService). Si provider desactive, fallback OpenAi (erreur 503 a l'appel)."""
+  return _create_llm_client() or OpenAiCompatibleClient()
+
+
+def get_llm_sse_port() -> LlmSsePort | None:
+  """Port streaming: None si LLM desactive (StreamLlmSseUseCase -> 503)."""
+  return _create_llm_client()
+
+
+def get_stream_llm_sse_use_case(
+  llm_sse: Annotated[LlmSsePort | None, Depends(get_llm_sse_port)],
+) -> StreamLlmSseUseCase:
+  return StreamLlmSseUseCase(llm_sse)
 
 
 def get_ai_service(
