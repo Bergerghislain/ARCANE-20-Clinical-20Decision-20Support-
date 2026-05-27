@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 from uuid import uuid4
 
@@ -27,6 +28,20 @@ def _login_admin() -> str:
 
 def _login_martin() -> str:
   return _login("martin@hospital.com")
+
+
+def _patient_profiles_table_exists() -> bool:
+  row = fetch_one(
+    """
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'patient_profiles'
+    ) AS e
+    """,
+    (),
+  )
+  return bool(row and row.get("e"))
 
 
 def _create_active_clinician(prefix: str = "test.clin") -> tuple[int, str]:
@@ -537,12 +552,13 @@ def test_patient_profile_roundtrip_persisted_in_backend():
     assert saved_payload["stored_schema_version"] == 2
     assert isinstance(saved_payload["profile"]["reportMeta"]["generator"], str)
 
-    row_pp = fetch_one(
-      "SELECT profile_version FROM patient_profiles WHERE patient_id = %s",
-      (created_patient_id,),
-    )
-    assert row_pp is not None
-    assert int(row_pp["profile_version"]) == 1
+    if _patient_profiles_table_exists():
+      row_pp = fetch_one(
+        "SELECT profile_version FROM patient_profiles WHERE patient_id = %s",
+        (created_patient_id,),
+      )
+      assert row_pp is not None
+      assert int(row_pp["profile_version"]) == 1
 
     prow = fetch_one("SELECT health_info FROM patients WHERE id_patient = %s", (created_patient_id,))
     assert prow is not None
@@ -552,7 +568,13 @@ def test_patient_profile_roundtrip_persisted_in_backend():
 
       hi = _json.loads(hi)
     assert isinstance(hi, dict)
-    assert hi.get("manual_profile") is None
+    if _patient_profiles_table_exists():
+      assert hi.get("manual_profile") is None
+    else:
+      mp = hi.get("manual_profile")
+      assert isinstance(mp, dict)
+      assert mp.get("diagnosis") == "Sarcome localement avance"
+      assert int(hi.get("manual_profile_version") or 0) == 1
 
     loaded_profile = client.get(
       f"/api/patients/{created_patient_id}/profile",
@@ -739,6 +761,66 @@ def test_patient_profile_validates_clinical_month_ranges_and_extra_fields():
       },
     )
     assert extra_field_in_report.status_code == 422
+  finally:
+    if created_patient_id is not None:
+      execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))
+
+
+def test_patient_profile_parallel_saves_one_version_conflict():
+  """Deux PUT concurrents avec la meme profileVersion: un 200, un 409 (verrou optimiste)."""
+  token = _login_admin()
+  headers = {"Authorization": f"Bearer {token}"}
+  created_patient_id: int | None = None
+  results: list[int] = []
+
+  def profile_body(label: str) -> dict:
+    return {
+      "schemaVersion": 2,
+      "profileVersion": 1,
+      "diagnosis": label,
+      "pathologySummary": "parallel test",
+      "analyses": [],
+      "report": {"conclusion": "c", "reasoning": "r", "sources": ["s"]},
+    }
+
+  try:
+    create = client.post(
+      "/api/patients",
+      headers=headers,
+      json={"name": "Parallel Profile", "status": "pending", "condition": "Initial"},
+    )
+    assert create.status_code == 201, create.text
+    created_patient_id = int(create.json()["id"])
+
+    first = client.put(
+      f"/api/patients/{created_patient_id}/profile",
+      headers=headers,
+      json={
+        "schemaVersion": 1,
+        "diagnosis": "v1",
+        "pathologySummary": "first",
+        "analyses": [],
+        "report": {"conclusion": "c1", "reasoning": "r1", "sources": ["s1"]},
+      },
+    )
+    assert first.status_code == 200, first.text
+
+    def do_put(label: str) -> None:
+      r = client.put(
+        f"/api/patients/{created_patient_id}/profile",
+        headers=headers,
+        json=profile_body(label),
+      )
+      results.append(r.status_code)
+
+    t1 = threading.Thread(target=do_put, args=("A",))
+    t2 = threading.Thread(target=do_put, args=("B",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert sorted(results) == [200, 409]
   finally:
     if created_patient_id is not None:
       execute("DELETE FROM patients WHERE id_patient = %s", (created_patient_id,))

@@ -36,6 +36,8 @@ services:
       CORS_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
       ALLOW_DEMO_PASSWORD_FALLBACK: "false"
       COOKIE_SECURE: "false"
+      # Démos / recette labo (sans réseau vers un modèle externe)
+      LLM_PROVIDER: mock_json
     depends_on:
       db:
         condition: service_healthy

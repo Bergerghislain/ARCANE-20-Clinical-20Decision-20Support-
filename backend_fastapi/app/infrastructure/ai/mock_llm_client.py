@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from typing import Any
-
-from ...application.errors import ApplicationError
 
 
 class MockJsonLlmClient:
@@ -41,3 +40,9 @@ class MockJsonLlmClient:
       },
       ensure_ascii=False,
     )
+
+  async def stream_sse(self, messages: list[dict[str, Any]]) -> AsyncIterator[str]:
+    text = self.chat(messages)
+    chunk = json.dumps({"choices": [{"delta": {"content": text}}]}, ensure_ascii=False)
+    yield f"data: {chunk}\n\n"
+    yield "data: [DONE]\n\n"

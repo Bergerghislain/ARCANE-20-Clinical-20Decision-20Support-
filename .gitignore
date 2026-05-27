@@ -25,3 +25,21 @@ dist-ssr
 
 .config/
 !.env
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Coverage / benchmarks
+.coverage
+coverage.xml
+htmlcov/
+backend_fastapi/.coverage
+backend_fastapi/benchmark-results.json
+
+# Virtual environments
+.venv/
+venv/

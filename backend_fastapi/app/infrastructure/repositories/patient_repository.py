@@ -11,8 +11,53 @@ MANUAL_PROFILE_KEY = "manual_profile"
 MANUAL_PROFILE_VERSION_KEY = "manual_profile_version"
 MANUAL_PROFILE_SCHEMA_VERSION_KEY = "manual_profile_schema_version"
 
+_patient_profiles_table_exists_cache: bool | None = None
+
+
+def _patient_profiles_table_exists() -> bool:
+  """True si la table patient_profiles est présente (Alembic / script SQL appliqué)."""
+  global _patient_profiles_table_exists_cache
+  if _patient_profiles_table_exists_cache is not None:
+    return _patient_profiles_table_exists_cache
+  try:
+    row = fetch_one(
+      """
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'patient_profiles'
+      ) AS e
+      """,
+      (),
+    )
+    _patient_profiles_table_exists_cache = bool(row and row.get("e"))
+  except Exception:
+    _patient_profiles_table_exists_cache = False
+  return _patient_profiles_table_exists_cache
+
+
+def _profile_save_version_conflict(
+  expected_version: int | None,
+  current_version: int,
+) -> dict[str, Any] | None:
+  if expected_version is None and current_version > 0:
+    return {
+      "status": "conflict",
+      "current_version": current_version,
+      "reason": "missing_expected_version",
+    }
+  if expected_version is not None and expected_version != current_version:
+    return {
+      "status": "conflict",
+      "current_version": current_version,
+      "reason": "version_mismatch",
+    }
+  return None
+
 
 class SqlPatientRepository:
+  """Adaptateur SQL pour PatientRepositoryPort (psycopg + unites de travail)."""
+
   def list_patients(
     self,
     limit: int | None = None,
@@ -178,28 +223,19 @@ class SqlPatientRepository:
     )
 
   def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
-    row = fetch_one(
-      """
-      SELECT profile_data, profile_version, schema_version
-      FROM patient_profiles
-      WHERE patient_id = %s
-      LIMIT 1
-      """,
-      (patient_id,),
-    )
-    if row and row.get("profile_data") is not None:
-      profile = row["profile_data"]
-      if isinstance(profile, str):
-        try:
-          profile = json.loads(profile)
-        except ValueError:
-          profile = None
-      if isinstance(profile, dict):
-        return {
-          "profile": profile,
-          "profile_version": _to_int(row.get("profile_version"), default=0),
-          "schema_version": _to_int(row.get("schema_version"), default=1),
-        }
+    if _patient_profiles_table_exists():
+      row = fetch_one(
+        """
+        SELECT profile_data, profile_version, schema_version
+        FROM patient_profiles
+        WHERE patient_id = %s
+        LIMIT 1
+        """,
+        (patient_id,),
+      )
+      rec = _profile_record_from_pp_row(row)
+      if rec is not None:
+        return rec
 
     prow = fetch_one(
       "SELECT health_info FROM patients WHERE id_patient = %s LIMIT 1",
@@ -237,6 +273,39 @@ class SqlPatientRepository:
 
       health_info = _coerce_health_info(row.get("health_info"))
 
+      if not _patient_profiles_table_exists():
+        current_record = _extract_profile_record(health_info)
+        current_version = (
+          int(current_record["profile_version"]) if current_record is not None else 0
+        )
+        conflict = _profile_save_version_conflict(expected_version, current_version)
+        if conflict is not None:
+          return conflict
+        next_version = current_version + 1
+        normalized_profile = dict(profile)
+        normalized_profile["patientId"] = str(patient_id)
+        schema_v = _to_int(normalized_profile.get("schemaVersion"), default=1)
+        new_hi = dict(health_info)
+        new_hi[MANUAL_PROFILE_KEY] = normalized_profile
+        new_hi[MANUAL_PROFILE_VERSION_KEY] = next_version
+        new_hi[MANUAL_PROFILE_SCHEMA_VERSION_KEY] = schema_v
+        cur.execute(
+          """
+          UPDATE patients
+          SET health_info = %s,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id_patient = %s
+          """,
+          (json.dumps(new_hi), patient_id),
+        )
+        uow.commit()
+        return {
+          "status": "saved",
+          "profile": normalized_profile,
+          "profile_version": next_version,
+          "schema_version": schema_v,
+        }
+
       cur.execute(
         """
         SELECT profile_data, profile_version, schema_version
@@ -248,21 +317,7 @@ class SqlPatientRepository:
       )
       pp_row = cur.fetchone()
 
-      current_record: dict[str, Any] | None = None
-      if pp_row and pp_row.get("profile_data") is not None:
-        pd = pp_row["profile_data"]
-        if isinstance(pd, str):
-          try:
-            pd = json.loads(pd)
-          except ValueError:
-            pd = None
-        if isinstance(pd, dict):
-          current_record = {
-            "profile": pd,
-            "profile_version": _to_int(pp_row.get("profile_version"), default=0),
-            "schema_version": _to_int(pp_row.get("schema_version"), default=1),
-          }
-
+      current_record = _profile_record_from_pp_row(pp_row)
       if current_record is None:
         current_record = _extract_profile_record(health_info)
 
@@ -270,19 +325,9 @@ class SqlPatientRepository:
         int(current_record["profile_version"]) if current_record is not None else 0
       )
 
-      if expected_version is None and current_version > 0:
-        return {
-          "status": "conflict",
-          "current_version": current_version,
-          "reason": "missing_expected_version",
-        }
-
-      if expected_version is not None and expected_version != current_version:
-        return {
-          "status": "conflict",
-          "current_version": current_version,
-          "reason": "version_mismatch",
-        }
+      conflict = _profile_save_version_conflict(expected_version, current_version)
+      if conflict is not None:
+        return conflict
 
       next_version = current_version + 1
       normalized_profile = dict(profile)
@@ -780,6 +825,25 @@ def _coerce_health_info(raw: Any) -> dict[str, Any]:
     except ValueError:
       return {}
   return {}
+
+
+def _profile_record_from_pp_row(row: dict[str, Any] | None) -> dict[str, Any] | None:
+  """Normalise une ligne patient_profiles (SELECT profile_data, ...)."""
+  if not row or row.get("profile_data") is None:
+    return None
+  pd = row["profile_data"]
+  if isinstance(pd, str):
+    try:
+      pd = json.loads(pd)
+    except ValueError:
+      pd = None
+  if not isinstance(pd, dict):
+    return None
+  return {
+    "profile": pd,
+    "profile_version": _to_int(row.get("profile_version"), default=0),
+    "schema_version": _to_int(row.get("schema_version"), default=1),
+  }
 
 
 def _to_int(value: Any, default: int = 0) -> int:

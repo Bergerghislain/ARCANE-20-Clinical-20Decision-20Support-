@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from backend_fastapi.app.application.services.argos_service import ArgosService
@@ -14,7 +12,7 @@ from backend_fastapi.tests.test_argos_service_unit import _ActivityLog, _Repo
 pytestmark = pytest.mark.perf
 
 
-def test_extract_profile_record_many_iterations_is_fast():
+def test_bench_extract_profile_record(benchmark):
   hi = {
     "manual_profile": {
       "schemaVersion": 1,
@@ -27,19 +25,27 @@ def test_extract_profile_record_many_iterations_is_fast():
     "manual_profile_version": 9,
     "manual_profile_schema_version": 2,
   }
-  t0 = time.perf_counter()
-  for _ in range(3000):
+
+  def run() -> None:
     rec = _extract_profile_record(_coerce_health_info(hi))
     assert rec is not None and rec["profile_version"] == 9
-  assert time.perf_counter() - t0 < 2.0
+
+  benchmark(run)
 
 
-def test_argos_service_list_discussions_hot_path():
+def test_bench_argos_list_discussions(benchmark):
   repo = _Repo()
   log = _ActivityLog()
   service = ArgosService(repo, log)
-  service.create_discussion(payload={"patient_id": 1, "title": "A"}, clinician_id=3, ip_address=None, user_agent=None)
-  t0 = time.perf_counter()
-  for _ in range(2000):
-    service.list_discussions(clinician_id=3)
-  assert time.perf_counter() - t0 < 2.0
+  service.create_discussion(
+    payload={"patient_id": 1, "title": "A"},
+    clinician_id=3,
+    ip_address=None,
+    user_agent=None,
+  )
+
+  def run() -> None:
+    rows = service.list_discussions(clinician_id=3)
+    assert len(rows) == 1
+
+  benchmark(run)

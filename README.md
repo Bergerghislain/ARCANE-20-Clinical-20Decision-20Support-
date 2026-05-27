@@ -84,8 +84,8 @@ python -m pip install -r backend_fastapi/requirements.txt
 
 ## 5) Initialiser la base
 - Creer la base `arcane`.
-- Executer `setup_database.sql` (script SQL unique).
-- Le script inclut deja les evolutions recentes (`birth_date`, `birth_date_precision`) et l'assignation obligatoire d'un clinicien par patient.
+- **Option A (recommandee pour un clone neuf)** : executer `setup_database.sql` (schema complet, inclut `patient_profiles`).
+- **Option B (evolution incremental)** : depuis `backend_fastapi/`, `alembic upgrade head` (voir `backend_fastapi/README.md` section Migrations Alembic). Les revisions sont idempotentes si la table existe deja.
 
 ## Lancer le projet en developpement
 
@@ -151,9 +151,12 @@ pnpm run test -- --coverage
 ```
 
 ### Backend
+Tout le detail (pytest, benchmarks, Alembic, variables d'environnement, endpoints API) est dans **`backend_fastapi/README.md`** pour eviter la divergence avec ce README racine.
+
+Commandes courantes depuis la racine:
 ```bash
-pytest
-pytest -q
+cd backend_fastapi
+python -m pytest tests/ -q --benchmark-disable
 ```
 
 ## Notes de couverture (snapshot local recent)
@@ -169,6 +172,5 @@ pytest -q
 ## Limitations connues / prochaines etapes
 
 - Generation **reelle** par LLM: definir `LLM_PROVIDER=openai_compatible` et un endpoint compatible OpenAI (`LLM_BASE_URL`, `LLM_MODEL`, etc.). Sans LLM, `LLM_PROVIDER=mock_json` fournit des reponses JSON valides pour demos / tests (pas de reseau).
-- Profils patients: la source de verite est la table **`patient_profiles`**; les champs `health_info.manual_profile*` restent en **lecture seule** pour migration (anciennes donnees). Apres sauvegarde via l'API, les cles legacy sont retirees de `health_info`. Bases existantes: executer `backend_fastapi/sql/migrate_patient_profiles.sql` une fois.
-- Poursuivre la couverture des routeurs (Argos HTTP, admin) et des repositories SQL avec des tests d'integration supplementaires si besoin.
-- Les tests de performance ajoutes (`test_performance_smoke_unit.py`) sont des **fumees** locales (seuils larges); pour du benchmarking serieux, envisager `pytest-benchmark` ou des outils externes.
+- Bases existantes sans `patient_profiles`: `backend_fastapi/sql/migrate_patient_profiles.sql` ou `alembic upgrade head` (voir README backend).
+- Poursuivre la couverture des routeurs et des tests d'integration (voir README backend pour benchmarks et commandes).

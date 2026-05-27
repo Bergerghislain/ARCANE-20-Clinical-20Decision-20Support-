@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import Any
 
 from ..errors import ApplicationError
+from ..patient_profile_policy import (
+  assert_can_access_patient,
+  is_admin_role,
+  read_optional_int,
+)
 from ..ports.patient_ports import PatientRepositoryPort
-
-CURRENT_PROFILE_SCHEMA_VERSION = 2
-SUPPORTED_PROFILE_SCHEMA_VERSIONS = {1, 2}
+from ..use_cases.patient_profile import GetPatientProfileUseCase, SavePatientProfileUseCase
 
 
 class PatientService:
-  def __init__(self, repository: PatientRepositoryPort):
+  def __init__(self, repository: PatientRepositoryPort) -> None:
     self._repository = repository
+    self._get_patient_profile_uc = GetPatientProfileUseCase(repository)
+    self._save_patient_profile_uc = SavePatientProfileUseCase(repository)
 
   def list_patients(
     self,
@@ -23,7 +28,7 @@ class PatientService:
     limit: int | None = None,
     offset: int = 0,
   ) -> list[dict[str, Any]]:
-    if _is_admin_role(requester_role):
+    if is_admin_role(requester_role):
       return self._repository.list_patients(limit=limit, offset=offset)
     return self._repository.list_patients_by_clinician(
       clinician_id=requester_id,
@@ -40,7 +45,7 @@ class PatientService:
     row = self._repository.find_patient(patient_id)
     if not row:
       raise ApplicationError("Patient not found", 404)
-    _assert_can_access_patient(
+    assert_can_access_patient(
       patient=row,
       requester_id=requester_id,
       requester_role=requester_role,
@@ -101,7 +106,7 @@ class PatientService:
     existing = self._repository.find_patient(patient_id)
     if not existing:
       raise ApplicationError("Patient not found", 404)
-    _assert_can_access_patient(
+    assert_can_access_patient(
       patient=existing,
       requester_id=requester_id,
       requester_role=requester_role,
@@ -179,12 +184,12 @@ class PatientService:
     existing = self._repository.find_patient_by_ipp(ipp)
     assigned_clinician_id: int | None = None
     if existing:
-      _assert_can_access_patient(
+      assert_can_access_patient(
         patient=existing,
         requester_id=requester_id,
         requester_role=requester_role,
       )
-      if _is_admin_role(requester_role):
+      if is_admin_role(requester_role):
         requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
         if requested_assignee is not None:
           if not self._repository.is_clinician(requested_assignee):
@@ -212,44 +217,7 @@ class PatientService:
     requester_id: int,
     requester_role: str,
   ) -> dict[str, Any]:
-    patient = self._repository.find_patient(patient_id)
-    if not patient:
-      raise ApplicationError("Patient not found", 404)
-    _assert_can_access_patient(
-      patient=patient,
-      requester_id=requester_id,
-      requester_role=requester_role,
-    )
-    record = self._repository.find_patient_profile(patient_id)
-    if not record:
-      return {
-        "patient_id": patient_id,
-        "source": "none",
-        "profile": None,
-        "profile_version": None,
-        "stored_schema_version": None,
-      }
-
-    raw_profile = record.get("profile")
-    if not isinstance(raw_profile, dict):
-      return {
-        "patient_id": patient_id,
-        "source": "none",
-        "profile": None,
-        "profile_version": None,
-        "stored_schema_version": None,
-      }
-    migrated_profile = _migrate_profile_to_current(raw_profile, patient_id)
-    profile_version = _safe_int(record.get("profile_version"), default=0)
-    migrated_profile["profileVersion"] = profile_version
-    stored_schema_version = _safe_int(record.get("schema_version"), default=1)
-    return {
-      "patient_id": patient_id,
-      "source": "persisted",
-      "profile": migrated_profile,
-      "profile_version": profile_version,
-      "stored_schema_version": stored_schema_version,
-    }
+    return self._get_patient_profile_uc.execute(patient_id, requester_id, requester_role)
 
   def save_patient_profile(
     self,
@@ -258,59 +226,12 @@ class PatientService:
     requester_id: int,
     requester_role: str,
   ) -> dict[str, Any]:
-    patient = self._repository.find_patient(patient_id)
-    if not patient:
-      raise ApplicationError("Patient not found", 404)
-    _assert_can_access_patient(
-      patient=patient,
-      requester_id=requester_id,
-      requester_role=requester_role,
-    )
-
-    expected_version = _read_expected_profile_version(payload)
-    profile = dict(payload)
-    profile.pop("profileVersion", None)
-    migrated_profile = _migrate_profile_to_current(profile, patient_id)
-    save_result = self._repository.save_patient_profile(
+    return self._save_patient_profile_uc.execute(
       patient_id,
-      migrated_profile,
-      expected_version=expected_version,
+      payload,
+      requester_id,
+      requester_role,
     )
-    if not save_result:
-      raise ApplicationError("Failed to save patient profile", 500)
-    if save_result.get("status") == "conflict":
-      current_version = _safe_int(save_result.get("current_version"), default=0)
-      if expected_version is None:
-        raise ApplicationError(
-          (
-            "Profile version is required to update an existing profile. "
-            f"Current version is {current_version}. Reload the profile and retry."
-          ),
-          409,
-        )
-      raise ApplicationError(
-        (
-          "Profile version conflict detected. "
-          f"Expected {expected_version}, current {current_version}. Reload before saving."
-        ),
-        409,
-      )
-
-    saved_profile = save_result.get("profile")
-    if not isinstance(saved_profile, dict):
-      raise ApplicationError("Failed to save patient profile", 500)
-    saved_profile["profileVersion"] = _safe_int(save_result.get("profile_version"), default=0)
-
-    return {
-      "patient_id": patient_id,
-      "source": "persisted",
-      "profile": saved_profile,
-      "profile_version": _safe_int(save_result.get("profile_version"), default=0),
-      "stored_schema_version": _safe_int(
-        save_result.get("schema_version"),
-        default=CURRENT_PROFILE_SCHEMA_VERSION,
-      ),
-    }
 
   def reassign_patient(
     self,
@@ -319,7 +240,7 @@ class PatientService:
     requester_id: int,
     requester_role: str,
   ) -> dict[str, Any]:
-    if not _is_admin_role(requester_role):
+    if not is_admin_role(requester_role):
       raise ApplicationError("Only admins can reassign patients", 403)
 
     patient = self._repository.find_patient(patient_id)
@@ -329,7 +250,7 @@ class PatientService:
     if not self._repository.is_clinician(new_clinician_id):
       raise ApplicationError("Assigned clinician must be a clinician account", 400)
 
-    current_assignee = _read_optional_int(patient.get("assigned_clinician_id"))
+    current_assignee = read_optional_int(patient.get("assigned_clinician_id"))
     if current_assignee == new_clinician_id:
       return patient
 
@@ -348,7 +269,7 @@ class PatientService:
     requester_id: int,
     requester_role: str,
   ) -> int:
-    if not _is_admin_role(requester_role):
+    if not is_admin_role(requester_role):
       return requester_id
 
     requested_assignee = _extract_assigned_clinician_id_from_payload(payload)
@@ -358,7 +279,7 @@ class PatientService:
     if requested_assignee is None:
       return requester_id
 
-    if _is_admin_role(requester_role) and requested_assignee == requester_id:
+    if is_admin_role(requester_role) and requested_assignee == requester_id:
       return requested_assignee
 
     if not self._repository.is_clinician(requested_assignee):
@@ -438,103 +359,9 @@ def _compose_partial_date(
     raise ApplicationError("Invalid birth date components", 400)
 
 
-def _safe_int(value: Any, default: int = 0) -> int:
-  if isinstance(value, int):
-    return int(value)
-  if isinstance(value, str):
-    try:
-      return int(value)
-    except ValueError:
-      return default
-  return default
-
-
-def _read_expected_profile_version(payload: dict[str, Any]) -> int | None:
-  version_value = payload.get("profileVersion")
-  if version_value is None:
-    return None
-  version = _safe_int(version_value, default=-1)
-  if version < 0:
-    raise ApplicationError("Invalid profileVersion", 400)
-  return version
-
-
-def _now_utc_iso() -> str:
-  return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _migrate_profile_to_current(profile: dict[str, Any], patient_id: int) -> dict[str, Any]:
-  migrated = dict(profile)
-  raw_schema = migrated.get("schemaVersion")
-  schema_version = _safe_int(raw_schema, default=1)
-  if schema_version not in SUPPORTED_PROFILE_SCHEMA_VERSIONS:
-    raise ApplicationError(
-      (
-        "Unsupported schemaVersion. "
-        f"Supported values are {sorted(SUPPORTED_PROFILE_SCHEMA_VERSIONS)}."
-      ),
-      400,
-    )
-
-  migrated["patientId"] = str(patient_id)
-  if schema_version == 1:
-    # Migration v1 -> v2:
-    # - on preserve le payload clinique
-    # - on enrichit avec reportMeta pour tracer la generation/compatibilite
-    migrated["schemaVersion"] = CURRENT_PROFILE_SCHEMA_VERSION
-    report_meta = migrated.get("reportMeta")
-    if not isinstance(report_meta, dict):
-      migrated["reportMeta"] = {
-        "generator": "argos-profile-migrator-v2",
-        "generatedAt": _now_utc_iso(),
-      }
-  else:
-    migrated["schemaVersion"] = CURRENT_PROFILE_SCHEMA_VERSION
-    report_meta = migrated.get("reportMeta")
-    if not isinstance(report_meta, dict):
-      report_meta = {}
-    report_meta.setdefault("generator", "argos-profile-v2")
-    report_meta.setdefault("generatedAt", _now_utc_iso())
-    migrated["reportMeta"] = report_meta
-
-  return migrated
-
-
-def _is_admin_role(role: str) -> bool:
-  return role.strip().lower() == "admin"
-
-
-def _read_optional_int(value: Any) -> int | None:
-  if isinstance(value, int):
-    return value
-  if isinstance(value, str):
-    try:
-      return int(value)
-    except ValueError:
-      return None
-  return None
-
-
 def _extract_assigned_clinician_id_from_payload(payload: dict[str, Any]) -> int | None:
   raw = payload.get("assigned_clinician_id")
   if raw is None:
     raw = payload.get("assignedClinicianId")
-  return _read_optional_int(raw)
-
-
-def _assert_can_access_patient(
-  *,
-  patient: dict[str, Any],
-  requester_id: int,
-  requester_role: str,
-) -> None:
-  if _is_admin_role(requester_role):
-    return
-
-  assigned_clinician_id = _read_optional_int(patient.get("assigned_clinician_id"))
-  if assigned_clinician_id is None:
-    raise ApplicationError("Patient has no assigned clinician", 500)
-
-  if assigned_clinician_id != requester_id:
-    raise ApplicationError("Access denied for this patient", 403)
+  return read_optional_int(raw)
 
