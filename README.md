@@ -1,5 +1,7 @@
 # ARCANE - Plateforme d'aide a la decision clinique
 
+[![CI](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/actions/workflows/ci.yml/badge.svg)](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/actions/workflows/ci.yml)
+
 ARCANE est une plateforme clinique centree sur les cancers rares.  
 Le projet combine:
 - un **frontend React/TypeScript** (dashboard patient, dossier patient, espace ARGOS),
@@ -142,6 +144,8 @@ Adapter les variables dans `deploy/docker-compose.yml` (mots de passe, `JWT_SECR
 Arret: `pnpm run compose:down`.
 
 ## CI (GitHub Actions)
+
+Badge ci-dessus : etat du dernier run sur `main`. Configuration labo (secrets, JWT, CORS) : **`docs/LABO_SECURITY.md`**. Protection de branche : **`docs/GITHUB_BRANCH_PROTECTION.md`**.
 
 Le workflow `.github/workflows/ci.yml` execute a chaque push/PR sur `main` :
 
