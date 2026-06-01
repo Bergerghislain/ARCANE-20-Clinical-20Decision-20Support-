@@ -62,3 +62,6 @@ class PatientRepositoryPort(Protocol):
   ) -> dict[str, Any] | None:
     ...
 
+  def find_clinical_bundle(self, patient_id: int) -> dict[str, Any] | None:
+    ...
+

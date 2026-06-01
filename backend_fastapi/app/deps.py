@@ -9,6 +9,7 @@ from .application.ports.llm_ports import LlmSsePort
 from .application.services.admin_service import AdminService
 from .application.services.argos_service import ArgosService
 from .application.services.auth_service import AuthService
+from .application.services.patient_clinical_service import PatientClinicalService
 from .application.services.patient_service import PatientService
 from .application.services.ai_service import AiService
 from .application.use_cases.stream_llm_sse import StreamLlmSseUseCase
@@ -75,6 +76,12 @@ def get_patient_service(
   patients: Annotated[SqlPatientRepository, Depends(get_patient_repository)],
 ) -> PatientService:
   return PatientService(patients)
+
+
+def get_patient_clinical_service(
+  patients: Annotated[SqlPatientRepository, Depends(get_patient_repository)],
+) -> PatientClinicalService:
+  return PatientClinicalService(patients)
 
 
 def get_argos_service(

@@ -12,6 +12,7 @@ from ..patient_profile_policy import (
   read_optional_int,
 )
 from ..ports.patient_ports import PatientRepositoryPort
+from ..use_cases.get_patient_clinical import GetPatientClinicalBundleUseCase
 from ..use_cases.patient_profile import GetPatientProfileUseCase, SavePatientProfileUseCase
 
 
@@ -20,6 +21,7 @@ class PatientService:
     self._repository = repository
     self._get_patient_profile_uc = GetPatientProfileUseCase(repository)
     self._save_patient_profile_uc = SavePatientProfileUseCase(repository)
+    self._get_patient_clinical_uc = GetPatientClinicalBundleUseCase(repository)
 
   def list_patients(
     self,
@@ -218,6 +220,14 @@ class PatientService:
     requester_role: str,
   ) -> dict[str, Any]:
     return self._get_patient_profile_uc.execute(patient_id, requester_id, requester_role)
+
+  def get_patient_clinical(
+    self,
+    patient_id: int,
+    requester_id: int,
+    requester_role: str,
+  ) -> dict[str, Any]:
+    return self._get_patient_clinical_uc.execute(patient_id, requester_id, requester_role)
 
   def save_patient_profile(
     self,

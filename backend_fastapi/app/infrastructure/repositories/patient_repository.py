@@ -222,6 +222,11 @@ class SqlPatientRepository:
       (clinician_id, updated_by, patient_id),
     )
 
+  def find_clinical_bundle(self, patient_id: int) -> dict[str, Any] | None:
+    from .patient_clinical_read import find_clinical_bundle
+
+    return find_clinical_bundle(patient_id)
+
   def find_patient_profile(self, patient_id: int) -> dict[str, Any] | None:
     if _patient_profiles_table_exists():
       row = fetch_one(
@@ -547,8 +552,15 @@ class SqlPatientRepository:
       self._insert_tumor_events(cur, primary_cancer_id, cancer.get("tumorPathoEvent") or [])
       self._insert_tnm_events(cur, primary_cancer_id, cancer.get("tnmEvent") or [])
       self._insert_tumor_sizes(cur, primary_cancer_id, cancer.get("tumorSize") or [])
-      self._insert_surgeries(cur, patient_id, cancer.get("surgery") or [])
-      self._insert_radiotherapies(cur, patient_id, cancer.get("radiotherapy") or [])
+      self._insert_imaging_studies(
+        cur, patient_id, cancer.get("imaging") or [], primary_cancer_id=primary_cancer_id
+      )
+      self._insert_surgeries(
+        cur, patient_id, cancer.get("surgery") or [], primary_cancer_id=primary_cancer_id
+      )
+      self._insert_radiotherapies(
+        cur, patient_id, cancer.get("radiotherapy") or [], primary_cancer_id=primary_cancer_id
+      )
 
   def _insert_grades(self, cur: Any, primary_cancer_id: int, grades: list[Any]) -> None:
     for grade in grades:
@@ -631,6 +643,35 @@ class SqlPatientRepository:
         ),
       )
 
+  def _insert_imaging_studies(
+    self,
+    cur: Any,
+    patient_id: int,
+    studies: list[Any],
+    primary_cancer_id: int | None = None,
+  ) -> None:
+    for study in studies:
+      if not isinstance(study, dict):
+        continue
+      cur.execute(
+        """
+        INSERT INTO imaging_studies (
+          patient_id, primary_cancer_id, study_type, study_date_year, study_date_month,
+          body_part, findings, report_text
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (
+          patient_id,
+          primary_cancer_id,
+          study.get("studyType"),
+          study.get("studyDateYear"),
+          study.get("studyDateMonth"),
+          study.get("bodyPart"),
+          study.get("findings"),
+          study.get("reportText"),
+        ),
+      )
+
   def _insert_tumor_sizes(self, cur: Any, primary_cancer_id: int, sizes: list[Any]) -> None:
     for size in sizes:
       if not isinstance(size, dict):
@@ -651,18 +692,26 @@ class SqlPatientRepository:
         ),
       )
 
-  def _insert_surgeries(self, cur: Any, patient_id: int, surgeries: list[Any]) -> None:
+  def _insert_surgeries(
+    self,
+    cur: Any,
+    patient_id: int,
+    surgeries: list[Any],
+    primary_cancer_id: int | None = None,
+  ) -> None:
     for surgery in surgeries:
       if not isinstance(surgery, dict):
         continue
       cur.execute(
         """
         INSERT INTO surgeries (
-          patient_id, surgery_type, surgery_date_year, surgery_date_month, topography_code, procedure_details
-        ) VALUES (%s,%s,%s,%s,%s,%s)
+          patient_id, primary_cancer_id, surgery_type, surgery_date_year, surgery_date_month,
+          topography_code, procedure_details
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s)
         """,
         (
           patient_id,
+          primary_cancer_id,
           surgery.get("surgeryType"),
           surgery.get("surgeryDateYear"),
           surgery.get("surgeryDateMonth"),
@@ -671,18 +720,26 @@ class SqlPatientRepository:
         ),
       )
 
-  def _insert_radiotherapies(self, cur: Any, patient_id: int, radiotherapies: list[Any]) -> None:
+  def _insert_radiotherapies(
+    self,
+    cur: Any,
+    patient_id: int,
+    radiotherapies: list[Any],
+    primary_cancer_id: int | None = None,
+  ) -> None:
     for radio in radiotherapies:
       if not isinstance(radio, dict):
         continue
       cur.execute(
         """
         INSERT INTO radiotherapies (
-          patient_id, modality, total_dose, dose_unit, fractions, start_date_year, start_date_month, end_date_year, end_date_month, target_site
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+          patient_id, primary_cancer_id, modality, total_dose, dose_unit, fractions,
+          start_date_year, start_date_month, end_date_year, end_date_month, target_site
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
         (
           patient_id,
+          primary_cancer_id,
           radio.get("modality"),
           radio.get("totalDose"),
           radio.get("doseUnit"),

@@ -215,6 +215,7 @@ CREATE TABLE medications (
 CREATE TABLE surgeries (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
+    primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
     surgery_type VARCHAR(200),
     surgery_date_year INTEGER,
     surgery_date_month INTEGER,
@@ -227,6 +228,7 @@ CREATE TABLE surgeries (
 CREATE TABLE imaging_studies (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
+    primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
     study_type VARCHAR(100),
     study_date_year INTEGER,
     study_date_month INTEGER,
@@ -240,6 +242,7 @@ CREATE TABLE imaging_studies (
 CREATE TABLE radiotherapies (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
+    primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
     modality VARCHAR(100),
     total_dose DECIMAL(10,2),
     dose_unit VARCHAR(20),
