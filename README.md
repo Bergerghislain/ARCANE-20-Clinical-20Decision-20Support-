@@ -141,6 +141,27 @@ Adapter les variables dans `deploy/docker-compose.yml` (mots de passe, `JWT_SECR
 
 Arret: `pnpm run compose:down`.
 
+## CI (GitHub Actions)
+
+Le workflow `.github/workflows/ci.yml` execute a chaque push/PR sur `main` :
+
+| Job | Etapes |
+|-----|--------|
+| **frontend** | `pnpm install --frozen-lockfile` → `typecheck` → `test` → `build` |
+| **backend** | PostgreSQL 16 (service) → `setup_database.sql` → `pytest` (tests d'integration inclus) |
+
+Variables CI backend : `JWT_SECRET` dedie, `ALLOW_DEMO_PASSWORD_FALLBACK=true` (seeds demo SQL uniquement).
+
+PostgreSQL de test en local (apres creation de la base `arcane`) :
+
+```bash
+# Linux / macOS / cloud
+bash scripts/ci-init-db.sh
+
+# Windows (psql dans le PATH)
+powershell -File scripts/ci-init-db.ps1
+```
+
 ## Commandes de test
 
 ### Frontend

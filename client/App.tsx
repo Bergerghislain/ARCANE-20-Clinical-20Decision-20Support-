@@ -11,6 +11,8 @@ import Register from "./pages/Register";
 import AdminUsers from "./pages/AdminUsers";
 import AdminPatientHandler from "./pages/AdminPatientHandler";
 import ForgotPassword from "./pages/ForgotPassword";
+import Settings from "./pages/Settings";
+import Help from "./pages/Help";
 import { getStoredUser, isAuthenticated } from "./lib/auth";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -87,6 +89,22 @@ const App: React.FC = () => (
         element={
           <RequireAuth>
             <ArgosSpace />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth>
+            <Settings />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/help"
+        element={
+          <RequireAuth>
+            <Help />
           </RequireAuth>
         }
       />

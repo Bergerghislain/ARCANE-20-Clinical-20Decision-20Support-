@@ -27,6 +27,11 @@ def _test_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
   monkeypatch.setenv("JWT_SECRET", os.getenv("JWT_SECRET", "test_secret"))
   monkeypatch.setenv("JWT_ISSUER", os.getenv("JWT_ISSUER", "arcane"))
   monkeypatch.setenv("JWT_AUDIENCE", os.getenv("JWT_AUDIENCE", "arcane-client"))
+  # Seeds SQL + tests d'intégration : hashes factices "password" (voir security.py).
+  monkeypatch.setenv(
+    "ALLOW_DEMO_PASSWORD_FALLBACK",
+    os.getenv("ALLOW_DEMO_PASSWORD_FALLBACK", "true"),
+  )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

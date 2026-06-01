@@ -47,6 +47,7 @@ class Settings(BaseSettings):
   # Cout bcrypt pour les **nouveaux** mots de passe (verify utilise le cout du hash existant)
   bcrypt_rounds: int = 10
 
+  # En dev local : définir JWT_SECRET dans .env (voir .env.example).
   jwt_secret: str = "change_me_dev_only"
   jwt_issuer: str = "arcane"
   jwt_audience: str = "arcane-client"
@@ -64,8 +65,8 @@ class Settings(BaseSettings):
   cors_origins: str = "http://localhost:8080"
 
   # Compatibilité démo: autoriser le mot de passe "password" sur des hashes factices.
-  # À désactiver en production.
-  allow_demo_password_fallback: bool = True
+  # false par défaut ; activer uniquement en dev/CI (voir .env.example).
+  allow_demo_password_fallback: bool = False
 
   # === LLM / Qwen integration (backend-side proxy) ===
   # Provider: "openai_compatible" (vLLM/sglang/TGI), "mock_json" (reponses JSON sans reseau), or "disabled"
