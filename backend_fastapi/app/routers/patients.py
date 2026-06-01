@@ -8,7 +8,13 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from ..application.errors import ApplicationError
 from ..application.services.patient_service import PatientService
 from ..deps import AdminUser, ClinicianOrAdminUser, get_patient_service
-from ..schemas import PatientCreateIn, PatientProfileIn, PatientProfileOut, PatientUpdateIn
+from ..schemas import (
+  PatientClinicalDataIn,
+  PatientCreateIn,
+  PatientProfileIn,
+  PatientProfileOut,
+  PatientUpdateIn,
+)
 
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
@@ -117,6 +123,23 @@ def import_patient_json(
       requester_id=int(user["id"]),
       requester_role=str(user.get("role") or ""),
     )
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.get("/{patient_id}/clinical", response_model=PatientClinicalDataIn)
+def get_patient_clinical(
+  patient_id: int,
+  user: ClinicianOrAdminUser,
+  patient_service: Annotated[PatientService, Depends(get_patient_service)],
+) -> PatientClinicalDataIn:
+  try:
+    payload = patient_service.get_patient_clinical(
+      patient_id,
+      requester_id=int(user["id"]),
+      requester_role=str(user.get("role") or ""),
+    )
+    return PatientClinicalDataIn.model_validate(payload)
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
 

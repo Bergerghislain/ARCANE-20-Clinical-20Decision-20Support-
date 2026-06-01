@@ -4,8 +4,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.application.errors import ApplicationError
-from app.application.services.patient_clinical_service import PatientClinicalService
+from backend_fastapi.app.application.errors import ApplicationError
+from backend_fastapi.app.application.services.patient_clinical_service import (
+  PatientClinicalService,
+)
 
 
 @pytest.fixture

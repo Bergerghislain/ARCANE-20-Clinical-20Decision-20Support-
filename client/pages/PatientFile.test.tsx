@@ -63,6 +63,15 @@ vi.mock("@/lib/patientProfileStorage", () => ({
   clearPatientProfileDraft: vi.fn(),
 }));
 
+vi.mock("@/hooks/usePatientClinicalBundle", () => ({
+  usePatientClinicalBundle: vi.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    reload: vi.fn(),
+  })),
+}));
+
 function makeProfile(
   diagnosis: string,
   sourceSuffix: string,

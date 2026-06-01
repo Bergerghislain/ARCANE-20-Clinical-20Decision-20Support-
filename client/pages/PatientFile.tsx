@@ -538,11 +538,11 @@ export default function PatientFile() {
   useEffect(() => {
     if (!clinicalBundle) return;
     const hasStructuredData =
-      clinicalBundle.mesureList.length > 0 ||
-      clinicalBundle.biologicalSpecimenList.length > 0 ||
-      clinicalBundle.primaryCancer.length > 0 ||
-      clinicalBundle.medication.length > 0 ||
-      clinicalBundle.surgery.length > 0;
+      (clinicalBundle.mesureList?.length ?? 0) > 0 ||
+      (clinicalBundle.biologicalSpecimenList?.length ?? 0) > 0 ||
+      (clinicalBundle.primaryCancer?.length ?? 0) > 0 ||
+      (clinicalBundle.medication?.length ?? 0) > 0 ||
+      (clinicalBundle.surgery?.length ?? 0) > 0;
     if (!hasStructuredData) return;
 
     applyClinicalBundleToForm(clinicalBundle, {

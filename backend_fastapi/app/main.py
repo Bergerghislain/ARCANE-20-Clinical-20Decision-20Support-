@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from .routers import admin, ai, argos, auth, patients
+from .routers import admin, ai, argos, auth, patient_clinical, patients
 from .settings import settings
 
 
@@ -40,6 +40,7 @@ def demo() -> dict[str, str]:
 
 app.include_router(auth.router)
 app.include_router(patients.router)
+app.include_router(patient_clinical.router)
 app.include_router(argos.router)
 app.include_router(ai.router)
 app.include_router(admin.router)

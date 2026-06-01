@@ -252,3 +252,48 @@ class ArgosMessageOut(BaseModel):
   created_by: int | None
 
 
+class SurgeryWriteIn(SurgeryIn):
+  primaryCancerId: int | None = Field(default=None, ge=1)
+
+
+class RadiotherapyWriteIn(StrictModel):
+  modality: constr(max_length=100) | None = None
+  totalDose: float | None = Field(default=None, ge=0)
+  doseUnit: constr(max_length=20) | None = None
+  fractions: int | None = Field(default=None, ge=1, le=200)
+  startDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  startDateMonth: int | None = Field(default=None, ge=1, le=12)
+  endDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  endDateMonth: int | None = Field(default=None, ge=1, le=12)
+  targetSite: constr(max_length=200) | None = None
+  primaryCancerId: int | None = Field(default=None, ge=1)
+
+
+class ImagingStudyWriteIn(StrictModel):
+  studyType: constr(max_length=100) | None = None
+  studyDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  studyDateMonth: int | None = Field(default=None, ge=1, le=12)
+  bodyPart: constr(max_length=100) | None = None
+  findings: constr(max_length=5000) | None = None
+  reportText: constr(max_length=10000) | None = None
+  primaryCancerId: int | None = Field(default=None, ge=1)
+
+
+class TnmEventWriteIn(StrictModel):
+  tnmVersion: constr(max_length=50) | None = None
+  tCategory: constr(max_length=20) | None = None
+  nCategory: constr(max_length=20) | None = None
+  mCategory: constr(max_length=20) | None = None
+  eventDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  eventDateMonth: int | None = Field(default=None, ge=1, le=12)
+
+
+class BiomarkerWriteIn(StrictModel):
+  biomarkerName: constr(min_length=1, max_length=200)
+  biomarkerValue: constr(max_length=500) | None = None
+  biomarkerUnit: constr(max_length=50) | None = None
+  testMethod: constr(max_length=200) | None = None
+  testDateYear: int | None = Field(default=None, ge=1900, le=2100)
+  testDateMonth: int | None = Field(default=None, ge=1, le=12)
+
+

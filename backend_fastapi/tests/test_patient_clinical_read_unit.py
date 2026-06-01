@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from backend_fastapi.app.infrastructure.repositories import patient_clinical_read as clinical_read
+import backend_fastapi.app.infrastructure.repositories.patient_clinical_read as clinical_read
 
 
 def test_find_clinical_bundle_maps_patient_and_measures():
