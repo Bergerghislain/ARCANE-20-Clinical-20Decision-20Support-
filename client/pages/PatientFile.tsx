@@ -29,6 +29,14 @@ import {
   fetchPatientProfileFromApi,
   savePatientProfileToApi,
 } from "@/lib/patientProfileApi";
+import { usePatientClinicalBundle } from "@/hooks/usePatientClinicalBundle";
+import type { PatientClinicalBundle } from "@/lib/patientClinicalApi";
+import { ClinicalIdentityBanner } from "@/components/patient-clinical/ClinicalIdentityBanner";
+import { ClinicalJsonExpertPanel } from "@/components/patient-clinical/ClinicalJsonExpertPanel";
+import { MeasuresClinicalSection } from "@/components/patient-clinical/MeasuresClinicalSection";
+import { PrimaryCancerClinicalSection } from "@/components/patient-clinical/PrimaryCancerClinicalSection";
+import { SpecimensClinicalSection } from "@/components/patient-clinical/SpecimensClinicalSection";
+import { TreatmentsClinicalSection } from "@/components/patient-clinical/TreatmentsClinicalSection";
 import {
   clearPatientProfileDraft,
   loadPatientProfileDraft,
@@ -237,9 +245,56 @@ function analysesFromMeasureSection(
     .filter(Boolean) as ReturnType<typeof parseAnalysesFromEditorText>;
 }
 
+function applyClinicalBundleToForm(
+  bundle: PatientClinicalBundle,
+  setters: {
+    setIpp: (value: string) => void;
+    setClinicalSex: (value: string) => void;
+    setBirthDateYear: (value: string) => void;
+    setBirthDateMonth: (value: string) => void;
+    setDeathDateYear: (value: string) => void;
+    setDeathDateMonth: (value: string) => void;
+    setLastVisitDateYear: (value: string) => void;
+    setLastVisitDateMonth: (value: string) => void;
+    setLastNewsDateYear: (value: string) => void;
+    setLastNewsDateMonth: (value: string) => void;
+    setPrimaryCancerJson: (value: string) => void;
+    setSpecimenJson: (value: string) => void;
+    setMeasureJson: (value: string) => void;
+    setMedicationJson: (value: string) => void;
+    setSurgeryJson: (value: string) => void;
+  },
+) {
+  setters.setIpp(bundle.ipp || "");
+  setters.setClinicalSex(bundle.sex || "");
+  setters.setBirthDateYear(toInputValue(bundle.birthDateYear));
+  setters.setBirthDateMonth(toInputValue(bundle.birthDateMonth));
+  setters.setDeathDateYear(toInputValue(bundle.deathDateYear));
+  setters.setDeathDateMonth(toInputValue(bundle.deathDateMonth));
+  setters.setLastVisitDateYear(toInputValue(bundle.lastVisitDateYear));
+  setters.setLastVisitDateMonth(toInputValue(bundle.lastVisitDateMonth));
+  setters.setLastNewsDateYear(toInputValue(bundle.lastNewsDateYear));
+  setters.setLastNewsDateMonth(toInputValue(bundle.lastNewsDateMonth));
+  setters.setPrimaryCancerJson(
+    formatJsonArray(bundle.primaryCancer as Record<string, unknown>[]),
+  );
+  setters.setSpecimenJson(
+    formatJsonArray(bundle.biologicalSpecimenList as Record<string, unknown>[]),
+  );
+  setters.setMeasureJson(formatJsonArray(bundle.mesureList as Record<string, unknown>[]));
+  setters.setMedicationJson(formatJsonArray(bundle.medication as Record<string, unknown>[]));
+  setters.setSurgeryJson(formatJsonArray(bundle.surgery as Record<string, unknown>[]));
+}
+
 export default function PatientFile() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
+  const {
+    data: clinicalBundle,
+    isLoading: isClinicalLoading,
+    error: clinicalError,
+    reload: reloadClinicalBundle,
+  } = usePatientClinicalBundle(patientId);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isFormHydratingRef = useRef(false);
   const isAutosaveReadyRef = useRef(false);
@@ -479,6 +534,36 @@ export default function PatientFile() {
 
     void fetchPatient();
   }, [patientId]);
+
+  useEffect(() => {
+    if (!clinicalBundle) return;
+    const hasStructuredData =
+      clinicalBundle.mesureList.length > 0 ||
+      clinicalBundle.biologicalSpecimenList.length > 0 ||
+      clinicalBundle.primaryCancer.length > 0 ||
+      clinicalBundle.medication.length > 0 ||
+      clinicalBundle.surgery.length > 0;
+    if (!hasStructuredData) return;
+
+    applyClinicalBundleToForm(clinicalBundle, {
+      setIpp,
+      setClinicalSex,
+      setBirthDateYear,
+      setBirthDateMonth,
+      setDeathDateYear,
+      setDeathDateMonth,
+      setLastVisitDateYear,
+      setLastVisitDateMonth,
+      setLastNewsDateYear,
+      setLastNewsDateMonth,
+      setPrimaryCancerJson,
+      setSpecimenJson,
+      setMeasureJson,
+      setMedicationJson,
+      setSurgeryJson,
+    });
+    setInfoMessage("Donnees cliniques structurees chargees depuis PostgreSQL.");
+  }, [clinicalBundle]);
 
   const parsedClinicalSections = useMemo(() => {
     const baseData = {
@@ -997,16 +1082,16 @@ export default function PatientFile() {
                             Synthese
                           </TabsTrigger>
                           <TabsTrigger value="primaryCancer" className="justify-start">
-                            primaryCancer
+                            Cancers / TNM
                           </TabsTrigger>
                           <TabsTrigger value="specimens" className="justify-start">
-                            biologicalSpecimenList
+                            Prélèvements
                           </TabsTrigger>
                           <TabsTrigger value="measures" className="justify-start">
-                            mesureList
+                            Mesures
                           </TabsTrigger>
                           <TabsTrigger value="treatments" className="justify-start">
-                            medication / surgery
+                            Traitements
                           </TabsTrigger>
                         </TabsList>
                       </aside>
@@ -1038,6 +1123,8 @@ export default function PatientFile() {
                             </div>
                           </div>
                         </div>
+
+                        <ClinicalIdentityBanner bundle={clinicalBundle} />
 
                         <TabsContent value="identity" className="m-0 space-y-6">
                           <section className="space-y-3 rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 p-5 shadow-sm">
@@ -1208,17 +1295,17 @@ export default function PatientFile() {
                         </TabsContent>
 
                         <TabsContent value="primaryCancer" className="m-0 space-y-6">
-                          <section className="space-y-2 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/70 to-purple-50/40 p-5 shadow-sm">
-                            <h3 className="text-base font-semibold text-violet-900">primaryCancer</h3>
-                            <p className="text-xs text-muted-foreground">
-                              Tableau JSON correspondant a <code>primaryCancer</code>.
-                            </p>
-                            <Textarea
-                              value={primaryCancerJson}
-                              onChange={(event) => setPrimaryCancerJson(event.target.value)}
-                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                            />
-                          </section>
+                          <PrimaryCancerClinicalSection
+                            bundle={clinicalBundle}
+                            isLoading={isClinicalLoading}
+                            error={clinicalError}
+                          />
+                          <ClinicalJsonExpertPanel
+                            label="Édition JSON (primaryCancer)"
+                            codeHint="primaryCancer"
+                            value={primaryCancerJson}
+                            onChange={setPrimaryCancerJson}
+                          />
                           <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
                             <Button onClick={handleGenerateReport}>
                               <Sparkles className="mr-2 h-4 w-4" />
@@ -1232,19 +1319,17 @@ export default function PatientFile() {
                         </TabsContent>
 
                         <TabsContent value="specimens" className="m-0 space-y-6">
-                          <section className="space-y-2 rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 p-5 shadow-sm">
-                            <h3 className="text-base font-semibold text-amber-900">
-                              biologicalSpecimenList
-                            </h3>
-                            <p className="text-xs text-muted-foreground">
-                              Tableau JSON correspondant a <code>biologicalSpecimenList</code>.
-                            </p>
-                            <Textarea
-                              value={specimenJson}
-                              onChange={(event) => setSpecimenJson(event.target.value)}
-                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                            />
-                          </section>
+                          <SpecimensClinicalSection
+                            bundle={clinicalBundle}
+                            isLoading={isClinicalLoading}
+                            error={clinicalError}
+                          />
+                          <ClinicalJsonExpertPanel
+                            label="Édition JSON (biologicalSpecimenList)"
+                            codeHint="biologicalSpecimenList"
+                            value={specimenJson}
+                            onChange={setSpecimenJson}
+                          />
                           <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
                             <Button onClick={handleGenerateReport}>
                               <Sparkles className="mr-2 h-4 w-4" />
@@ -1258,17 +1343,19 @@ export default function PatientFile() {
                         </TabsContent>
 
                         <TabsContent value="measures" className="m-0 space-y-6">
-                          <section className="space-y-2 rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-green-50/40 p-5 shadow-sm">
-                            <h3 className="text-base font-semibold text-emerald-900">mesureList</h3>
-                            <p className="text-xs text-muted-foreground">
-                              Tableau JSON correspondant a <code>mesureList</code>.
-                            </p>
-                            <Textarea
-                              value={measureJson}
-                              onChange={(event) => setMeasureJson(event.target.value)}
-                              className="min-h-[220px] border-dashed bg-white/80 font-mono text-xs"
-                            />
-                          </section>
+                          <MeasuresClinicalSection
+                            bundle={clinicalBundle}
+                            patientId={patientId}
+                            onRefresh={reloadClinicalBundle}
+                            isLoading={isClinicalLoading}
+                            error={clinicalError}
+                          />
+                          <ClinicalJsonExpertPanel
+                            label="Édition JSON (mesureList)"
+                            codeHint="mesureList"
+                            value={measureJson}
+                            onChange={setMeasureJson}
+                          />
                           <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
                             <Button onClick={handleGenerateReport}>
                               <Sparkles className="mr-2 h-4 w-4" />
@@ -1282,31 +1369,25 @@ export default function PatientFile() {
                         </TabsContent>
 
                         <TabsContent value="treatments" className="m-0 space-y-6">
-                          <section className="space-y-3 rounded-2xl border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-pink-50/40 p-5 shadow-sm">
-                            <h3 className="text-base font-semibold text-rose-900">
-                              medication / surgery
-                            </h3>
-                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor="medication-json">medication</Label>
-                                <Textarea
-                                  id="medication-json"
-                                  value={medicationJson}
-                                  onChange={(event) => setMedicationJson(event.target.value)}
-                                  className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="surgery-json">surgery</Label>
-                                <Textarea
-                                  id="surgery-json"
-                                  value={surgeryJson}
-                                  onChange={(event) => setSurgeryJson(event.target.value)}
-                                  className="min-h-[180px] border-dashed bg-white/80 font-mono text-xs"
-                                />
-                              </div>
-                            </div>
-                          </section>
+                          <TreatmentsClinicalSection
+                            bundle={clinicalBundle}
+                            isLoading={isClinicalLoading}
+                            error={clinicalError}
+                          />
+                          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <ClinicalJsonExpertPanel
+                              label="Édition JSON (medication)"
+                              codeHint="medication"
+                              value={medicationJson}
+                              onChange={setMedicationJson}
+                            />
+                            <ClinicalJsonExpertPanel
+                              label="Édition JSON (surgery)"
+                              codeHint="surgery"
+                              value={surgeryJson}
+                              onChange={setSurgeryJson}
+                            />
+                          </div>
                           <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
                             <Button onClick={handleGenerateReport}>
                               <Sparkles className="mr-2 h-4 w-4" />
