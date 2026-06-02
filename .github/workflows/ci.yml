@@ -91,5 +91,14 @@ jobs:
       - name: Initialize PostgreSQL schema (setup_database.sql)
         run: bash scripts/ci-init-db.sh
 
+      - name: Alembic migrations smoke test (upgrade/downgrade/upgrade)
+        # Lancé depuis backend_fastapi pour que script_location=alembic et
+        # prepend_sys_path=. (import de `app`) soient résolus correctement.
+        working-directory: backend_fastapi
+        run: |
+          python -m alembic upgrade head
+          python -m alembic downgrade -1
+          python -m alembic upgrade head
+
       - name: Backend tests (including integration)
         run: python -m pytest backend_fastapi/tests -q --benchmark-disable
