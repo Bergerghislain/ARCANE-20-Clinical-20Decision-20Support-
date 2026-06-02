@@ -34,7 +34,7 @@ Ce document sert de **snapshot** pour savoir ce qui est **fiable** avant d’am�
 
 ## Fonctionnalités incomplètes / à confirmer
 
-- **Migrations Alembic** : seulement une partie du schéma est couverte (migrations 001/002). Le schéma complet est encore porté par `setup_database.sql`.
+- **Migrations Alembic** : couvrent désormais **tout** le schéma (`000` initial + `001`/`002`). `setup_database.sql` = seeds uniquement.
 - **Tests d’intégration DB** : supposent une DB initialisée via `setup_database.sql` (seeds inclus).
 - **Durcissement prod** : dépend de la configuration d’environnement (CORS, cookies secure, secret JWT, suppression fallback démo).
 
@@ -59,12 +59,15 @@ Variables sensibles / sécurité :
 
 ## Base de données (état actuel)
 
-- **Source de vérité actuelle** : `setup_database.sql` (schéma complet + seeds)
-- **Alembic** : présent, mais partiel (voir `backend_fastapi/README.md`)
+- **Source de vérité du schéma** : **Alembic** (`000_initial_schema` crée tout le schéma ; `001`/`002` = ajustements).
+- **`setup_database.sql`** : **seeds de démo uniquement** (idempotents), à charger après les migrations.
+- Création d'une base neuve : `alembic upgrade head` (schéma) puis `python backend_fastapi/scripts/apply_sql.py setup_database.sql` (seeds).
 
-Initialisation DB de test (comme en CI) :
-- CI Linux : `bash scripts/ci-init-db.sh`
-- Windows (si `psql` disponible) : `powershell -File scripts/ci-init-db.ps1`
+Initialisation DB de test (comme en CI, sans `psql`) :
+- Linux/macOS : `bash scripts/ci-init-db.sh`
+- Windows : `powershell -File scripts/ci-init-db.ps1`
+
+Déploiement Docker : `deploy/entrypoint.sh` applique `alembic upgrade head` (+ seeds) au démarrage du conteneur.
 
 ## Limites connues
 

@@ -85,20 +85,22 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -r backend_fastapi/requirements.txt
 
-      - name: Install PostgreSQL client (psql)
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      # Alembic est la source de vérité du schéma : une base vide est créée
+      # intégralement par les migrations (plus de gros script SQL de schéma).
+      - name: Apply database schema (alembic upgrade head)
+        working-directory: backend_fastapi
+        run: python -m alembic upgrade head
 
-      - name: Initialize PostgreSQL schema (setup_database.sql)
-        run: bash scripts/ci-init-db.sh
-
-      - name: Alembic migrations smoke test (upgrade/downgrade/upgrade)
-        # Lancé depuis backend_fastapi pour que script_location=alembic et
-        # prepend_sys_path=. (import de `app`) soient résolus correctement.
+      # Vérifie que les migrations sont réversibles (déployabilité).
+      - name: Migrations reversibility smoke test (downgrade -1 / upgrade head)
         working-directory: backend_fastapi
         run: |
-          python -m alembic upgrade head
           python -m alembic downgrade -1
           python -m alembic upgrade head
+
+      # Données de démo (idempotent) via le client applicatif (pas besoin de psql).
+      - name: Load seed data (demo users/patients)
+        run: python backend_fastapi/scripts/apply_sql.py setup_database.sql
 
       - name: Backend tests (including integration)
         run: python -m pytest backend_fastapi/tests -q --benchmark-disable

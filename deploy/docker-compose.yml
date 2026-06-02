@@ -13,7 +13,8 @@ services:
       POSTGRES_DB: arcane
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../setup_database.sql:/docker-entrypoint-initdb.d/01-arcane-schema.sql:ro
+      # Le schéma n'est plus chargé ici : c'est le conteneur web qui exécute
+      # `alembic upgrade head` (+ seeds) au démarrage via deploy/entrypoint.sh.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U arcane -d arcane"]
       interval: 5s

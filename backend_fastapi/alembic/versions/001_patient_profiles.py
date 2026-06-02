@@ -6,7 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "001_patient_profiles"
-down_revision = None
+down_revision = "000_initial_schema"
 branch_labels = None
 depends_on = None
 

@@ -22,7 +22,7 @@ Intégration Qwen / LLM : [`../docs/QWEN_INTEGRATION.md`](../docs/QWEN_INTEGRATI
 ## Prérequis
 
 - Python 3.12+ (recommandé)
-- PostgreSQL (base `arcane` via `setup_database.sql` ou Alembic)
+- PostgreSQL (schéma créé par **Alembic** ; seeds de démo via `setup_database.sql`)
 
 ## Variables d'environnement
 
@@ -109,17 +109,43 @@ uvicorn app.main:app --reload --port 8000
   - `psycopg` (défaut) : `SqlUserRepository` partout ;
   - `sqlalchemy` : `HybridUserRepository` pour les utilisateurs (démo de migration incrémentale).
 
-## Migrations Alembic
+## Migrations Alembic (source de vérité du schéma)
 
-Révisions dans `alembic/versions/` (ex. `001_patient_profiles.py`). La première révision crée `patient_profiles` **si la table n'existe pas** (compatible avec un déploiement déjà initialisé via `setup_database.sql`).
+**Alembic crée l'intégralité du schéma.** Une base vide est construite par
+`alembic upgrade head`. `setup_database.sql` (racine) ne contient plus que les
+**seeds** de démo, à charger après les migrations.
+
+| Révision | Fichier | Effet |
+|----------|---------|--------|
+| `000` | `000_initial_schema.py` | **Schéma complet** ARCANE (toutes les tables + index), idempotent (`IF NOT EXISTS`) |
+| `001` | `001_patient_profiles.py` | Table `patient_profiles` (no-op sur une base créée par `000`) |
+| `002` | `002_clinical_primary_cancer_link.py` | Colonne `primary_cancer_id` (FK) sur `surgeries`, `radiotherapies`, `imaging_studies` (no-op si déjà présente) |
+
+Créer une base neuve, de bout en bout :
+
+```bash
+# 1) schéma (depuis backend_fastapi/)
+cd backend_fastapi
+alembic upgrade head
+alembic current   # -> 002_clinical_primary_cancer_link (head)
+
+# 2) seeds de démo (depuis la racine du dépôt) — sans psql requis
+python backend_fastapi/scripts/apply_sql.py setup_database.sql
+```
+
+Raccourci local équivalent : `scripts/ci-init-db.ps1` (Windows) ou `bash scripts/ci-init-db.sh`.
+
+Tester la réversibilité (déployabilité) :
 
 ```bash
 cd backend_fastapi
+alembic downgrade -1
 alembic upgrade head
-alembic current
 ```
 
-Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+`000` est **idempotent** : l'appliquer sur une base déjà créée par l'ancien
+`setup_database.sql` ne fait que l'enregistrer dans `alembic_version`.
+Migration ponctuelle des profils sur base ancienne : `backend_fastapi/sql/migrate_patient_profiles.sql`.
 
 ## Persistance profil patient
 
