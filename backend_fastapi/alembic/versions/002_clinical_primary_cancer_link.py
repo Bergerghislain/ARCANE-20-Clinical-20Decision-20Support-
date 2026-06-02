@@ -18,6 +18,18 @@ def _has_column(table: str, column: str) -> bool:
   return column in {col["name"] for col in insp.get_columns(table)}
 
 
+def _has_index(table: str, index: str) -> bool:
+  bind = op.get_bind()
+  insp = inspect(bind)
+  return index in {ix["name"] for ix in insp.get_indexes(table)}
+
+
+def _has_fk(table: str, constraint: str) -> bool:
+  bind = op.get_bind()
+  insp = inspect(bind)
+  return constraint in {fk["name"] for fk in insp.get_foreign_keys(table)}
+
+
 def upgrade() -> None:
   for table in ("surgeries", "radiotherapies", "imaging_studies"):
     if not _has_column(table, "primary_cancer_id"):
@@ -41,8 +53,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+  # Idempotent : si la colonne a été créée hors Alembic (setup_database.sql),
+  # l'index/FK nommés par cette migration peuvent ne pas exister. On vérifie
+  # leur présence avant suppression pour garder downgrade -1 reversible en CI.
   for table in ("imaging_studies", "radiotherapies", "surgeries"):
-    if _has_column(table, "primary_cancer_id"):
+    if not _has_column(table, "primary_cancer_id"):
+      continue
+    if _has_index(table, f"idx_{table}_primary_cancer_id"):
       op.drop_index(f"idx_{table}_primary_cancer_id", table_name=table)
+    if _has_fk(table, f"fk_{table}_primary_cancer_id"):
       op.drop_constraint(f"fk_{table}_primary_cancer_id", table, type_="foreignkey")
-      op.drop_column(table, "primary_cancer_id")
+    op.drop_column(table, "primary_cancer_id")
