@@ -9,8 +9,9 @@ Ce dossier contient le backend FastAPI unique du projet.
   - `app/application` — services, ports, cas d'usage, politiques
   - `app/infrastructure` — SQL, sécurité, clients LLM
   - `app/routers` — routes HTTP fines
-- Services métier : `AuthService`, `AdminService`, `PatientService`, `ArgosService`, `AiService`.
-- **Cas d'usage** extraits pour le profil patient et le streaming LLM (testables sans routeur).
+- Services métier : `AuthService`, `AdminService`, `PatientService`, `PatientClinicalService`, `ArgosService`, `AiService`.
+- **Dossier clinique structuré** : lecture SQL → JSON `PatientClinicalDataIn` ; CRUD section par section (mesures, traitements, cancer, prélèvements).
+- **Cas d'usage** extraits pour le profil patient, le bundle clinique et le streaming LLM (testables sans routeur).
 - Compatibilité payload legacy patient (`age`, `gender`, `birthDate`).
 - Persistance profil : table **`patient_profiles`** (JSONB + versionnement optimiste) avec repli lecture sur `health_info.manual_profile`.
 - **SQLAlchemy** : référence pour le pool de connexions ; accès SQL brut via `app/db.py` inchangé côté repositories.
@@ -50,7 +51,7 @@ COOKIE_DOMAIN=
 COOKIE_SECURE=false
 COOKIE_SAMESITE=lax
 CORS_ORIGINS=http://localhost:8080
-ALLOW_DEMO_PASSWORD_FALLBACK=true
+ALLOW_DEMO_PASSWORD_FALLBACK=false
 
 # SQLAlchemy
 SQLALCHEMY_ECHO=false
@@ -73,6 +74,8 @@ LLM_MAX_TOKENS=1200
 | `disabled` (défaut)   | Chat sync → 503 ; streaming SSE → 503 via `StreamLlmSseUseCase` |
 | `mock_json`           | Réponses JSON déterministes (démos, CI, sans réseau) |
 | `openai_compatible`   | Appels vers vLLM / sglang / TGI (endpoint `/v1/chat/completions`) |
+
+Sécurité labo / production : voir [`../docs/LABO_SECURITY.md`](../docs/LABO_SECURITY.md) et `scripts/validate-lab-env.py` à la racine du dépôt. En CI, `ALLOW_DEMO_PASSWORD_FALLBACK=true` est forcé dans `tests/conftest.py` pour les tests d'intégration auth.
 
 ## Installation
 
@@ -111,7 +114,12 @@ uvicorn app.main:app --reload --port 8000
 
 ## Migrations Alembic
 
-Révisions dans `alembic/versions/` (ex. `001_patient_profiles.py`). La première révision crée `patient_profiles` **si la table n'existe pas** (compatible avec un déploiement déjà initialisé via `setup_database.sql`).
+Révisions dans `alembic/versions/` (idempotentes si la base a déjà été créée via `setup_database.sql` à la racine du dépôt) :
+
+| Révision | Fichier | Effet |
+|----------|---------|--------|
+| `001` | `001_patient_profiles.py` | Table `patient_profiles` (JSONB + versionnement) |
+| `002` | `002_clinical_primary_cancer_link.py` | Colonne `primary_cancer_id` (nullable, FK) sur `surgeries`, `radiotherapies`, `imaging_studies` |
 
 ```bash
 cd backend_fastapi
@@ -119,7 +127,10 @@ alembic upgrade head
 alembic current
 ```
 
-Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+Base existante sans Alembic :
+
+- profils : `backend_fastapi/sql/migrate_patient_profiles.sql` ;
+- schéma clinique complet : réexécuter `setup_database.sql` sur une base vide, ou appliquer `alembic upgrade head` sur une base déjà initialisée.
 
 ## Persistance profil patient
 
@@ -127,6 +138,40 @@ Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_pa
 - **Lecture** : `GET /api/patients/{id}/profile` → `patient_profiles` en priorité, sinon `health_info.manual_profile` (migration douce).
 - **Politique** : `app/application/patient_profile_policy.py` (migration schéma v1→v2, contrôle d'accès clinician/admin).
 - **Cas d'usage** : `GetPatientProfileUseCase`, `SavePatientProfileUseCase` ; `PatientService` délègue à ces classes.
+
+## Dossier clinique structuré (`clinicalData`)
+
+Contrat JSON aligné sur `PatientClinicalDataIn` (`app/schemas.py`) : identité, `mesureList`, `medication`, `surgery`, `primaryCancer[]` (grades, stades, TNM, imagerie, chirurgie, radiothérapie par cancer), `biologicalSpecimenList` (biomarqueurs).
+
+### Lecture
+
+- `GET /api/patients/{id}/clinical` — agrège les tables SQL en un bundle JSON (même forme que l'import `POST /api/patients/import`).
+- Implémentation : `patient_clinical_read.find_clinical_bundle` ; `GetPatientClinicalBundleUseCase` ; `PatientService.get_patient_clinical`.
+
+Radio, imagerie et chirurgie sont rattachées à un cancer via `primary_cancer_id` lorsque la migration `002` est appliquée. Les enregistrements sans FK restent au niveau patient (`surgery[]` racine) ou sont rattachés au premier `primaryCancer` pour l'imagerie / la radiothérapie orphelines (compatibilité données historiques).
+
+### Écriture (CRUD par section)
+
+Routeur : `app/routers/patient_clinical.py` — service : `PatientClinicalService` — persistance : `patient_clinical_write.SqlPatientClinicalWriteRepository`.
+
+Toutes les routes exigent un JWT **clinician** ou **admin** et respectent la même politique d'accès patient que le reste de l'API (`patient_profile_policy.assert_can_access_patient`).
+
+Les réponses POST/PUT incluent un champ `id` (et `primaryCancerId` le cas échéant) en plus des champs métier.
+
+| Section | POST | PUT | DELETE |
+|---------|------|-----|--------|
+| Mesures | `/clinical/measures` | `/clinical/measures/{measure_id}` | idem |
+| Médicaments | `/clinical/medications` | `/clinical/medications/{medication_id}` | idem |
+| Chirurgies | `/clinical/surgeries` | `/clinical/surgeries/{surgery_id}` | idem |
+| Radiothérapie | `/clinical/radiotherapies` | `/clinical/radiotherapies/{radiotherapy_id}` | idem |
+| Imagerie | `/clinical/imaging-studies` | `/clinical/imaging-studies/{imaging_id}` | idem |
+| TNM | `/clinical/primary-cancers/{primary_cancer_id}/tnm-events` | `.../tnm-events/{tnm_id}` | idem |
+| Prélèvements | `/clinical/specimens` | `/clinical/specimens/{specimen_id}` | idem |
+| Biomarqueurs | `/clinical/specimens/{specimen_id}/biomarkers` | `.../biomarkers/{biomarker_id}` | idem |
+
+Corps chirurgie / radio / imagerie : schémas `SurgeryWriteIn`, `RadiotherapyWriteIn`, `ImagingStudyWriteIn` — champ optionnel `primaryCancerId` pour lier un cancer primitif.
+
+Import JSON patient (`POST /api/patients/import`) : lors de la synchro des `primaryCancer[]`, les listes `surgery`, `radiotherapy` et `imaging` imbriquées sont insérées avec le `primary_cancer_id` correspondant (`patient_repository`).
 
 ## Endpoints exposés
 
@@ -150,8 +195,13 @@ Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_pa
 - `PUT /api/patients/{id}`
 - `POST /api/patients/{id}/assign` (admin)
 - `POST /api/patients/import`
+- `GET /api/patients/{id}/clinical` — bundle clinique structuré (voir section ci-dessus)
 - `GET /api/patients/{id}/profile`
 - `PUT /api/patients/{id}/profile`
+
+### Dossier clinique — CRUD sectionnel (clinician / admin)
+
+Préfixe commun : `/api/patients/{patient_id}/clinical/...` (détail des chemins dans la section **Dossier clinique structuré**). Tag OpenAPI : `patient-clinical`.
 
 **Réaffectation** (`POST /api/patients/{id}/assign`) : corps `clinician_id` (alias `assigned_clinician_id`, `assignedClinicianId`) ; cible = compte `clinician` actif ou en attente.
 
@@ -189,9 +239,13 @@ Le streaming passe par `StreamLlmSseUseCase` et un `LlmSsePort` injecté (`deps.
 |-----------|------|
 | `patient_profile_policy.py` | Migration schéma, `profileVersion`, contrôle d'accès |
 | `use_cases/patient_profile.py` | GET/PUT profil |
+| `use_cases/get_patient_clinical.py` | GET bundle clinique |
+| `services/patient_clinical_service.py` | CRUD sectionnel + contrôle d'accès |
+| `repositories/patient_clinical_read.py` | SQL → `PatientClinicalDataIn` |
+| `repositories/patient_clinical_write.py` | INSERT/UPDATE/DELETE par section |
 | `use_cases/stream_llm_sse.py` | Itération événements SSE |
 | `ports/llm_ports.py` | `LlmPort`, `LlmSsePort` |
-| `deps.py` | Injection FastAPI (repos, services, cas d'usage) |
+| `deps.py` | Injection FastAPI (`get_patient_service`, `get_patient_clinical_service`, …) |
 
 Les routeurs convertissent `ApplicationError` → `HTTPException`.
 
@@ -205,12 +259,14 @@ pytest --benchmark-disable
 pytest tests/test_performance_smoke_unit.py -m perf -v
 pytest tests/test_stream_llm_sse_use_case_unit.py -v
 pytest tests/test_patient_repository_profile_sql_unit.py -v
+pytest tests/test_patient_clinical_read_unit.py tests/test_patient_clinical_crud_unit.py -v
 ```
 
-Dernier snapshot local (sans PostgreSQL requis pour la majorité des tests unitaires) :
+Tests clinique : mocks SQL (`patient_clinical_read`) et mocks repository (`PatientClinicalService`) — **pas de PostgreSQL requis** pour ces fichiers.
 
-- **90** tests collectés ; suite verte avec `--benchmark-disable` ;
-- couverture indicative **~69 %** (varie selon accès DB / LLM).
+En CI (GitHub Actions), la suite complète s'exécute avec PostgreSQL 16 (`scripts/ci-init-db.sh` → `setup_database.sql`). Imports de tests : préfixe `backend_fastapi.app...` (racine du dépôt = working directory pytest).
+
+Couverture : variable selon les modules exercés et l'accès DB / LLM ; viser une suite verte locale avec `pytest --benchmark-disable` avant push.
 
 ## Notes d'implémentation
 
