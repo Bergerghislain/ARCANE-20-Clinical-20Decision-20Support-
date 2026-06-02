@@ -198,4 +198,3 @@ python -m pytest tests/ -q --benchmark-disable
 
 - Generation **reelle** par LLM: definir `LLM_PROVIDER=openai_compatible` et un endpoint compatible OpenAI (`LLM_BASE_URL`, `LLM_MODEL`, etc.). Sans LLM, `LLM_PROVIDER=mock_json` fournit des reponses JSON valides pour demos / tests (pas de reseau).
 - Bases existantes sans `patient_profiles`: `backend_fastapi/sql/migrate_patient_profiles.sql` ou `alembic upgrade head` (voir README backend).
-- Poursuivre la couverture des routeurs et des tests d'integration (voir README backend pour benchmarks et commandes).
