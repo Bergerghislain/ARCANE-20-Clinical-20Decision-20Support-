@@ -12,14 +12,15 @@ import pytest
 os.environ.setdefault("JWT_SECRET", "test_secret")
 os.environ.setdefault("JWT_ISSUER", "arcane")
 os.environ.setdefault("JWT_AUDIENCE", "arcane-client")
-# Seeds SQL: password_hash placeholder + mot de passe "password" via fallback demo.
-os.environ.setdefault("ALLOW_DEMO_PASSWORD_FALLBACK", "true")
+# Les seeds (seed_demo.py) utilisent de VRAIS hashes bcrypt : les tests
+# d'intégration ne dépendent plus du fallback démo, qui reste désactivé.
+os.environ.setdefault("ALLOW_DEMO_PASSWORD_FALLBACK", "false")
 
 
 def _db_available() -> bool:
   # On essaie un import léger + une connexion rapide.
   # IMPORTANT: certains tests d'intégration supposent aussi que la base est
-  # initialisée via setup_database.sql (users seedés, schéma présent).
+  # migrée (alembic upgrade head) ET seedée (seed_demo.py : users + patients).
   # Sur un poste sans DB (ou DB vide), on préfère skipper ces tests plutôt
   # que d'échouer, tout en conservant l'exécution complète en CI.
   try:
@@ -31,7 +32,7 @@ def _db_available() -> bool:
     conn = db.get_conn()
     conn.close()
 
-    # Vérifie que le schéma + seeds ARCANE existent (setup_database.sql).
+    # Vérifie que le schéma + seeds ARCANE existent (seed_demo.py).
     # Un simple "admin@arcane.com" ne suffit pas: on veut éviter de faire tourner
     # les tests d'intégration contre une DB existante non-initialisée ARCANE,
     # ce qui produit des 401/404 trompeurs.
@@ -63,10 +64,10 @@ def _test_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
   monkeypatch.setenv("JWT_SECRET", os.getenv("JWT_SECRET", "test_secret"))
   monkeypatch.setenv("JWT_ISSUER", os.getenv("JWT_ISSUER", "arcane"))
   monkeypatch.setenv("JWT_AUDIENCE", os.getenv("JWT_AUDIENCE", "arcane-client"))
-  # Seeds SQL + tests d'intégration : hashes factices "password" (voir security.py).
+  # Fallback démo désactivé : l'auth des tests repose sur de vrais hashes bcrypt.
   monkeypatch.setenv(
     "ALLOW_DEMO_PASSWORD_FALLBACK",
-    os.getenv("ALLOW_DEMO_PASSWORD_FALLBACK", "true"),
+    os.getenv("ALLOW_DEMO_PASSWORD_FALLBACK", "false"),
   )
 
 

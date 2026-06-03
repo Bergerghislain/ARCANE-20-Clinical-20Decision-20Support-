@@ -68,8 +68,9 @@ jobs:
       JWT_SECRET: ci_test_jwt_secret_not_for_production_use_only
       JWT_ISSUER: arcane
       JWT_AUDIENCE: arcane-client
-      # Les seeds SQL utilisent des hashes factices ; le fallback démo doit rester actif en CI.
-      ALLOW_DEMO_PASSWORD_FALLBACK: "true"
+      # Les seeds (seed_demo.py) créent de vrais hashes bcrypt : le fallback démo
+      # reste DÉSACTIVÉ en CI (on prouve qu'on n'en dépend plus).
+      ALLOW_DEMO_PASSWORD_FALLBACK: "false"
       COOKIE_SECURE: "false"
       CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8000
 
@@ -98,9 +99,9 @@ jobs:
           python -m alembic downgrade -1
           python -m alembic upgrade head
 
-      # Données de démo (idempotent) via le client applicatif (pas besoin de psql).
+      # Données de démo (idempotent) avec de VRAIS hashes bcrypt (pas de psql requis).
       - name: Load seed data (demo users/patients)
-        run: python backend_fastapi/scripts/apply_sql.py setup_database.sql
+        run: python backend_fastapi/scripts/seed_demo.py
 
       - name: Backend tests (including integration)
         run: python -m pytest backend_fastapi/tests -q --benchmark-disable

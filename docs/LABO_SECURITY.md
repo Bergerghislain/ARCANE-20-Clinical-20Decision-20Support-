@@ -37,9 +37,13 @@ JWT_SECRET=<collez_la_valeur_generee>
 ALLOW_DEMO_PASSWORD_FALLBACK=false
 ```
 
-**Pourquoi :** avec `true`, le mot de passe `password` fonctionne sur les hashes factices du seed SQL (`YourHashedPasswordHere`). Utile en **CI** et dev local, **dangereux** sur un serveur accessible.
+**Pourquoi :** ce fallback (héritage des anciens hashes factices) acceptait le mot
+de passe `password` sur des hashes placeholder. Les seeds créent désormais de **vrais
+hashes bcrypt** (`scripts/seed_demo.py`), donc on ne dépend plus de ce fallback :
+il reste **`false` partout**, y compris en **CI**.
 
-La CI garde `true` uniquement dans `.github/workflows/ci.yml` (variables du job, pas ton `.env`).
+Le fallback restant dans `security.py` ne s'applique qu'à des hashes placeholder/vides
+(jamais à un vrai hash `$2...`) et peut être supprimé entièrement par la suite.
 
 ## 4. Cookies (refresh token)
 

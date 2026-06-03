@@ -37,6 +37,11 @@ services:
       CORS_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
       ALLOW_DEMO_PASSWORD_FALLBACK: "false"
       COOKIE_SECURE: "false"
+      # Seeds de démo au démarrage (entrypoint). Mot de passe des comptes de démo :
+      # par défaut "password" ; définir SEED_DEMO_PASSWORD pour un mot de passe fort,
+      # ou SEED_ON_START=false pour ne rien seeder (prod).
+      SEED_DEMO_PASSWORD: password
+      # SEED_ON_START: "false"
       # Démos / recette labo (sans réseau vers un modèle externe)
       LLM_PROVIDER: mock_json
     depends_on:

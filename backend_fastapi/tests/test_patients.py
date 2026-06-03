@@ -8,9 +8,14 @@ from fastapi.testclient import TestClient
 
 from ..app.db import execute, fetch_one
 from ..app.main import app
+from ..app.security import pwd_context
 
 
 client = TestClient(app)
+
+# Vrai hash bcrypt de "password" : les helpers de test ne dépendent plus du
+# fallback démo (ALLOW_DEMO_PASSWORD_FALLBACK peut rester désactivé).
+_DEMO_PASSWORD_HASH = pwd_context.hash("password")
 
 
 def _login(identifier: str, password: str = "password") -> str:
@@ -53,7 +58,7 @@ def _create_active_clinician(prefix: str = "test.clin") -> tuple[int, str]:
     INSERT INTO users (username, email, password_hash, role, full_name, is_active)
     VALUES (%s, %s, %s, 'clinician', %s, TRUE)
     """,
-    (username, email, "$2a$10$YourHashedPasswordHere", f"Dr {suffix}"),
+    (username, email, _DEMO_PASSWORD_HASH, f"Dr {suffix}"),
   )
   row = fetch_one("SELECT id FROM users WHERE email = %s LIMIT 1", (email,))
   assert row is not None
@@ -69,7 +74,7 @@ def _create_pending_clinician(prefix: str = "test.pending.clin") -> tuple[int, s
     INSERT INTO users (username, email, password_hash, role, full_name, is_active)
     VALUES (%s, %s, %s, 'clinician', %s, FALSE)
     """,
-    (username, email, "$2a$10$YourHashedPasswordHere", f"Dr Pending {suffix}"),
+    (username, email, _DEMO_PASSWORD_HASH, f"Dr Pending {suffix}"),
   )
   row = fetch_one("SELECT id FROM users WHERE email = %s LIMIT 1", (email,))
   assert row is not None

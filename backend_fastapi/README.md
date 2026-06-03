@@ -22,7 +22,7 @@ Intégration Qwen / LLM : [`../docs/QWEN_INTEGRATION.md`](../docs/QWEN_INTEGRATI
 ## Prérequis
 
 - Python 3.12+ (recommandé)
-- PostgreSQL (schéma créé par **Alembic** ; seeds de démo via `setup_database.sql`)
+- PostgreSQL (schéma créé par **Alembic** ; seeds de démo via `scripts/seed_demo.py`)
 
 ## Variables d'environnement
 
@@ -50,7 +50,8 @@ COOKIE_DOMAIN=
 COOKIE_SECURE=false
 COOKIE_SAMESITE=lax
 CORS_ORIGINS=http://localhost:8080
-ALLOW_DEMO_PASSWORD_FALLBACK=true
+# Désactivé : les seeds créent de vrais hashes bcrypt (voir scripts/seed_demo.py).
+ALLOW_DEMO_PASSWORD_FALLBACK=false
 
 # SQLAlchemy
 SQLALCHEMY_ECHO=false
@@ -112,8 +113,8 @@ uvicorn app.main:app --reload --port 8000
 ## Migrations Alembic (source de vérité du schéma)
 
 **Alembic crée l'intégralité du schéma.** Une base vide est construite par
-`alembic upgrade head`. `setup_database.sql` (racine) ne contient plus que les
-**seeds** de démo, à charger après les migrations.
+`alembic upgrade head`. Les **seeds** de démo (utilisateurs avec vrais hashes
+bcrypt + patients) sont chargés ensuite par `scripts/seed_demo.py`.
 
 | Révision | Fichier | Effet |
 |----------|---------|--------|
@@ -129,11 +130,13 @@ cd backend_fastapi
 alembic upgrade head
 alembic current   # -> 002_clinical_primary_cancer_link (head)
 
-# 2) seeds de démo (depuis la racine du dépôt) — sans psql requis
-python backend_fastapi/scripts/apply_sql.py setup_database.sql
+# 2) seeds de démo (depuis la racine du dépôt) — vrais hashes bcrypt, sans psql
+python backend_fastapi/scripts/seed_demo.py
 ```
 
 Raccourci local équivalent : `scripts/ci-init-db.ps1` (Windows) ou `bash scripts/ci-init-db.sh`.
+
+**Comptes de démo** (après `seed_demo.py`) : mot de passe `password` par défaut (changer via `SEED_DEMO_PASSWORD`), stocké en **vrai hash bcrypt**. Le fallback `ALLOW_DEMO_PASSWORD_FALLBACK` reste donc `false` (dev, CI et prod).
 
 Tester la réversibilité (déployabilité) :
 
@@ -143,8 +146,8 @@ alembic downgrade -1
 alembic upgrade head
 ```
 
-`000` est **idempotent** : l'appliquer sur une base déjà créée par l'ancien
-`setup_database.sql` ne fait que l'enregistrer dans `alembic_version`.
+`000` est **idempotent** : l'appliquer sur une base déjà créée par un ancien
+script SQL ne fait que l'enregistrer dans `alembic_version`.
 Migration ponctuelle des profils sur base ancienne : `backend_fastapi/sql/migrate_patient_profiles.sql`.
 
 ## Persistance profil patient

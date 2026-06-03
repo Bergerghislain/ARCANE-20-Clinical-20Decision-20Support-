@@ -15,7 +15,7 @@ try {
   Pop-Location
 }
 
-Write-Host "2/2 - Seeds : setup_database.sql ..."
-python (Join-Path $RepoRoot "backend_fastapi\scripts\apply_sql.py") (Join-Path $RepoRoot "setup_database.sql")
+Write-Host "2/2 - Seeds : seed_demo.py (hashes bcrypt reels) ..."
+python (Join-Path $RepoRoot "backend_fastapi\scripts\seed_demo.py")
 
 Write-Host "Base initialisee (schema Alembic + seeds)."

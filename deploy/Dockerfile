@@ -17,8 +17,6 @@ ENV PYTHONUNBUFFERED=1
 COPY backend_fastapi/requirements.txt ./backend_fastapi/requirements.txt
 RUN pip install --no-cache-dir -r backend_fastapi/requirements.txt
 COPY backend_fastapi ./backend_fastapi
-# Seeds de démo (schéma désormais géré par Alembic, pas par ce fichier).
-COPY setup_database.sql ./setup_database.sql
 COPY deploy/entrypoint.sh ./deploy/entrypoint.sh
 COPY --from=frontend /build/dist/spa ./dist/spa
 RUN chmod +x ./deploy/entrypoint.sh

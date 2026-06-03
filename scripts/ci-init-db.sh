@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "1/2 - Schéma : alembic upgrade head ..."
 ( cd "${REPO_ROOT}/backend_fastapi" && python -m alembic upgrade head )
 
-echo "2/2 - Seeds : setup_database.sql ..."
-python "${REPO_ROOT}/backend_fastapi/scripts/apply_sql.py" "${REPO_ROOT}/setup_database.sql"
+echo "2/2 - Seeds : seed_demo.py (hashes bcrypt réels) ..."
+python "${REPO_ROOT}/backend_fastapi/scripts/seed_demo.py"
 
 echo "Base initialisée (schéma Alembic + seeds)."

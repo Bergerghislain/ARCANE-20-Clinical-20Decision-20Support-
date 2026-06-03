@@ -11,8 +11,9 @@ python -m alembic upgrade head
 cd /app
 
 if [ "${SEED_ON_START:-true}" != "false" ]; then
-  echo "[entrypoint] Seeds : setup_database.sql ..."
-  python backend_fastapi/scripts/apply_sql.py setup_database.sql
+  echo "[entrypoint] Seeds : seed_demo.py ..."
+  # En prod : définir SEED_DEMO_PASSWORD (mot de passe fort) ou SEED_ON_START=false.
+  python backend_fastapi/scripts/seed_demo.py
 fi
 
 echo "[entrypoint] Démarrage uvicorn ..."
