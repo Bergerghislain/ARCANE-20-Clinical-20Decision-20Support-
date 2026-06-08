@@ -17,6 +17,9 @@ ENV PYTHONUNBUFFERED=1
 COPY backend_fastapi/requirements.txt ./backend_fastapi/requirements.txt
 RUN pip install --no-cache-dir -r backend_fastapi/requirements.txt
 COPY backend_fastapi ./backend_fastapi
+COPY deploy/entrypoint.sh ./deploy/entrypoint.sh
 COPY --from=frontend /build/dist/spa ./dist/spa
+RUN chmod +x ./deploy/entrypoint.sh
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "backend_fastapi.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# L'entrypoint applique `alembic upgrade head` (+ seeds) avant de lancer l'API.
+CMD ["./deploy/entrypoint.sh"]

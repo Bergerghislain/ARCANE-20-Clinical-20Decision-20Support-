@@ -19,20 +19,23 @@ pwd_context = CryptContext(
 def verify_password(plain_password: str, password_hash: str) -> bool:
   if not isinstance(password_hash, str):
     return False
-  # Compatibilité démo contrôlable par configuration.
-  if settings.allow_demo_password_fallback:
-    if plain_password == "password" and (
-      not password_hash
-      or password_hash.startswith("$2")
-      or "YourHashedPasswordHere" in password_hash
-    ):
-      return True
+  # Un vrai hash bcrypt est TOUJOURS vérifié par passlib, jamais court-circuité
+  # par le fallback démo (sinon "password" ouvrirait n'importe quel compte).
   if password_hash.startswith("$2"):
     try:
       return pwd_context.verify(plain_password, password_hash)
     except Exception:
       return False
-  return settings.allow_demo_password_fallback and plain_password == password_hash
+  # Fallback démo (désactivé par défaut) : uniquement pour des hashes
+  # placeholder/vides issus d'anciens seeds, jamais pour un vrai hash.
+  if settings.allow_demo_password_fallback:
+    if plain_password == "password" and (
+      not password_hash
+      or "YourHashedPasswordHere" in password_hash
+    ):
+      return True
+    return plain_password == password_hash
+  return False
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:

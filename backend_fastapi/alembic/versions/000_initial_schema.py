@@ -1,30 +1,29 @@
--- setup_database.sql
--- Rebuild complete ARCANE schema from scratch.
+"""Schéma initial complet ARCANE (source de vérité Alembic).
 
--- 0) Drop existing tables (destructive)
-DROP TABLE IF EXISTS activity_logs CASCADE;
-DROP TABLE IF EXISTS argos_messages CASCADE;
-DROP TABLE IF EXISTS argos_discussions CASCADE;
-DROP TABLE IF EXISTS radiotherapies CASCADE;
-DROP TABLE IF EXISTS imaging_studies CASCADE;
-DROP TABLE IF EXISTS surgeries CASCADE;
-DROP TABLE IF EXISTS medications CASCADE;
-DROP TABLE IF EXISTS measures CASCADE;
-DROP TABLE IF EXISTS biomarkers CASCADE;
-DROP TABLE IF EXISTS biological_specimens CASCADE;
-DROP TABLE IF EXISTS tumor_sizes CASCADE;
-DROP TABLE IF EXISTS tnm_events CASCADE;
-DROP TABLE IF EXISTS tumor_patho_events CASCADE;
-DROP TABLE IF EXISTS primary_cancer_stages CASCADE;
-DROP TABLE IF EXISTS primary_cancer_grades CASCADE;
-DROP TABLE IF EXISTS primary_cancers CASCADE;
-DROP TABLE IF EXISTS patient_access CASCADE;
-DROP TABLE IF EXISTS patient_profiles CASCADE;
-DROP TABLE IF EXISTS patients CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+Cette migration crée l'intégralité du schéma relationnel ARCANE.
+Elle est **idempotente** (`CREATE TABLE/INDEX IF NOT EXISTS`) afin de pouvoir
+être appliquée :
+  - sur une base totalement vide (déploiement neuf via `alembic upgrade head`) ;
+  - sur une base déjà créée par l'ancien `setup_database.sql` (on se contente
+    alors de l'enregistrer dans `alembic_version`).
 
+Les migrations suivantes (001, 002) restent des ajustements idempotents et
+deviennent de simples no-op sur une base créée par cette révision.
+"""
+
+from __future__ import annotations
+
+from alembic import op
+
+revision = "000_initial_schema"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+SCHEMA_DDL = """
 -- 1) Users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -38,8 +37,7 @@ CREATE TABLE users (
 );
 
 -- 2) Patients
--- Rule: each patient is assigned to one and only one clinician.
-CREATE TABLE patients (
+CREATE TABLE IF NOT EXISTS patients (
     id_patient SERIAL PRIMARY KEY,
     name VARCHAR(255),
     ipp VARCHAR(50) UNIQUE NOT NULL,
@@ -65,8 +63,8 @@ CREATE TABLE patients (
     updated_by INTEGER REFERENCES users(id)
 );
 
--- 2b) Profils patients (persistes hors health_info JSONB)
-CREATE TABLE patient_profiles (
+-- 2b) Profils patients
+CREATE TABLE IF NOT EXISTS patient_profiles (
     patient_id INTEGER PRIMARY KEY REFERENCES patients(id_patient) ON DELETE CASCADE,
     profile_data JSONB NOT NULL,
     profile_version INTEGER NOT NULL DEFAULT 0,
@@ -74,11 +72,10 @@ CREATE TABLE patient_profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_patient_profiles_updated ON patient_profiles(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patient_profiles_updated ON patient_profiles(updated_at DESC);
 
 -- 3) Primary cancers
-CREATE TABLE primary_cancers (
+CREATE TABLE IF NOT EXISTS primary_cancers (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     cancer_order INTEGER,
@@ -97,7 +94,7 @@ CREATE TABLE primary_cancers (
 );
 
 -- 4) Primary cancer grades
-CREATE TABLE primary_cancer_grades (
+CREATE TABLE IF NOT EXISTS primary_cancer_grades (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     grade_value VARCHAR(50),
@@ -108,7 +105,7 @@ CREATE TABLE primary_cancer_grades (
 );
 
 -- 5) Primary cancer stages
-CREATE TABLE primary_cancer_stages (
+CREATE TABLE IF NOT EXISTS primary_cancer_stages (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     staging_system VARCHAR(100),
@@ -122,7 +119,7 @@ CREATE TABLE primary_cancer_stages (
 );
 
 -- 6) Tumor pathology events
-CREATE TABLE tumor_patho_events (
+CREATE TABLE IF NOT EXISTS tumor_patho_events (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     event_type VARCHAR(100),
@@ -133,7 +130,7 @@ CREATE TABLE tumor_patho_events (
 );
 
 -- 7) TNM events
-CREATE TABLE tnm_events (
+CREATE TABLE IF NOT EXISTS tnm_events (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     tnm_version VARCHAR(20),
@@ -146,7 +143,7 @@ CREATE TABLE tnm_events (
 );
 
 -- 8) Tumor sizes
-CREATE TABLE tumor_sizes (
+CREATE TABLE IF NOT EXISTS tumor_sizes (
     id SERIAL PRIMARY KEY,
     primary_cancer_id INTEGER NOT NULL REFERENCES primary_cancers(id) ON DELETE CASCADE,
     size_value DECIMAL(10,2),
@@ -158,7 +155,7 @@ CREATE TABLE tumor_sizes (
 );
 
 -- 9) Biological specimens
-CREATE TABLE biological_specimens (
+CREATE TABLE IF NOT EXISTS biological_specimens (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     specimen_identifier VARCHAR(100) UNIQUE NOT NULL,
@@ -172,7 +169,7 @@ CREATE TABLE biological_specimens (
 );
 
 -- 10) Biomarkers
-CREATE TABLE biomarkers (
+CREATE TABLE IF NOT EXISTS biomarkers (
     id SERIAL PRIMARY KEY,
     specimen_id INTEGER NOT NULL REFERENCES biological_specimens(id) ON DELETE CASCADE,
     biomarker_name VARCHAR(200) NOT NULL,
@@ -185,7 +182,7 @@ CREATE TABLE biomarkers (
 );
 
 -- 11) Measures
-CREATE TABLE measures (
+CREATE TABLE IF NOT EXISTS measures (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     measure_type VARCHAR(50) CHECK (measure_type IN ('HEIGHT', 'WEIGHT', 'BMI', 'BSA', 'BLOOD_PRESSURE', 'OTHER')),
@@ -197,7 +194,7 @@ CREATE TABLE measures (
 );
 
 -- 12) Medications
-CREATE TABLE medications (
+CREATE TABLE IF NOT EXISTS medications (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     medication_name VARCHAR(200) NOT NULL,
@@ -212,7 +209,7 @@ CREATE TABLE medications (
 );
 
 -- 13) Surgeries
-CREATE TABLE surgeries (
+CREATE TABLE IF NOT EXISTS surgeries (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
@@ -225,7 +222,7 @@ CREATE TABLE surgeries (
 );
 
 -- 14) Imaging studies
-CREATE TABLE imaging_studies (
+CREATE TABLE IF NOT EXISTS imaging_studies (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
@@ -239,7 +236,7 @@ CREATE TABLE imaging_studies (
 );
 
 -- 15) Radiotherapies
-CREATE TABLE radiotherapies (
+CREATE TABLE IF NOT EXISTS radiotherapies (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     primary_cancer_id INTEGER REFERENCES primary_cancers(id) ON DELETE SET NULL,
@@ -256,7 +253,7 @@ CREATE TABLE radiotherapies (
 );
 
 -- 16) ARGOS discussions
-CREATE TABLE argos_discussions (
+CREATE TABLE IF NOT EXISTS argos_discussions (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     clinician_id INTEGER NOT NULL REFERENCES users(id),
@@ -268,7 +265,7 @@ CREATE TABLE argos_discussions (
 );
 
 -- 17) ARGOS messages
-CREATE TABLE argos_messages (
+CREATE TABLE IF NOT EXISTS argos_messages (
     id SERIAL PRIMARY KEY,
     discussion_id INTEGER NOT NULL REFERENCES argos_discussions(id) ON DELETE CASCADE,
     message_type VARCHAR(20) CHECK (message_type IN ('user_query', 'argos_response', 'clinician_note')),
@@ -284,7 +281,7 @@ CREATE TABLE argos_messages (
 );
 
 -- 18) Activity logs
-CREATE TABLE activity_logs (
+CREATE TABLE IF NOT EXISTS activity_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     action_type VARCHAR(100) NOT NULL,
@@ -296,8 +293,8 @@ CREATE TABLE activity_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 19) Explicit patient access (optional explicit ACL)
-CREATE TABLE patient_access (
+-- 19) Explicit patient access
+CREATE TABLE IF NOT EXISTS patient_access (
     id SERIAL PRIMARY KEY,
     patient_id INTEGER NOT NULL REFERENCES patients(id_patient) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -309,56 +306,48 @@ CREATE TABLE patient_access (
 );
 
 -- 20) Indexes
-CREATE INDEX idx_patients_ipp ON patients(ipp);
-CREATE INDEX idx_patients_name ON patients(name);
-CREATE INDEX idx_patients_assigned_clinician_id ON patients(assigned_clinician_id);
-CREATE INDEX idx_patients_created_by ON patients(created_by);
-CREATE INDEX idx_primary_cancers_patient_id ON primary_cancers(patient_id);
-CREATE INDEX idx_biological_specimens_patient_id ON biological_specimens(patient_id);
-CREATE INDEX idx_measures_patient_id ON measures(patient_id);
-CREATE INDEX idx_argos_discussions_patient_id ON argos_discussions(patient_id);
-CREATE INDEX idx_argos_discussions_clinician_id ON argos_discussions(clinician_id);
-CREATE INDEX idx_argos_messages_discussion_id ON argos_messages(discussion_id);
-CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
-CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_patients_ipp ON patients(ipp);
+CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(name);
+CREATE INDEX IF NOT EXISTS idx_patients_assigned_clinician_id ON patients(assigned_clinician_id);
+CREATE INDEX IF NOT EXISTS idx_patients_created_by ON patients(created_by);
+CREATE INDEX IF NOT EXISTS idx_primary_cancers_patient_id ON primary_cancers(patient_id);
+CREATE INDEX IF NOT EXISTS idx_biological_specimens_patient_id ON biological_specimens(patient_id);
+CREATE INDEX IF NOT EXISTS idx_measures_patient_id ON measures(patient_id);
+CREATE INDEX IF NOT EXISTS idx_argos_discussions_patient_id ON argos_discussions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_argos_discussions_clinician_id ON argos_discussions(clinician_id);
+CREATE INDEX IF NOT EXISTS idx_argos_messages_discussion_id ON argos_messages(discussion_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at);
+"""
 
--- 21) Seed users
--- All demo passwords are "password" with demo fallback enabled.
-INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES
-('admin', 'admin@arcane.com', '$2a$10$YourHashedPasswordHere', 'admin', 'Administrateur System', TRUE),
-('dr.martin', 'martin@hospital.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr Martin Dupont', TRUE),
-('dr.leclerc', 'leclerc@hospital.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr Lea Leclerc', TRUE),
-('researcher.jane', 'jane@research.com', '$2a$10$YourHashedPasswordHere', 'researcher', 'Jane Doe', TRUE),
-('pending.clin1', 'pending1@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr Pending One', FALSE),
-('pending.clin2', 'pending2@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr Pending Two', FALSE),
-('disabled.clin', 'disabled@arcane.com', '$2a$10$YourHashedPasswordHere', 'clinician', 'Dr Disabled', FALSE);
 
--- 22) Seed patients
-INSERT INTO patients (
-    name,
-    ipp,
-    birth_date_year,
-    birth_date_month,
-    birth_date,
-    birth_date_precision,
-    sex,
-    created_by,
-    updated_by,
-    assigned_clinician_id
-) VALUES
-('Jean Dupont', 'PAT001', 1960, 5, DATE '1960-05-01', 'month', 'MALE', 1, 1, 2),
-('Marie Curie', 'PAT002', 1975, 8, DATE '1975-08-01', 'month', 'FEMALE', 1, 1, 2),
-('Pierre Martin', 'PAT003', 1955, 2, DATE '1955-02-01', 'month', 'MALE', 2, 2, 3),
-('Sophie Bernard', 'PAT004', 1982, 11, DATE '1982-11-01', 'month', 'FEMALE', 2, 2, 3);
+DROP_DDL = """
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS argos_messages CASCADE;
+DROP TABLE IF EXISTS argos_discussions CASCADE;
+DROP TABLE IF EXISTS radiotherapies CASCADE;
+DROP TABLE IF EXISTS imaging_studies CASCADE;
+DROP TABLE IF EXISTS surgeries CASCADE;
+DROP TABLE IF EXISTS medications CASCADE;
+DROP TABLE IF EXISTS measures CASCADE;
+DROP TABLE IF EXISTS biomarkers CASCADE;
+DROP TABLE IF EXISTS biological_specimens CASCADE;
+DROP TABLE IF EXISTS tumor_sizes CASCADE;
+DROP TABLE IF EXISTS tnm_events CASCADE;
+DROP TABLE IF EXISTS tumor_patho_events CASCADE;
+DROP TABLE IF EXISTS primary_cancer_stages CASCADE;
+DROP TABLE IF EXISTS primary_cancer_grades CASCADE;
+DROP TABLE IF EXISTS primary_cancers CASCADE;
+DROP TABLE IF EXISTS patient_access CASCADE;
+DROP TABLE IF EXISTS patient_profiles CASCADE;
+DROP TABLE IF EXISTS patients CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+"""
 
--- 23) Completion notice
-DO $$
-BEGIN
-    RAISE NOTICE '========================================';
-    RAISE NOTICE 'ARCANE DATABASE REBUILT';
-    RAISE NOTICE '========================================';
-    RAISE NOTICE 'Tables created successfully.';
-    RAISE NOTICE 'Patient assignment enabled (1 patient -> 1 clinician).';
-    RAISE NOTICE 'Birth date DATE + precision columns available.';
-    RAISE NOTICE '========================================';
-END $$;
+
+def upgrade() -> None:
+  op.execute(SCHEMA_DDL)
+
+
+def downgrade() -> None:
+  op.execute(DROP_DDL)

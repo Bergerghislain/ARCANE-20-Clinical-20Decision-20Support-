@@ -85,9 +85,22 @@ python -m pip install -r backend_fastapi/requirements.txt
 ```
 
 ## 5) Initialiser la base
-- Creer la base `arcane`.
-- **Option A (recommandee pour un clone neuf)** : executer `setup_database.sql` (schema complet, inclut `patient_profiles`).
-- **Option B (evolution incremental)** : depuis `backend_fastapi/`, `alembic upgrade head` (voir `backend_fastapi/README.md` section Migrations Alembic). Les revisions sont idempotentes si la table existe deja.
+- Creer la base `arcane` (vide).
+- **Schema = Alembic (source de verite)**, puis **seeds** de demo :
+
+```bash
+# 1) schema
+cd backend_fastapi
+alembic upgrade head
+cd ..
+
+# 2) seeds de demo (vrais hashes bcrypt, sans psql requis)
+python backend_fastapi/scripts/seed_demo.py
+```
+
+Raccourci : `bash scripts/ci-init-db.sh` (ou `powershell -File scripts/ci-init-db.ps1` sous Windows) execute ces deux etapes. Voir `backend_fastapi/README.md` (section Migrations Alembic) pour le detail et le test de reversibilite.
+
+Identifiants admin de demo (apres seeds) : utilisateur `admin` (ou `admin@arcane.com`), mot de passe `password` (configurable via `SEED_DEMO_PASSWORD`). Le mot de passe est stocke en **vrai hash bcrypt** : `ALLOW_DEMO_PASSWORD_FALLBACK` reste `false`.
 
 ## Lancer le projet en developpement
 
@@ -139,7 +152,7 @@ Depuis la racine du depot (Docker / Docker Compose installes):
 pnpm run compose:up
 ```
 
-Adapter les variables dans `deploy/docker-compose.yml` (mots de passe, `JWT_SECRET`, `CORS_ORIGINS`). Le script SQL `setup_database.sql` est monte en initialisation de la base au premier demarrage du volume PostgreSQL.
+Adapter les variables dans `deploy/docker-compose.yml` (mots de passe, `JWT_SECRET`, `CORS_ORIGINS`). Au demarrage, le conteneur applicatif execute `alembic upgrade head` puis charge les seeds (`deploy/entrypoint.sh`). Mettre `SEED_ON_START=false` pour ne pas inserer les donnees de demo.
 
 Arret: `pnpm run compose:down`.
 
@@ -152,17 +165,17 @@ Le workflow `.github/workflows/ci.yml` execute a chaque push/PR sur `main` :
 | Job | Etapes |
 |-----|--------|
 | **frontend** | `pnpm install --frozen-lockfile` → `typecheck` → `test` → `build` |
-| **backend** | PostgreSQL 16 (service) → `setup_database.sql` → `pytest` (tests d'integration inclus) |
+| **backend** | PostgreSQL 16 (service) → `alembic upgrade head` → smoke test migrations (`downgrade -1` / `upgrade head`) → seeds → `pytest` |
 
-Variables CI backend : `JWT_SECRET` dedie, `ALLOW_DEMO_PASSWORD_FALLBACK=true` (seeds demo SQL uniquement).
+Variables CI backend : `JWT_SECRET` dedie, `ALLOW_DEMO_PASSWORD_FALLBACK=false` (les seeds creent de vrais hashes bcrypt, on ne depend plus du fallback).
 
-PostgreSQL de test en local (apres creation de la base `arcane`) :
+PostgreSQL de test en local (apres creation de la base `arcane`) — schema Alembic + seeds, sans `psql` :
 
 ```bash
 # Linux / macOS / cloud
 bash scripts/ci-init-db.sh
 
-# Windows (psql dans le PATH)
+# Windows
 powershell -File scripts/ci-init-db.ps1
 ```
 

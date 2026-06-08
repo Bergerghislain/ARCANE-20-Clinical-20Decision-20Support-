@@ -6,7 +6,7 @@ Ce document sert de **snapshot** pour savoir ce qui est **fiable** avant d’am�
 
 - **Frontend** : `client/` (React + TypeScript + Vite)
 - **Backend** : `backend_fastapi/` (FastAPI)
-- **Base de données** : PostgreSQL (schéma principal : `setup_database.sql`)
+- **Base de données** : PostgreSQL (schéma : **Alembic** ; seeds : `scripts/seed_demo.py`)
 
 ## Fonctionnalités disponibles (actuel)
 
@@ -34,9 +34,9 @@ Ce document sert de **snapshot** pour savoir ce qui est **fiable** avant d’am�
 
 ## Fonctionnalités incomplètes / à confirmer
 
-- **Migrations Alembic** : seulement une partie du schéma est couverte (migrations 001/002). Le schéma complet est encore porté par `setup_database.sql`.
-- **Tests d’intégration DB** : supposent une DB initialisée via `setup_database.sql` (seeds inclus).
-- **Durcissement prod** : dépend de la configuration d’environnement (CORS, cookies secure, secret JWT, suppression fallback démo).
+- **Migrations Alembic** : couvrent désormais **tout** le schéma (`000` initial + `001`/`002`). Les seeds sont gérés par `scripts/seed_demo.py`.
+- **Tests d’intégration DB** : supposent une DB migrée (Alembic) + seedée (`seed_demo.py`). Ils ne dépendent **plus** du fallback démo (`ALLOW_DEMO_PASSWORD_FALLBACK=false`).
+- **Durcissement prod** : dépend de la configuration d’environnement (CORS, cookies secure, secret JWT). Le fallback démo est désormais désactivé partout (vrais hashes bcrypt).
 
 ## Tests existants
 
@@ -59,15 +59,18 @@ Variables sensibles / sécurité :
 
 ## Base de données (état actuel)
 
-- **Source de vérité actuelle** : `setup_database.sql` (schéma complet + seeds)
-- **Alembic** : présent, mais partiel (voir `backend_fastapi/README.md`)
+- **Source de vérité du schéma** : **Alembic** (`000_initial_schema` crée tout le schéma ; `001`/`002` = ajustements).
+- **`scripts/seed_demo.py`** : seeds de démo (users avec **vrais hashes bcrypt** + patients), idempotents, à charger après les migrations.
+- Création d'une base neuve : `alembic upgrade head` (schéma) puis `python backend_fastapi/scripts/seed_demo.py` (seeds).
 
-Initialisation DB de test (comme en CI) :
-- CI Linux : `bash scripts/ci-init-db.sh`
-- Windows (si `psql` disponible) : `powershell -File scripts/ci-init-db.ps1`
+Initialisation DB de test (comme en CI, sans `psql`) :
+- Linux/macOS : `bash scripts/ci-init-db.sh`
+- Windows : `powershell -File scripts/ci-init-db.ps1`
+
+Déploiement Docker : `deploy/entrypoint.sh` applique `alembic upgrade head` (+ seeds) au démarrage du conteneur.
 
 ## Limites connues
 
 - Sur un poste **sans** Docker et **sans** `psql`, l’initialisation automatique de la DB de tests n’est pas possible via scripts.
-- Les tests d’intégration “auth/patients/admin workflow” supposent des seeds (utilisateurs + patients) cohérents avec `setup_database.sql`.
+- Les tests d’intégration “auth/patients/admin workflow” supposent des seeds (utilisateurs + patients) chargés via `scripts/seed_demo.py`.
 

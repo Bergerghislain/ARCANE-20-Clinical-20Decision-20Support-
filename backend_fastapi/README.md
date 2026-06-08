@@ -22,7 +22,7 @@ Intégration Qwen / LLM : [`../docs/QWEN_INTEGRATION.md`](../docs/QWEN_INTEGRATI
 ## Prérequis
 
 - Python 3.12+ (recommandé)
-- PostgreSQL (base `arcane` via `setup_database.sql` ou Alembic)
+- PostgreSQL (schéma créé par **Alembic** ; seeds de démo via `scripts/seed_demo.py`)
 
 ## Variables d'environnement
 
@@ -50,7 +50,8 @@ COOKIE_DOMAIN=
 COOKIE_SECURE=false
 COOKIE_SAMESITE=lax
 CORS_ORIGINS=http://localhost:8080
-ALLOW_DEMO_PASSWORD_FALLBACK=true
+# Désactivé : les seeds créent de vrais hashes bcrypt (voir scripts/seed_demo.py).
+ALLOW_DEMO_PASSWORD_FALLBACK=false
 
 # SQLAlchemy
 SQLALCHEMY_ECHO=false
@@ -109,17 +110,45 @@ uvicorn app.main:app --reload --port 8000
   - `psycopg` (défaut) : `SqlUserRepository` partout ;
   - `sqlalchemy` : `HybridUserRepository` pour les utilisateurs (démo de migration incrémentale).
 
-## Migrations Alembic
+## Migrations Alembic (source de vérité du schéma)
 
-Révisions dans `alembic/versions/` (ex. `001_patient_profiles.py`). La première révision crée `patient_profiles` **si la table n'existe pas** (compatible avec un déploiement déjà initialisé via `setup_database.sql`).
+**Alembic crée l'intégralité du schéma.** Une base vide est construite par
+`alembic upgrade head`. Les **seeds** de démo (utilisateurs avec vrais hashes
+bcrypt + patients) sont chargés ensuite par `scripts/seed_demo.py`.
+
+| Révision | Fichier | Effet |
+|----------|---------|--------|
+| `000` | `000_initial_schema.py` | **Schéma complet** ARCANE (toutes les tables + index), idempotent (`IF NOT EXISTS`) |
+| `001` | `001_patient_profiles.py` | Table `patient_profiles` (no-op sur une base créée par `000`) |
+| `002` | `002_clinical_primary_cancer_link.py` | Colonne `primary_cancer_id` (FK) sur `surgeries`, `radiotherapies`, `imaging_studies` (no-op si déjà présente) |
+
+Créer une base neuve, de bout en bout :
+
+```bash
+# 1) schéma (depuis backend_fastapi/)
+cd backend_fastapi
+alembic upgrade head
+alembic current   # -> 002_clinical_primary_cancer_link (head)
+
+# 2) seeds de démo (depuis la racine du dépôt) — vrais hashes bcrypt, sans psql
+python backend_fastapi/scripts/seed_demo.py
+```
+
+Raccourci local équivalent : `scripts/ci-init-db.ps1` (Windows) ou `bash scripts/ci-init-db.sh`.
+
+**Comptes de démo** (après `seed_demo.py`) : mot de passe `password` par défaut (changer via `SEED_DEMO_PASSWORD`), stocké en **vrai hash bcrypt**. Le fallback `ALLOW_DEMO_PASSWORD_FALLBACK` reste donc `false` (dev, CI et prod).
+
+Tester la réversibilité (déployabilité) :
 
 ```bash
 cd backend_fastapi
+alembic downgrade -1
 alembic upgrade head
-alembic current
 ```
 
-Base existante sans Alembic : exécuter une fois `backend_fastapi/sql/migrate_patient_profiles.sql`.
+`000` est **idempotent** : l'appliquer sur une base déjà créée par un ancien
+script SQL ne fait que l'enregistrer dans `alembic_version`.
+Migration ponctuelle des profils sur base ancienne : `backend_fastapi/sql/migrate_patient_profiles.sql`.
 
 ## Persistance profil patient
 

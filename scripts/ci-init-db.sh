@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
-# Initialise la base PostgreSQL pour les tests d'intégration (CI ou poste local).
+# Initialise la base ARCANE (poste local / cloud) :
+#   1) crée le schéma via Alembic (source de vérité)
+#   2) charge les seeds de démo (idempotents)
+#
+# Pré-requis : base PostgreSQL existante + variables DB_* (voir .env / .env.example).
 set -euo pipefail
 
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-arcane}"
-export PGPASSWORD="${DB_PASSWORD:-postgres}"
-
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SQL_FILE="${REPO_ROOT}/setup_database.sql"
 
-if [[ ! -f "${SQL_FILE}" ]]; then
-  echo "Fichier introuvable: ${SQL_FILE}" >&2
-  exit 1
-fi
+echo "1/2 - Schéma : alembic upgrade head ..."
+( cd "${REPO_ROOT}/backend_fastapi" && python -m alembic upgrade head )
 
-echo "Application du schéma ARCANE sur ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME} ..."
-psql -v ON_ERROR_STOP=1 -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -f "${SQL_FILE}"
-echo "Base initialisée."
+echo "2/2 - Seeds : seed_demo.py (hashes bcrypt réels) ..."
+python "${REPO_ROOT}/backend_fastapi/scripts/seed_demo.py"
+
+echo "Base initialisée (schéma Alembic + seeds)."
