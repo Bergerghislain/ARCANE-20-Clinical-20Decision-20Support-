@@ -1,0 +1,138 @@
+% Tailored CV for Back Market - Software Engineer, Payment / Payout
+% Replace contact placeholders before sending.
+\documentclass[letterpaper,11pt]{article}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.55in}
+\addtolength{\evensidemargin}{-0.55in}
+\addtolength{\textwidth}{1.1in}
+\addtolength{\topmargin}{-0.65in}
+\addtolength{\textheight}{1.25in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-7pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\newcommand{\resumeItem}[1]{\item\small{#1 \vspace{-2pt}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.18in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape Ghislain THEUBO} \\ \vspace{2pt}
+    \small Paris, France $|$ Open to Barcelona / hybrid $|$ +33 6 82 86 62 79 $|$
+    \href{mailto:TODO@email.com}{TODO@email.com} $|$
+    \href{https://www.linkedin.com/in/TODO}{linkedin.com/in/TODO} $|$
+    \href{https://github.com/TODO}{github.com/TODO}
+\end{center}
+
+\vspace{-8pt}
+\begin{center}
+    \textbf{Backend-Oriented Software Engineer -- Python/FastAPI, APIs, PostgreSQL, Reliability, Security}
+\end{center}
+\vspace{-8pt}
+
+\section{Profile}
+\small{
+Recent Ensimag software engineer with backend-oriented full-stack experience building secure APIs, PostgreSQL-backed workflows and production-minded web applications. Strongest fit for Back Market is on the Python/FastAPI, API design, testing, data modeling and security/privacy-by-design side. Used to regulated data, ownership of end-to-end features and build/run discipline; actively interested in marketplace/payment reliability, distributed systems and Go-based services.
+}
+
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Grenoble INP - Ensimag}{Grenoble, France}
+    {Engineering degree in Computer Science / Software Engineering}{Graduated 2025}
+\resumeSubHeadingListEnd
+
+\section{Experience}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {ARCANE -- Clinical Decision Support Platform}{Paris, France}
+    {Backend-Oriented Full-Stack Software Engineer}{2024 -- 2025}
+    \resumeItemListStart
+      \resumeItem{Built and maintained backend services in \textbf{Python/FastAPI} for authentication, patient management, administration, clinical data and AI discussion workflows.}
+      \resumeItem{Designed REST APIs and service boundaries with thin routers, application services, explicit use cases and repository layers to keep business logic testable and maintainable.}
+      \resumeItem{Implemented security-sensitive flows for a healthcare context: JWT access tokens, refresh tokens in httpOnly cookies, role-based access, CORS/cookie configuration and server-side secret handling.}
+      \resumeItem{Modeled persistent data in \textbf{PostgreSQL} with Alembic migrations, SQL scripts, JSONB profile storage, compatibility reads and optimistic versioning for concurrent updates.}
+      \resumeItem{Contributed to a build/run mindset: Docker compose deployment path, entrypoint migrations, environment configuration, CI checks and documented operational setup.}
+      \resumeItem{Wrote and maintained backend tests with Pytest and FastAPI test clients; CI validates migrations, seeds, API workflows and regression-prone access-control paths.}
+      \resumeItem{Delivered frontend integrations in React/TypeScript when needed, keeping a fullstack understanding of API contracts, state management and user-facing behavior.}
+    \resumeItemListEnd
+
+  \resumeSubheading
+    {Engineering internships and applied software projects}{France}
+    {Software Engineering -- Backend / Full-Stack}{2022 -- 2024}
+    \resumeItemListStart
+      \resumeItem{Built software using \textbf{Python}, \textbf{Java}, \textbf{C\#} and \textbf{TypeScript}; comfortable with OOP, algorithms, relational databases and API-driven architectures.}
+      \resumeItem{Practiced disciplined engineering habits: Git workflows, code reviews, documentation, debugging, automated tests and incremental delivery in existing codebases.}
+      \resumeItem{Worked on product-oriented features where correctness, maintainability and clear communication mattered more than quick prototypes.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+\section{Selected Backend Work}
+\resumeSubHeadingListStart
+  \resumeProjectHeading
+    {\textbf{Auth and Access-Control Services} $|$ \emph{FastAPI, JWT, PostgreSQL, Pytest}}{}
+    \resumeItemListStart
+      \resumeItem{Implemented authentication endpoints, refresh/logout flows, role-based policies and API error mapping for clinician/admin/researcher workflows.}
+    \resumeItemListEnd
+  \resumeProjectHeading
+    {\textbf{Patient Profile Repository} $|$ \emph{PostgreSQL, Alembic, SQL, JSONB}}{}
+    \resumeItemListStart
+      \resumeItem{Built versioned profile persistence with SQL-backed repositories, schema migration logic and conflict handling for stale updates.}
+    \resumeItemListEnd
+  \resumeProjectHeading
+    {\textbf{Operational Setup} $|$ \emph{Docker, GitHub Actions, Alembic, CI}}{}
+    \resumeItemListStart
+      \resumeItem{Documented and automated local/CI database initialization, migration smoke tests and deployment startup behavior.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    \textbf{Backend}{: Python, FastAPI, REST APIs, Pydantic, Java/OOP, C\#, service design, API contracts, security basics} \\
+    \textbf{Data}{: PostgreSQL, SQL, Alembic, JSONB, schema evolution, data validation, transactional thinking} \\
+    \textbf{Frontend}{: React, TypeScript, Vite, Tailwind, API integration, state and routing fundamentals} \\
+    \textbf{Infra / Quality}{: Docker, GitHub Actions, CI/CD, Linux, Pytest, Vitest, testable architecture, documentation} \\
+    \textbf{Learning focus}{: Go fundamentals, Celery/queue patterns, Kafka/event-driven systems, payment reliability and distributed system design}
+  }}
+\end{itemize}
+
+\section{Languages}
+\small{French: fluent \quad English: professional working proficiency}
+
+\end{document}

@@ -1,0 +1,134 @@
+% Tailored CV for Doctolib - Pipeline Software Engineer Fullstack Java / React
+% Replace contact placeholders before sending.
+\documentclass[letterpaper,11pt]{article}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.55in}
+\addtolength{\evensidemargin}{-0.55in}
+\addtolength{\textwidth}{1.1in}
+\addtolength{\topmargin}{-0.65in}
+\addtolength{\textheight}{1.25in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-7pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\newcommand{\resumeItem}[1]{\item\small{#1 \vspace{-2pt}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.18in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape Ghislain THEUBO} \\ \vspace{2pt}
+    \small Paris, France $|$ +33 6 82 86 62 79 $|$
+    \href{mailto:TODO@email.com}{TODO@email.com} $|$
+    \href{https://www.linkedin.com/in/TODO}{linkedin.com/in/TODO} $|$
+    \href{https://github.com/TODO}{github.com/TODO}
+\end{center}
+
+\vspace{-8pt}
+\begin{center}
+    \textbf{Junior Full-Stack Software Engineer -- Healthcare Products -- React, TypeScript, Java, Python/FastAPI}
+\end{center}
+\vspace{-8pt}
+
+\section{Profile}
+\small{
+Recent Ensimag engineering graduate and full-stack software engineer with hands-on experience building a clinical decision-support product used around patient workflows. Strong fit for Doctolib's product engineering culture: user-first mindset, React/TypeScript frontend, secure backend APIs, PostgreSQL data modeling, automated tests, code reviews and pragmatic delivery. Comfortable with Java/OOP foundations and eager to grow deeper in the JVM ecosystem while contributing quickly on React/TypeScript and backend service design.
+}
+
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Grenoble INP - Ensimag}{Grenoble, France}
+    {Engineering degree in Computer Science / Software Engineering}{Graduated 2025}
+\resumeSubHeadingListEnd
+
+\section{Experience}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {ARCANE -- Clinical Decision Support Platform}{Paris, France}
+    {Full-Stack / AI Software Engineer}{2024 -- 2025}
+    \resumeItemListStart
+      \resumeItem{Built a healthcare-oriented web platform for rare cancer workflows, combining a \textbf{React 18 / TypeScript} dashboard with a \textbf{FastAPI} backend and \textbf{PostgreSQL} persistence.}
+      \resumeItem{Delivered patient-facing and clinician/admin features: patient dashboard, search and filters, JSON imports, patient record tabs, assignment workflows and profile persistence.}
+      \resumeItem{Designed secure backend APIs for authentication, patient management, administration and ARGOS AI discussions; implemented JWT sessions, refresh-token cookies and role-based access controls.}
+      \resumeItem{Modeled clinical and profile data in PostgreSQL using Alembic migrations, JSONB profile storage, optimistic versioning and compatibility paths for legacy payloads.}
+      \resumeItem{Improved code quality through layered architecture, dependency injection, thin routers, business services and explicit application errors mapped to HTTP responses.}
+      \resumeItem{Maintained a strong testing culture with Vitest/Testing Library on frontend flows and Pytest/FastAPI integration tests on backend workflows; CI runs typecheck, tests, build and DB migration smoke tests.}
+      \resumeItem{Collaborated around real healthcare constraints: usability for clinicians, data privacy, reliability, maintainability and fast iteration on product feedback.}
+    \resumeItemListEnd
+
+  \resumeSubheading
+    {Engineering internships and software projects}{France}
+    {Backend / Full-Stack Software Engineering}{2022 -- 2024}
+    \resumeItemListStart
+      \resumeItem{Developed backend and full-stack features across \textbf{Java}, \textbf{Python}, \textbf{C\#} and \textbf{TypeScript}, with emphasis on readable, tested and maintainable code.}
+      \resumeItem{Worked with relational databases, REST APIs, Git workflows and cloud/dev tooling; comfortable joining existing codebases and learning team standards quickly.}
+      \resumeItem{Practiced object-oriented design, data structures, algorithms and software architecture through engineering-school projects and production-oriented internships.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+\section{Selected Projects}
+\resumeSubHeadingListStart
+  \resumeProjectHeading
+    {\textbf{ARGOS AI Assistant} $|$ \emph{Python, FastAPI, SSE, OpenAI-compatible APIs, React}}{}
+    \resumeItemListStart
+      \resumeItem{Implemented an AI discussion and report-generation flow with provider abstraction, deterministic mock mode for tests/demos, and streaming responses through Server-Sent Events.}
+      \resumeItem{Kept LLM calls server-side to protect credentials and control latency/error handling from the backend instead of exposing AI providers to the browser.}
+    \resumeItemListEnd
+  \resumeProjectHeading
+    {\textbf{Patient Profile Persistence} $|$ \emph{PostgreSQL, Alembic, FastAPI, Zod}}{}
+    \resumeItemListStart
+      \resumeItem{Built profile save/read workflows with backend validation, schema versioning, frontend Zod validation and conflict handling for stale profile versions.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    \textbf{Frontend}{: React, TypeScript, Vite, Tailwind, shadcn/ui, React Query, Testing Library, Vitest} \\
+    \textbf{Backend}{: Python, FastAPI, REST APIs, Java/OOP fundamentals, C\#, JWT, Pydantic, SQLAlchemy concepts} \\
+    \textbf{Data}{: PostgreSQL, Alembic migrations, SQL, JSONB, schema evolution, data validation} \\
+    \textbf{Quality / DevOps}{: Git, Docker, CI/CD, GitHub Actions, automated tests, code review, pragmatic refactoring} \\
+    \textbf{Working style}{: user-first product thinking, pair-programming friendly, curious, rigorous, comfortable in health/product environments}
+  }}
+\end{itemize}
+
+\section{Languages}
+\small{French: fluent \quad English: professional working proficiency}
+
+\end{document}
