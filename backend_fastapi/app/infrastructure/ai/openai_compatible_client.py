@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -7,6 +8,17 @@ import httpx
 
 from ...application.errors import ApplicationError
 from ...settings import settings
+from .circuit_breaker import CircuitBreaker
+
+# Disjoncteur partage par tous les clients (etat de l'endpoint LLM).
+_breaker = CircuitBreaker(
+  threshold=settings.llm_circuit_breaker_threshold,
+  reset_seconds=settings.llm_circuit_breaker_reset_seconds,
+)
+
+
+def get_circuit_breaker() -> CircuitBreaker:
+  return _breaker
 
 
 class OpenAiCompatibleClient:
@@ -36,25 +48,51 @@ class OpenAiCompatibleClient:
   def chat(self, messages: list[dict[str, Any]]) -> str:
     if settings.llm_provider != "openai_compatible":
       raise ApplicationError("LLM provider is disabled.", 503)
+    if _breaker.is_open():
+      raise ApplicationError("LLM temporairement indisponible (circuit ouvert).", 503)
 
     url = self._chat_url()
     payload = self._base_payload(messages, stream=False)
+    max_retries = max(0, int(settings.llm_max_retries))
+    backoff = float(settings.llm_retry_backoff_seconds)
+    last_error: ApplicationError | None = None
 
-    try:
-      with httpx.Client(timeout=settings.llm_timeout_seconds) as client:
-        resp = client.post(url, headers=self._headers(), json=payload)
-        if resp.status_code >= 400:
-          raise ApplicationError(f"LLM request failed ({resp.status_code}).", 502)
+    for attempt in range(max_retries + 1):
+      try:
+        with httpx.Client(timeout=settings.llm_timeout_seconds) as client:
+          resp = client.post(url, headers=self._headers(), json=payload)
+      except httpx.RequestError as exc:
+        last_error = ApplicationError("LLM endpoint is unreachable.", 502)
+        if attempt < max_retries:
+          time.sleep(backoff * (2 ** attempt))
+          continue
+        _breaker.record_failure()
+        raise last_error from exc
+
+      status = resp.status_code
+      if status >= 500:
+        # Erreur serveur transitoire: on retente (backoff exponentiel).
+        last_error = ApplicationError(f"LLM request failed ({status}).", 502)
+        if attempt < max_retries:
+          time.sleep(backoff * (2 ** attempt))
+          continue
+        _breaker.record_failure()
+        raise last_error
+      if status >= 400:
+        # Erreur client (non transitoire): pas de retry, n'ouvre pas le circuit.
+        raise ApplicationError(f"LLM request failed ({status}).", 502)
+
+      # 2xx: endpoint operationnel.
+      _breaker.record_success()
+      try:
         data = resp.json()
-    except httpx.RequestError as exc:
-      raise ApplicationError("LLM endpoint is unreachable.", 502) from exc
+        choices = data.get("choices") or []
+        message = (choices[0] or {}).get("message") or {}
+        return str(message.get("content") or "")
+      except Exception as exc:
+        raise ApplicationError("LLM response format is invalid.", 502) from exc
 
-    try:
-      choices = data.get("choices") or []
-      message = (choices[0] or {}).get("message") or {}
-      return str(message.get("content") or "")
-    except Exception as exc:
-      raise ApplicationError("LLM response format is invalid.", 502) from exc
+    raise last_error or ApplicationError("LLM request failed.", 502)
 
   async def stream_sse(self, messages: list[dict[str, Any]]) -> AsyncIterator[str]:
     if settings.llm_provider != "openai_compatible":

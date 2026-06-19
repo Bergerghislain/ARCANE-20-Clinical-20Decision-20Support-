@@ -81,6 +81,16 @@ class Settings(BaseSettings):
   llm_top_p: float = 0.9
   llm_max_tokens: int = 1200
 
+  # Robustesse des appels LLM
+  # Nombre de tentatives supplementaires sur erreur transitoire (5xx / reseau).
+  llm_max_retries: int = 2
+  # Delai de base (s) du backoff exponentiel entre tentatives.
+  llm_retry_backoff_seconds: float = 0.5
+  # Disjoncteur: nombre d'echecs consecutifs avant ouverture du circuit.
+  llm_circuit_breaker_threshold: int = 5
+  # Duree (s) pendant laquelle le circuit reste ouvert avant un nouvel essai.
+  llm_circuit_breaker_reset_seconds: float = 30.0
+
   # === SQLAlchemy (optionnel, en parallèle de psycopg) ===
   # Active l'affichage des requêtes SQL (debug). Laisser False en prod.
   sqlalchemy_echo: bool = False
