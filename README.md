@@ -6,7 +6,7 @@ ARCANE est une plateforme clinique centree sur les cancers rares.
 Le projet combine:
 - un **frontend React/TypeScript** (dashboard patient, dossier patient, espace ARGOS),
 - un **backend FastAPI** (authentification, patients, administration, ARGOS),
-- une base **PostgreSQL**.
+- une base **PostgreSQL + Alembic(ORM)**.
 
 Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend actif**.
 
