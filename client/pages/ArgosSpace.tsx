@@ -25,7 +25,8 @@ import {
   fetchArgosMessages,
   postArgosMessage,
 } from "@/lib/argosApi";
-import { apiFetch } from "@/lib/api";
+import { ClinicalAiDisclaimer } from "@/components/ClinicalAiDisclaimer";
+import { streamArgosAiResponse } from "@/lib/argosAiStream";
 import {
   buildArgosContextFromProfile,
   buildSimulatedAiReport,
@@ -134,6 +135,7 @@ export default function ArgosSpace() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [backendDiscussionIds, setBackendDiscussionIds] = useState<
     Record<string, number>
@@ -401,6 +403,7 @@ export default function ArgosSpace() {
 
     setInput("");
     setLoading(true);
+    setAiError(null);
 
     // Update title from first user message if needed
     argosHistory.updateTitleFromFirstMessage(conversation.id);
@@ -424,20 +427,6 @@ export default function ArgosSpace() {
 
     void (async () => {
       try {
-        const res = await apiFetch("/api/ai/argos/respond/stream", {
-          method: "POST",
-          body: JSON.stringify({
-            patient_name: selectedPatient?.name,
-            patient_mrn: selectedPatient?.mrn,
-            context_message: selectedPatient?.contextMessage,
-            profile: selectedPatient?.contextProfile,
-            user_message: userMessage?.content || input,
-            history: historyForModel,
-          }),
-        });
-        if (!res.ok || !res.body) throw new Error("IA indisponible");
-
-        // Message assistant "en cours" (on append au fil de l'eau)
         const assistantMessage = argosHistory.addMessage(
           {
             role: "assistant",
@@ -447,65 +436,25 @@ export default function ArgosSpace() {
           conversation.id,
         );
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let jsonText = "";
-        let lastRendered = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          while (true) {
-            const idx = buffer.indexOf("\n");
-            if (idx === -1) break;
-            const line = buffer.slice(0, idx).trimEnd();
-            buffer = buffer.slice(idx + 1);
-
-            if (!line.startsWith("data:")) continue;
-            const data = line.slice(5).trim();
-            if (!data) continue;
-            if (data === "[DONE]") {
-              buffer = "";
-              break;
-            }
-
-            try {
-              const chunk = JSON.parse(data) as any;
-              const delta = chunk?.choices?.[0]?.delta?.content ?? "";
-              if (typeof delta === "string" && delta) {
-                jsonText += delta;
-                // affichage brut pendant le stream
-                if (assistantMessage) {
-                  const merged = jsonText;
-                  if (merged !== lastRendered) {
-                    lastRendered = merged;
-                    argosHistory.updateMessageContent(assistantMessage.id, merged);
-                  }
-                }
+        const { content: finalContent, sections: finalSections } =
+          await streamArgosAiResponse(
+            {
+              patient_name: selectedPatient?.name,
+              patient_mrn: selectedPatient?.mrn,
+              context_message: selectedPatient?.contextMessage,
+              profile: selectedPatient?.contextProfile,
+              user_message: userMessage?.content || input,
+              history: historyForModel,
+            },
+            (partialJson) => {
+              if (assistantMessage) {
+                argosHistory.updateMessageContent(assistantMessage.id, partialJson);
               }
-            } catch {
-              // ignore
-            }
-          }
-        }
-
-        // Parsing final JSON pour sections + contenu "propre"
-        let finalContent = "";
-        let finalSections: any = undefined;
-        try {
-          const parsed = JSON.parse(jsonText) as any;
-          finalContent = String(parsed?.content ?? "");
-          finalSections = parsed?.sections;
-        } catch {
-          finalContent = jsonText;
-          finalSections = undefined;
-        }
+            },
+          );
 
         if (assistantMessage) {
-          argosHistory.updateMessageContent(assistantMessage.id, finalContent || jsonText);
+          argosHistory.updateMessageContent(assistantMessage.id, finalContent);
           if (finalSections) {
             argosHistory.updateMessageSections(assistantMessage.id, finalSections);
           }
@@ -514,36 +463,29 @@ export default function ArgosSpace() {
         if (backendDiscussionId && assistantMessage) {
           void postArgosMessage(backendDiscussionId, {
             message_type: "argos_response",
-            content: finalContent || jsonText,
+            content: finalContent,
             sections: finalSections,
           }).catch(() => {
             // ignore error côté serveur
           });
         }
-      } catch {
-        // Fallback local (simulation) si l'IA n'est pas configuree.
-        const mockARGOSResponse = buildMockArgosResponse(selectedPatient);
-        const assistantMessage = argosHistory.addMessage(
-          {
-            role: "assistant",
-            content: "Here is my clinical assessment:",
-            timestamp: new Date(),
-            sections: mockARGOSResponse,
-          },
-          conversation.id,
-        );
-        if (backendDiscussionId && assistantMessage) {
-          void postArgosMessage(backendDiscussionId, {
-            message_type: "argos_response",
-            content: assistantMessage.content,
-            sections: {
-              clinicalSynthesis: mockARGOSResponse.clinicalSynthesis,
-              hypotheses: mockARGOSResponse.hypotheses,
-              arguments: mockARGOSResponse.arguments,
-              nextSteps: mockARGOSResponse.nextSteps,
-              traceability: mockARGOSResponse.traceability,
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Erreur lors de la génération ARGOS.";
+        setAiError(message);
+        if (import.meta.env.VITE_ARGOS_MOCK_FALLBACK === "true") {
+          const mockARGOSResponse = buildMockArgosResponse(selectedPatient);
+          argosHistory.addMessage(
+            {
+              role: "assistant",
+              content: "Réponse simulée (fallback activé) :",
+              timestamp: new Date(),
+              sections: mockARGOSResponse,
             },
-          }).catch(() => {});
+            conversation.id,
+          );
         }
       } finally {
         setLoading(false);
@@ -621,6 +563,19 @@ export default function ArgosSpace() {
                 onNewConversation={handleNewConversation}
                 onLoadConversation={handleLoadConversation}
               />
+
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-2 space-y-2">
+                <ClinicalAiDisclaimer compact />
+                {aiError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{aiError}</span>
+                  </div>
+                )}
+              </div>
 
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto">

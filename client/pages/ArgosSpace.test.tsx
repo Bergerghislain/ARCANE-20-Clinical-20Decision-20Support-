@@ -1,0 +1,49 @@
+import type { ReactNode } from "react";
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
+
+import ArgosSpace from "@/pages/ArgosSpace";
+
+vi.mock("@/components/layout/MainLayout", () => ({
+  MainLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/hooks/useArgosHistory", () => ({
+  useArgosHistory: () => ({
+    getConversations: () => [],
+    getCurrentConversation: () => null,
+    currentConversationId: null,
+    currentPatientId: null,
+    getConversationsByPatient: () => [],
+    createConversation: vi.fn(),
+    loadConversation: vi.fn(),
+    deleteConversation: vi.fn(),
+    renameConversation: vi.fn(),
+    setCurrentPatientId: vi.fn(),
+    setCurrentConversationId: vi.fn(),
+    addMessage: vi.fn(),
+    updateMessageContent: vi.fn(),
+    updateMessageSections: vi.fn(),
+    updateTitleFromFirstMessage: vi.fn(),
+    hydrateConversation: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/argosApi", () => ({
+  createArgosDiscussion: vi.fn(),
+  fetchArgosDiscussions: vi.fn(async () => []),
+  fetchArgosMessages: vi.fn(async () => []),
+  postArgosMessage: vi.fn(),
+}));
+
+describe("ArgosSpace page", () => {
+  it("affiche l'écran d'accueil ARGOS", () => {
+    render(
+      <MemoryRouter>
+        <ArgosSpace />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("heading", { name: /ARGOS Clinical Assistant/i })).toBeInTheDocument();
+  });
+});
