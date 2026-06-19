@@ -14,6 +14,10 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./client/test/setup.ts"],
+    // Les tests unitaires/composants vivent dans client/ et shared/.
+    // Les tests E2E Playwright (e2e/) ne doivent pas etre executes par Vitest.
+    include: ["{client,shared}/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["node_modules", "dist", "e2e"],
   },
 });
 

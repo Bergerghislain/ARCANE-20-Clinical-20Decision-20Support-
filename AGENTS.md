@@ -23,8 +23,10 @@ Standard commands live in `package.json` (`dev`, `dev:api`, `build`, `test`, `ty
 - Re-initialize schema + seeds anytime (idempotent): `bash scripts/ci-init-db.sh` (runs `alembic upgrade head` + `seed_demo.py`).
 
 ### Tests / checks
-- Frontend: `pnpm run typecheck` and `pnpm run test` (Vitest). No ESLint — `tsc` + Prettier are the gates.
+- Frontend: `pnpm run typecheck` and `pnpm run test` (Vitest). No ESLint — `tsc` + Prettier are the gates. Vitest only runs `client/`+`shared/` specs; the Playwright E2E specs live in `e2e/` and are excluded from Vitest.
 - Backend: requires PostgreSQL running and env loaded. Run from repo root:
   `set -a; . ./.env; set +a; python -m pytest backend_fastapi/tests --benchmark-disable`
+- **Coverage gate**: `.coveragerc` sets a blocking `fail_under=70`. The full suite (with integration tests) needs PostgreSQL — that's what CI runs. Without a DB the integration tests are skipped and coverage drops under the gate (expected).
+- **E2E (Playwright)**: `pnpm run test:e2e`. The config's `webServer` runs `pnpm run start` (uvicorn serving the built SPA + API on :8000), so first `pnpm run build`; locally it reuses an already-running :8000 server. Needs a browser once: `pnpm exec playwright install chromium` (binary persists in the VM snapshot). Use `LLM_PROVIDER=mock_json` for deterministic ARGOS responses. Override the target with `E2E_BASE_URL` (e.g. the Vite dev server on :8080).
 - `python` is symlinked to `python3` (project scripts call `python`). Python deps are installed into the system interpreter with `pip --break-system-packages`.
-- The LLM model server is optional; `LLM_PROVIDER=mock_json` exercises AI flows without any external model.
+- The LLM model server is optional; `LLM_PROVIDER=mock_json` exercises AI flows without any external model. Real mode (`openai_compatible`) has retries + a circuit breaker and is covered by integration tests using `httpx.MockTransport`.
