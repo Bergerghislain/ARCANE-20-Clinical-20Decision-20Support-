@@ -19,6 +19,7 @@ import { useArgosHistory, type UseArgosHistory, Message } from "@/hooks/useArgos
 import { WelcomeScreen } from "@/components/argos/WelcomeScreen";
 import { PatientSelector } from "@/components/argos/PatientSelector";
 import { ArgosSidebar } from "@/components/argos/ArgosSidebar";
+import { ClinicalDisclaimer } from "@/components/argos/ClinicalDisclaimer";
 import {
   createArgosDiscussion,
   fetchArgosDiscussions,
@@ -610,6 +611,7 @@ export default function ArgosSpace() {
                           selectedPatient.mrn ? `(${selectedPatient.mrn})` : ""
                         } • ${selectedPatient.condition}`}
                   </p>
+                  <ClinicalDisclaimer className="mt-3" />
                 </div>
               </div>
 
