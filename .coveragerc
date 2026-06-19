@@ -8,6 +8,10 @@ omit =
 [report]
 show_missing = True
 skip_covered = False
+# Seuil de couverture bloquant. La suite complete (tests d'integration inclus)
+# necessite PostgreSQL: c'est ce que fait la CI (job backend). Sans base, les tests
+# d'integration sont ignores et la couverture passe sous ce seuil (attendu).
+fail_under = 70
 exclude_lines =
   pragma: no cover
   if __name__ == .__main__.:
