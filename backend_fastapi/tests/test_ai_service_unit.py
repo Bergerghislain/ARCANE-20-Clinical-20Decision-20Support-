@@ -50,16 +50,16 @@ def test_argos_respond_falls_back_to_plain_text_when_not_json():
   assert out["sections"] is None
 
 
-def test_argos_respond_accepts_sections_only_if_dict():
+def test_argos_respond_rejects_invalid_sections_shape():
   service = AiService(_FakeLlm('{"content":"c","sections":["not dict"]}'))
-  out = service.argos_respond(
-    patient_name=None,
-    patient_mrn=None,
-    context_message=None,
-    profile=None,
-    user_message="hi",
-    history=[],
-  )
-  assert out["content"] == "c"
-  assert out["sections"] is None
+  with pytest.raises(ApplicationError) as exc:
+    service.argos_respond(
+      patient_name=None,
+      patient_mrn=None,
+      context_message=None,
+      profile=None,
+      user_message="hi",
+      history=[],
+    )
+  assert exc.value.status_code == 502
 

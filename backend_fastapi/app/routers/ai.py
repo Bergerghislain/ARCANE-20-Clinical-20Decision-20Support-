@@ -40,6 +40,7 @@ def generate_report(
       patient_name=payload.patient_name,
       patient_mrn=payload.patient_mrn,
       profile=payload.profile.model_dump(),
+      user_id=int(_user.get("id")) if _user.get("id") is not None else None,
     )
     return ReportGenerateOut(**result)
   except ApplicationError as error:
@@ -92,6 +93,7 @@ def argos_respond(
       profile=payload.profile.model_dump() if payload.profile else None,
       user_message=payload.user_message,
       history=payload.history,
+      user_id=int(_user.get("id")) if _user.get("id") is not None else None,
     )
     return ArgosRespondOut(**result)
   except ApplicationError as error:

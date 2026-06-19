@@ -17,6 +17,8 @@
     "compose:up": "docker compose -f deploy/docker-compose.yml up --build -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "test": "vitest --run",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
   },
@@ -25,6 +27,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

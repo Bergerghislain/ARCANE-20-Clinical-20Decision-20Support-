@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from ...db import execute, fetch_all, fetch_one
@@ -7,6 +8,12 @@ from ..db.unit_of_work import DbUnitOfWork
 
 
 class SqlArgosRepository:
+  @staticmethod
+  def _json_value(value: Any) -> Any:
+    if value is None:
+      return None
+    return json.dumps(value, ensure_ascii=False)
+
   def patient_exists(self, patient_id: int) -> bool:
     row = fetch_one(
       "SELECT id_patient FROM patients WHERE id_patient = %s",
@@ -124,10 +131,10 @@ class SqlArgosRepository:
           message_type,
           content,
           sections.get("clinicalSynthesis"),
-          sections.get("hypotheses"),
-          sections.get("arguments"),
-          sections.get("nextSteps"),
-          sections.get("traceability"),
+          self._json_value(sections.get("hypotheses")),
+          self._json_value(sections.get("arguments")),
+          self._json_value(sections.get("nextSteps")),
+          self._json_value(sections.get("traceability")),
           None,
           created_by,
         ),
@@ -168,7 +175,7 @@ class SqlActivityLogRepository:
         action_type,
         resource_type,
         resource_id,
-        details,
+        json.dumps(details, ensure_ascii=False) if details is not None else None,
         ip_address,
         user_agent,
       ),

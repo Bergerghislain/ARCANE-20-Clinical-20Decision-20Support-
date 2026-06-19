@@ -23,8 +23,11 @@ def test_build_argos_messages_filters_history_roles_and_limits_to_last_12():
     user_message="hi",
     history=history,
   )
-  # system + last 12 user messages + final user payload
   assert msgs[0]["role"] == "system"
+  assert "Prompt version" in msgs[0]["content"]
   assert msgs[-1]["role"] == "user"
-  assert len([m for m in msgs if m["role"] == "user" and m["content"].startswith("m")]) == 12
+  history_user_msgs = [m for m in msgs if m["role"] == "user" and "chat_user" in m["content"]]
+  assert len(history_user_msgs) == 12
+  assert msgs[-1]["role"] == "user"
+  assert "argos_request" in msgs[-1]["content"]
 

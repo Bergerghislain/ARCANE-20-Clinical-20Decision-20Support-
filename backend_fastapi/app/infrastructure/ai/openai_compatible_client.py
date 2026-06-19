@@ -7,6 +7,7 @@ import httpx
 
 from ...application.errors import ApplicationError
 from ...settings import settings
+from .llm_resilience import LlmCircuitOpenError, call_with_retries, get_llm_circuit_breaker
 
 
 class OpenAiCompatibleClient:
@@ -33,21 +34,31 @@ class OpenAiCompatibleClient:
       "response_format": {"type": "json_object"},
     }
 
-  def chat(self, messages: list[dict[str, Any]]) -> str:
-    if settings.llm_provider != "openai_compatible":
-      raise ApplicationError("LLM provider is disabled.", 503)
-
+  def _post_sync(self, payload: dict[str, Any]) -> dict[str, Any]:
     url = self._chat_url()
-    payload = self._base_payload(messages, stream=False)
 
-    try:
+    def _do_post() -> dict[str, Any]:
       with httpx.Client(timeout=settings.llm_timeout_seconds) as client:
         resp = client.post(url, headers=self._headers(), json=payload)
         if resp.status_code >= 400:
           raise ApplicationError(f"LLM request failed ({resp.status_code}).", 502)
-        data = resp.json()
+        return resp.json()
+
+    try:
+      return call_with_retries(_do_post, circuit=get_llm_circuit_breaker())
+    except LlmCircuitOpenError as exc:
+      raise ApplicationError("LLM temporarily unavailable (circuit open).", 503) from exc
+    except ApplicationError:
+      raise
     except httpx.RequestError as exc:
       raise ApplicationError("LLM endpoint is unreachable.", 502) from exc
+
+  def chat(self, messages: list[dict[str, Any]]) -> str:
+    if settings.llm_provider != "openai_compatible":
+      raise ApplicationError("LLM provider is disabled.", 503)
+
+    payload = self._base_payload(messages, stream=False)
+    data = self._post_sync(payload)
 
     try:
       choices = data.get("choices") or []
@@ -62,18 +73,25 @@ class OpenAiCompatibleClient:
 
     url = self._chat_url()
     req_payload = self._base_payload(messages, stream=True)
+    circuit = get_llm_circuit_breaker()
 
     try:
+      circuit.before_call()
       async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
         async with client.stream("POST", url, headers=self._headers(), json=req_payload) as resp:
           if resp.status_code >= 400:
-            detail = f"LLM request failed ({resp.status_code})."
-            yield f"data: {detail}\n\n"
+            circuit.record_failure()
+            yield f"data: LLM request failed ({resp.status_code}).\n\n"
             yield "data: [DONE]\n\n"
             return
           async for chunk in resp.aiter_text():
             if chunk:
               yield chunk
+          circuit.record_success()
+    except LlmCircuitOpenError:
+      yield "data: LLM temporarily unavailable (circuit open).\n\n"
+      yield "data: [DONE]\n\n"
     except httpx.RequestError:
+      circuit.record_failure()
       yield "data: LLM endpoint is unreachable.\n\n"
       yield "data: [DONE]\n\n"
