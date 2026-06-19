@@ -17,6 +17,7 @@
     "compose:up": "docker compose -f deploy/docker-compose.yml up --build -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",
     "test": "vitest --run",
+    "test:e2e": "playwright test",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
   },
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@hookform/resolvers": "^5.2.1",
+    "@playwright/test": "^1.61.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
