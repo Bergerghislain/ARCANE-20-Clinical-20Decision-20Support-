@@ -8,8 +8,6 @@ Le projet combine:
 - un **backend FastAPI** (authentification, patients, administration, ARGOS),
 - une base **PostgreSQL + Alembic(ORM)**.
 
-Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend actif**.
-
 ## Etat actuel du projet (mise a jour)
 
 ### Backend
@@ -54,9 +52,7 @@ Le backend Express historique n'est plus utilise: **FastAPI est l'unique backend
 ```text
 client/                Frontend React/TypeScript
 backend_fastapi/       API FastAPI + architecture metier
-shared/                Code partage frontend
 public/patient-reports/ JSON de simulation patient/report
-setup_database.sql     Schema SQL principal
 package.json           Scripts frontend + run backend via npm/pnpm
 ```
 

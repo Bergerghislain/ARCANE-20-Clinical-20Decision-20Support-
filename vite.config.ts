@@ -14,7 +14,7 @@ export default defineConfig(() => ({
       },
     },
     fs: {
-      allow: ["./client", "./shared"],
+      allow: ["./client"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**"],
     },
   },
@@ -25,7 +25,6 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./client"),
-      "@shared": path.resolve(__dirname, "./shared"),
     },
   },
 }));

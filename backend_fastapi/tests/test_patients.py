@@ -167,13 +167,13 @@ def test_get_patients_supports_pagination():
   assert first_payload[0]["id_patient"] != second_payload[0]["id_patient"]
 
 
-def test_demo_endpoint_compatible_with_previous_express_route():
+def test_demo_endpoint():
   resp = client.get("/api/demo")
   assert resp.status_code == 200
   assert resp.json()["message"] == "Hello from FastAPI server"
 
 
-def test_create_patient_accepts_legacy_express_payload():
+def test_create_patient_accepts_legacy_payload():
   token = _login_admin()
   headers = {"Authorization": f"Bearer {token}"}
   created_patient_id: int | None = None
@@ -277,7 +277,7 @@ def test_create_patient_rejects_unknown_fields_with_strict_dto():
   assert resp.status_code == 422
 
 
-def test_update_patient_endpoint_matches_previous_express_behavior():
+def test_update_patient_endpoint():
   token = _login_admin()
   headers = {"Authorization": f"Bearer {token}"}
   created_patient_id: int | None = None

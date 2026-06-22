@@ -17,11 +17,15 @@ test.describe("Parcours clinique ARCANE", () => {
     }
 
     await page.goto("/argos");
+    await expect(page.getByText(/ARGOS Clinical Assistant/i).first()).toBeVisible();
+
+    // Le disclaimer et le champ de saisie ne sont visibles qu'après ouverture d'une conversation.
+    await page.getByRole("button", { name: /Ask a General Question/i }).click();
     await expect(page.getByText(/Aide à la décision clinique/i)).toBeVisible();
 
-    const input = page.getByPlaceholder(/Ask ARGOS|ARGOS/i);
+    const input = page.getByPlaceholder(/Ask ARGOS/i);
     await input.fill("Quelle est la prochaine étape clinique?");
-    await page.getByRole("button").filter({ has: page.locator("svg") }).last().click();
+    await input.press("Enter");
 
     await expect(
       page.getByText(/ARGOS|mock_json|simulée|analyse/i).first(),
