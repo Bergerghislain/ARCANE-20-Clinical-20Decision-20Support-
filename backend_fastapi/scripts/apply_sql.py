@@ -6,7 +6,6 @@ python-slim). La connexion et l'URL viennent de `app.settings` (mêmes variables
 d'environnement que l'application).
 
 Exemples (depuis la racine du dépôt) :
-    python backend_fastapi/scripts/apply_sql.py setup_database.sql
     python backend_fastapi/scripts/apply_sql.py backend_fastapi/sql/migrate_patient_profiles.sql
 """
 from __future__ import annotations
