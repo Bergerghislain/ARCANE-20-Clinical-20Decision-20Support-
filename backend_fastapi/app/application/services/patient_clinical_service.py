@@ -1,12 +1,16 @@
 """CRUD sectionnel du dossier clinique (mesures, traitements, cancer, prelevements)."""
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ..errors import ApplicationError
 from ..patient_profile_policy import assert_can_access_patient
+from ..ports.argos_ports import ActivityLogPort
 from ..ports.patient_ports import PatientRepositoryPort
 from ...infrastructure.repositories.patient_clinical_write import SqlPatientClinicalWriteRepository
+
+_audit_logger = logging.getLogger("arcane.audit")
 
 
 class PatientClinicalService:
@@ -14,9 +18,11 @@ class PatientClinicalService:
     self,
     patient_repository: PatientRepositoryPort,
     write_repository: SqlPatientClinicalWriteRepository | None = None,
+    activity_log: ActivityLogPort | None = None,
   ) -> None:
     self._patients = patient_repository
     self._write = write_repository or SqlPatientClinicalWriteRepository()
+    self._activity_log = activity_log
 
   def _ensure_patient_access(
     self,
@@ -32,6 +38,22 @@ class PatientClinicalService:
       requester_id=requester_id,
       requester_role=requester_role,
     )
+    # Point de passage unique des ecritures cliniques: on trace l'acces en
+    # modification au dossier (qui / quel patient). Best-effort: une panne
+    # d'audit ne doit jamais bloquer le soin.
+    if self._activity_log is not None:
+      try:
+        self._activity_log.write(
+          user_id=requester_id,
+          action_type="patient_clinical_modified",
+          resource_type="patient",
+          resource_id=patient_id,
+          details={"role": requester_role},
+          ip_address=None,
+          user_agent=None,
+        )
+      except Exception:  # noqa: BLE001 - l'audit ne doit pas casser la requete
+        _audit_logger.warning("audit write failed for patient_clinical_modified", exc_info=True)
 
   @staticmethod
   def _map_write_error(error: ValueError) -> ApplicationError:

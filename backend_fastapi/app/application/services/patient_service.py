@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from datetime import date, datetime
 from typing import Any
@@ -11,17 +12,51 @@ from ..patient_profile_policy import (
   is_admin_role,
   read_optional_int,
 )
+from ..ports.argos_ports import ActivityLogPort
 from ..ports.patient_ports import PatientRepositoryPort
 from ..use_cases.get_patient_clinical import GetPatientClinicalBundleUseCase
 from ..use_cases.patient_profile import GetPatientProfileUseCase, SavePatientProfileUseCase
 
+_audit_logger = logging.getLogger("arcane.audit")
+
 
 class PatientService:
-  def __init__(self, repository: PatientRepositoryPort) -> None:
+  def __init__(
+    self,
+    repository: PatientRepositoryPort,
+    activity_log: ActivityLogPort | None = None,
+  ) -> None:
     self._repository = repository
+    self._activity_log = activity_log
     self._get_patient_profile_uc = GetPatientProfileUseCase(repository)
     self._save_patient_profile_uc = SavePatientProfileUseCase(repository)
     self._get_patient_clinical_uc = GetPatientClinicalBundleUseCase(repository)
+
+  def _audit(
+    self,
+    *,
+    user_id: int,
+    action_type: str,
+    patient_id: int,
+    details: dict[str, Any] | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+  ) -> None:
+    # Best-effort: la tracabilite ne doit jamais bloquer l'acces au dossier.
+    if self._activity_log is None:
+      return
+    try:
+      self._activity_log.write(
+        user_id=user_id,
+        action_type=action_type,
+        resource_type="patient",
+        resource_id=patient_id,
+        details=details,
+        ip_address=ip_address,
+        user_agent=user_agent,
+      )
+    except Exception:  # noqa: BLE001
+      _audit_logger.warning("audit write failed for %s", action_type, exc_info=True)
 
   def list_patients(
     self,
@@ -43,6 +78,8 @@ class PatientService:
     patient_id: int,
     requester_id: int,
     requester_role: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
   ) -> dict[str, Any]:
     row = self._repository.find_patient(patient_id)
     if not row:
@@ -51,6 +88,14 @@ class PatientService:
       patient=row,
       requester_id=requester_id,
       requester_role=requester_role,
+    )
+    self._audit(
+      user_id=requester_id,
+      action_type="patient_viewed",
+      patient_id=patient_id,
+      details={"role": requester_role},
+      ip_address=ip_address,
+      user_agent=user_agent,
     )
     return row
 
@@ -104,6 +149,8 @@ class PatientService:
     payload: dict[str, Any],
     requester_id: int,
     requester_role: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
   ) -> dict[str, Any]:
     existing = self._repository.find_patient(patient_id)
     if not existing:
@@ -168,6 +215,14 @@ class PatientService:
     updated = self._repository.update_patient(patient_id, updates)
     if not updated:
       raise ApplicationError("Failed to update patient", 500)
+    self._audit(
+      user_id=requester_id,
+      action_type="patient_updated",
+      patient_id=patient_id,
+      details={"fields": sorted(k for k in updates if k != "updated_by")},
+      ip_address=ip_address,
+      user_agent=user_agent,
+    )
     return updated
 
   def import_patient_json(
@@ -249,6 +304,8 @@ class PatientService:
     new_clinician_id: int,
     requester_id: int,
     requester_role: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
   ) -> dict[str, Any]:
     if not is_admin_role(requester_role):
       raise ApplicationError("Only admins can reassign patients", 403)
@@ -271,6 +328,14 @@ class PatientService:
     )
     if not updated:
       raise ApplicationError("Failed to reassign patient", 500)
+    self._audit(
+      user_id=requester_id,
+      action_type="patient_reassigned",
+      patient_id=patient_id,
+      details={"from": current_assignee, "to": new_clinician_id},
+      ip_address=ip_address,
+      user_agent=user_agent,
+    )
     return updated
 
   def _resolve_assigned_clinician_id_for_creation(
