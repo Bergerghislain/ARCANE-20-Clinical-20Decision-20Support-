@@ -68,6 +68,14 @@ class Settings(BaseSettings):
   # false par défaut ; activer uniquement en dev/CI (voir .env.example).
   allow_demo_password_fallback: bool = False
 
+  # === Anti-brute-force (verrouillage temporaire de compte au login) ===
+  # Nombre d'echecs consecutifs avant verrouillage temporaire.
+  login_max_attempts: int = 5
+  # Duree du verrouillage (secondes) une fois le seuil atteint.
+  login_lockout_seconds: int = 900
+  # Fenetre glissante (secondes): au-dela, le compteur d'echecs repart de zero.
+  login_attempt_window_seconds: int = 900
+
   # === LLM / Qwen integration (backend-side proxy) ===
   # Provider: "openai_compatible" (vLLM/sglang/TGI), "mock_json" (reponses JSON sans reseau), or "disabled"
   llm_provider: str = "disabled"

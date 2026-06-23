@@ -2,7 +2,21 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from ...domain.login_throttle import AttemptState
 from ...domain.users import User
+
+
+class LoginAttemptPort(Protocol):
+  """Persistance de l'etat des tentatives de connexion (par identifiant)."""
+
+  def get_state(self, identifier: str) -> AttemptState | None:
+    ...
+
+  def save_state(self, identifier: str, state: AttemptState) -> None:
+    ...
+
+  def reset(self, identifier: str) -> None:
+    ...
 
 
 class UserRepositoryPort(Protocol):

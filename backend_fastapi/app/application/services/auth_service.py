@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from ..errors import ApplicationError
-from ..ports.auth_ports import PasswordPort, TokenPort, UserRepositoryPort
+from ..ports.auth_ports import (
+  LoginAttemptPort,
+  PasswordPort,
+  TokenPort,
+  UserRepositoryPort,
+)
+from ...domain import login_throttle
 from ...domain.users import User
 
 
@@ -13,22 +20,70 @@ class AuthService:
     user_repository: UserRepositoryPort,
     password_port: PasswordPort,
     token_port: TokenPort,
+    login_attempts: LoginAttemptPort | None = None,
+    *,
+    max_attempts: int = 5,
+    window_seconds: int = 900,
+    lock_seconds: int = 900,
   ):
     self._users = user_repository
     self._passwords = password_port
     self._tokens = token_port
+    self._login_attempts = login_attempts
+    self._max_attempts = max_attempts
+    self._window_seconds = window_seconds
+    self._lock_seconds = lock_seconds
 
   def login(self, identifier: str, password: str) -> dict[str, Any]:
+    key = (identifier or "").strip().lower()
+
+    # 1) Verrou actif ? On echoue vite, sans meme verifier le mot de passe.
+    self._raise_if_locked(key)
+
     user = self._users.find_by_identifier(identifier)
+    # 2) Identifiant inconnu: on compte aussi l'echec (anti-enumeration) puis 401.
     if not user:
+      self._register_failed_attempt(key)
       raise ApplicationError("Invalid credentials", 401)
     if user.is_active is False:
       raise ApplicationError("User disabled", 403)
 
+    # 3) Mauvais mot de passe: on incremente le compteur (et on verrouille au seuil).
     if not user.password_hash or not self._passwords.verify(password, user.password_hash):
+      self._register_failed_attempt(key)
       raise ApplicationError("Invalid credentials", 401)
 
+    # 4) Succes: on remet le compteur a zero.
+    if self._login_attempts is not None:
+      self._login_attempts.reset(key)
     return self._build_login_payload(user)
+
+  def _raise_if_locked(self, key: str) -> None:
+    if self._login_attempts is None:
+      return
+    now = datetime.now(UTC)
+    state = self._login_attempts.get_state(key)
+    if login_throttle.is_locked(state, now):
+      retry_after = login_throttle.seconds_until_unlock(state, now)
+      raise ApplicationError(
+        "Trop de tentatives. Compte temporairement verrouille, "
+        f"reessayez dans {retry_after} secondes.",
+        429,
+      )
+
+  def _register_failed_attempt(self, key: str) -> None:
+    if self._login_attempts is None:
+      return
+    now = datetime.now(UTC)
+    state = self._login_attempts.get_state(key)
+    new_state = login_throttle.register_failure(
+      state,
+      now,
+      max_attempts=self._max_attempts,
+      window_seconds=self._window_seconds,
+      lock_seconds=self._lock_seconds,
+    )
+    self._login_attempts.save_state(key, new_state)
 
   def refresh(self, refresh_token: str) -> dict[str, Any]:
     try:
