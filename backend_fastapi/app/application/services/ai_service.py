@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from ..errors import ApplicationError
@@ -39,6 +40,7 @@ class AiService:
       patient_mrn=patient_mrn,
       profile=profile,
     )
+    started = time.perf_counter()
     try:
       text = self._llm.chat(messages)
       payload = extract_json_object(text)
@@ -62,6 +64,7 @@ class AiService:
       user_id=user_id,
       success=True,
       response_chars=len(conclusion) + len(reasoning),
+      latency_ms=(time.perf_counter() - started) * 1000,
     )
     return {"conclusion": conclusion, "reasoning": reasoning, "sources": sources}
 
@@ -96,12 +99,19 @@ class AiService:
       user_message=user_message,
       history=history,
     )
+    started = time.perf_counter()
     try:
       text = self._llm.chat(messages)
       payload = extract_json_object(text)
       if not payload:
         fallback = text.strip() or "Je n'ai pas pu générer de réponse."
-        log_ai_response(kind="argos", user_id=user_id, success=True, response_chars=len(fallback))
+        log_ai_response(
+          kind="argos",
+          user_id=user_id,
+          success=True,
+          response_chars=len(fallback),
+          latency_ms=(time.perf_counter() - started) * 1000,
+        )
         return {"content": fallback, "sections": None}
       content, sections = validate_argos_payload(payload)
     except ValueError as exc:
@@ -119,5 +129,6 @@ class AiService:
       user_id=user_id,
       success=True,
       response_chars=len(content),
+      latency_ms=(time.perf_counter() - started) * 1000,
     )
     return {"content": content, "sections": sections}

@@ -17,6 +17,7 @@ from .infrastructure.repositories.argos_repository import (
   SqlActivityLogRepository,
   SqlArgosRepository,
 )
+from .infrastructure.repositories.login_attempt_repository import SqlLoginAttemptRepository
 from .infrastructure.repositories.patient_repository import SqlPatientRepository
 from .infrastructure.repositories.user_repository import SqlUserRepository
 from .infrastructure.repositories.user_repository_sqlalchemy import HybridUserRepository
@@ -50,6 +51,10 @@ def get_activity_log_repository() -> SqlActivityLogRepository:
   return SqlActivityLogRepository()
 
 
+def get_login_attempt_repository() -> SqlLoginAttemptRepository:
+  return SqlLoginAttemptRepository()
+
+
 def get_password_gateway() -> PasswordGateway:
   return PasswordGateway()
 
@@ -62,8 +67,17 @@ def get_auth_service(
   users: Annotated[SqlUserRepository, Depends(get_user_repository)],
   passwords: Annotated[PasswordGateway, Depends(get_password_gateway)],
   tokens: Annotated[TokenGateway, Depends(get_token_gateway)],
+  login_attempts: Annotated[SqlLoginAttemptRepository, Depends(get_login_attempt_repository)],
 ) -> AuthService:
-  return AuthService(users, passwords, tokens)
+  return AuthService(
+    users,
+    passwords,
+    tokens,
+    login_attempts,
+    max_attempts=settings.login_max_attempts,
+    window_seconds=settings.login_attempt_window_seconds,
+    lock_seconds=settings.login_lockout_seconds,
+  )
 
 
 def get_admin_service(
@@ -74,14 +88,16 @@ def get_admin_service(
 
 def get_patient_service(
   patients: Annotated[SqlPatientRepository, Depends(get_patient_repository)],
+  activity_repo: Annotated[SqlActivityLogRepository, Depends(get_activity_log_repository)],
 ) -> PatientService:
-  return PatientService(patients)
+  return PatientService(patients, activity_log=activity_repo)
 
 
 def get_patient_clinical_service(
   patients: Annotated[SqlPatientRepository, Depends(get_patient_repository)],
+  activity_repo: Annotated[SqlActivityLogRepository, Depends(get_activity_log_repository)],
 ) -> PatientClinicalService:
-  return PatientClinicalService(patients)
+  return PatientClinicalService(patients, activity_log=activity_repo)
 
 
 def get_argos_service(

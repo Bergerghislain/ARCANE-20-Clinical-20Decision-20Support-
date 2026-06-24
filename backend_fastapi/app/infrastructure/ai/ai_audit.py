@@ -65,6 +65,7 @@ def log_ai_response(
   success: bool,
   detail: str | None = None,
   response_chars: int | None = None,
+  latency_ms: float | None = None,
 ) -> None:
   payload = {
     "event": "ai_response",
@@ -79,4 +80,7 @@ def log_ai_response(
     payload["detail"] = detail[:200]
   if response_chars is not None:
     payload["response_chars"] = response_chars
+  if latency_ms is not None:
+    # Latence de bout en bout de l'appel LLM (observabilite/performance).
+    payload["latency_ms"] = round(latency_ms, 1)
   logger.info(json.dumps(payload, ensure_ascii=False))

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from ..application.errors import ApplicationError
@@ -18,6 +18,11 @@ from ..schemas import (
 
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
+
+
+def _client_context(request: Request) -> tuple[str | None, str | None]:
+  ip = request.client.host if request.client else None
+  return ip, request.headers.get("user-agent")
 
 
 @router.get("")
@@ -38,14 +43,18 @@ def get_patients(
 @router.get("/{patient_id}")
 def get_patient(
   patient_id: int,
+  request: Request,
   user: ClinicianOrAdminUser,
   patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ) -> dict[str, Any]:
+  ip, ua = _client_context(request)
   try:
     return patient_service.get_patient(
       patient_id,
       requester_id=int(user["id"]),
       requester_role=str(user.get("role") or ""),
+      ip_address=ip,
+      user_agent=ua,
     )
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
@@ -71,15 +80,19 @@ def add_patient(
 def update_patient(
   patient_id: int,
   payload: PatientUpdateIn,
+  request: Request,
   user: ClinicianOrAdminUser,
   patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ) -> dict[str, Any]:
+  ip, ua = _client_context(request)
   try:
     return patient_service.update_patient(
       patient_id,
       payload.model_dump(exclude_unset=True),
       requester_id=int(user["id"]),
       requester_role=str(user.get("role") or ""),
+      ip_address=ip,
+      user_agent=ua,
     )
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
@@ -97,15 +110,19 @@ class PatientAssignIn(BaseModel):
 def assign_patient(
   patient_id: int,
   payload: PatientAssignIn,
+  request: Request,
   admin: AdminUser,
   patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ) -> dict[str, Any]:
+  ip, ua = _client_context(request)
   try:
     return patient_service.reassign_patient(
       patient_id=patient_id,
       new_clinician_id=int(payload.clinician_id),
       requester_id=int(admin["id"]),
       requester_role=str(admin.get("role") or ""),
+      ip_address=ip,
+      user_agent=ua,
     )
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
