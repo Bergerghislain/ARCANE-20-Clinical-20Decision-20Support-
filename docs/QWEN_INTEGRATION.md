@@ -128,3 +128,60 @@ vous changez uniquement :
 
 Le reste de la plateforme ne bouge pas.
 
+### 5.1 JSON mode (`LLM_JSON_MODE`)
+
+Par défaut, le backend envoie `response_format: {"type": "json_object"}` (les
+prompts imposent déjà du JSON strict, et vLLM ≥ 0.4 / sglang / TGI le supportent).
+Si votre endpoint **rejette** `response_format`, mettez `LLM_JSON_MODE=false` :
+on retombe alors sur l’extraction tolérante du premier bloc `{...}` (`json_parse.py`).
+
+---
+
+## 6) Valider l’IA réelle end-to-end
+
+### 6.1 Avec un vrai modèle (vLLM/Qwen)
+
+```bash
+# Terminal A : le modèle
+vllm serve Qwen/Qwen3-4B --port 8001
+
+# Terminal B : validation end-to-end (report + argos + streaming)
+export LLM_PROVIDER=openai_compatible
+export LLM_BASE_URL=http://127.0.0.1:8001/v1
+export LLM_MODEL=Qwen/Qwen3-4B
+python backend_fastapi/scripts/llm_smoke.py --stream
+```
+
+`llm_smoke.py` appelle **la vraie couche métier** (`AiService` +
+`OpenAiCompatibleClient`), c’est-à-dire le même code que l’API. Code de sortie 0
+si `generate_report` **et** `argos_respond` réussissent.
+
+### 6.2 Sans GPU (stub OpenAI-compatible)
+
+Pour exercer le **vrai chemin réseau** (`POST /v1/chat/completions`, JSON +
+streaming SSE) sans modèle, un serveur OpenAI-compatible déterministe est fourni :
+
+```bash
+# Terminal A : stub réseau (réponses cliniques JSON déterministes)
+python backend_fastapi/scripts/fake_openai_server.py --port 8001
+
+# Terminal B
+LLM_PROVIDER=openai_compatible python backend_fastapi/scripts/llm_smoke.py --stream
+```
+
+C’est aussi ce que fait l’app complète : lancez l’API avec
+`LLM_PROVIDER=openai_compatible` pointée sur le stub, connectez-vous, puis
+`POST /api/ai/report` et `POST /api/ai/argos/respond` renvoient du contenu généré
+par l’endpoint.
+
+### 6.3 Tests automatisés
+
+- **`tests/test_ai_router_openai_e2e_integration.py`** : end-to-end *réel mais
+  auto-suffisant* — démarre un vrai serveur HTTP OpenAI-compatible local et fait
+  transiter les requêtes par tout le routeur FastAPI (report, argos, et les deux
+  flux SSE). **Tourne en CI** (pas de DB requise : l’auth est bypassée via
+  `dependency_overrides`). C’est la version « mockable » de l’intégration réelle.
+- **`tests/test_llm_live_integration.py`** : test *live* contre un **vrai** vLLM,
+  **sauté par défaut** (donc neutre en CI). Activez-le avec :
+  `LLM_LIVE_TEST=1 LLM_PROVIDER=openai_compatible python -m pytest backend_fastapi/tests/test_llm_live_integration.py`.
+

@@ -206,4 +206,6 @@ python -m pytest tests/ -q --benchmark-disable
 ## Limitations connues / prochaines etapes
 
 - Generation **reelle** par LLM: definir `LLM_PROVIDER=openai_compatible` et un endpoint compatible OpenAI (`LLM_BASE_URL`, `LLM_MODEL`, etc.). Sans LLM, `LLM_PROVIDER=mock_json` fournit des reponses JSON valides pour demos / tests (pas de reseau).
+  - **Validation end-to-end** : `python backend_fastapi/scripts/llm_smoke.py --stream` (report + argos + SSE contre l'endpoint configure). Sans GPU, lancer d'abord le stub reseau `python backend_fastapi/scripts/fake_openai_server.py`. Detail : `docs/QWEN_INTEGRATION.md` (§6).
+  - `LLM_JSON_MODE=false` si votre endpoint ne supporte pas `response_format`.
 - Bases existantes sans `patient_profiles`: `backend_fastapi/sql/migrate_patient_profiles.sql` ou `alembic upgrade head` (voir README backend).
