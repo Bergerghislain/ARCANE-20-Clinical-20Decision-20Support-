@@ -24,15 +24,19 @@ class OpenAiCompatibleClient:
     return f"{base}/chat/completions"
 
   def _base_payload(self, messages: list[dict[str, Any]], *, stream: bool) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
       "model": settings.llm_model,
       "messages": messages,
       "temperature": settings.llm_temperature,
       "top_p": settings.llm_top_p,
       "max_tokens": settings.llm_max_tokens,
       "stream": stream,
-      "response_format": {"type": "json_object"},
     }
+    # JSON mode optionnel : certains endpoints OpenAI-compatibles ne supportent
+    # pas `response_format`. On l'envoie uniquement si active (defaut: True).
+    if settings.llm_json_mode:
+      payload["response_format"] = {"type": "json_object"}
+    return payload
 
   def _post_sync(self, payload: dict[str, Any]) -> dict[str, Any]:
     url = self._chat_url()

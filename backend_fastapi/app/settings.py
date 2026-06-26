@@ -84,6 +84,12 @@ class Settings(BaseSettings):
   llm_model: str = "Qwen/Qwen3-4B"
   llm_timeout_seconds: float = 120.0
 
+  # JSON mode (`response_format: {"type": "json_object"}`). Active par defaut: les
+  # prompts imposent deja du JSON strict et les serveurs recents (vLLM >= 0.4,
+  # sglang, TGI) le supportent. Mettre `false` pour les endpoints qui rejettent
+  # `response_format` (compat large) : on retombe alors sur l'extraction JSON.
+  llm_json_mode: bool = True
+
   # Generation defaults
   llm_temperature: float = 0.7
   llm_top_p: float = 0.9
