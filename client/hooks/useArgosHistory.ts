@@ -49,34 +49,10 @@ export interface UseArgosHistory {
   getConversationsByDate: () => Conversation[];
   setCurrentPatientId: (value: string | null) => void;
   setCurrentConversationId: (value: string | null) => void;
+  replaceConversations: (conversations: Conversation[]) => void;
 }
 
-const STORAGE_KEY = "argos_conversations";
-
-// Helper to serialize/deserialize dates
-function serializeConversation(conv: Conversation): any {
-  return {
-    ...conv,
-    createdAt: conv.createdAt.toISOString(),
-    updatedAt: conv.updatedAt.toISOString(),
-    messages: conv.messages.map((msg) => ({
-      ...msg,
-      timestamp: msg.timestamp.toISOString(),
-    })),
-  };
-}
-
-function deserializeConversation(data: any): Conversation {
-  return {
-    ...data,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
-    messages: data.messages.map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp),
-    })),
-  };
-}
+const LEGACY_STORAGE_KEY = "argos_conversations";
 
 export function useArgosHistory(): UseArgosHistory {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -86,28 +62,11 @@ export function useArgosHistory(): UseArgosHistory {
   >(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load conversations from localStorage on mount
+  // L'historique ARGOS est persisté côté API ; on purge l'ancien cache localStorage.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const deserialized = parsed.map(deserializeConversation);
-        setConversations(deserialized);
-      } catch (error) {
-        console.error("Failed to load conversations from localStorage:", error);
-      }
-    }
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     setIsLoaded(true);
   }, []);
-
-  // Save conversations to localStorage whenever they change
-  useEffect(() => {
-    if (isLoaded) {
-      const serialized = conversations.map(serializeConversation);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
-    }
-  }, [conversations, isLoaded]);
 
   // Get all conversations
   const getConversations = useCallback(() => {
@@ -159,6 +118,10 @@ export function useArgosHistory(): UseArgosHistory {
     },
     [],
   );
+
+  const replaceConversations = useCallback((next: Conversation[]) => {
+    setConversations(next);
+  }, []);
 
   // Hydrate a conversation from an external source (e.g. backend)
   const hydrateConversation = useCallback(
@@ -379,5 +342,6 @@ export function useArgosHistory(): UseArgosHistory {
     setCurrentPatientId,
     setCurrentConversationId,
     hydrateConversation,
+    replaceConversations,
   };
 }
