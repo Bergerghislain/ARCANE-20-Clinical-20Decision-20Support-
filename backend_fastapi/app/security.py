@@ -40,7 +40,10 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
   now = datetime.now(timezone.utc)
-  expire = now + timedelta(minutes=settings.access_token_expire_minutes)
+  if settings.access_token_expire_seconds is not None:
+    expire = now + timedelta(seconds=settings.access_token_expire_seconds)
+  else:
+    expire = now + timedelta(minutes=settings.access_token_expire_minutes)
   payload: dict[str, Any] = {
     "sub": subject,
     "iss": settings.jwt_issuer,

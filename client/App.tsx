@@ -13,7 +13,25 @@ import AdminPatientHandler from "./pages/AdminPatientHandler";
 import ForgotPassword from "./pages/ForgotPassword";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
-import { getStoredUser, isAuthenticated } from "./lib/auth";
+import { getStoredUser, isAuthenticated, bootstrapAuth } from "./lib/auth";
+
+function AuthBootstrap({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    void bootstrapAuth().finally(() => setReady(true));
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Chargement…
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const location = useLocation();
@@ -40,7 +58,8 @@ function RequireAdmin({ children }: { children: React.ReactElement }) {
 
 const App: React.FC = () => (
   <BrowserRouter>
-    <Routes>
+    <AuthBootstrap>
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -111,7 +130,8 @@ const App: React.FC = () => (
       <Route path="/" element={<Index />} />
       {/* Catch‑all route */}
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </AuthBootstrap>
   </BrowserRouter>
 );
 
