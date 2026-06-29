@@ -15,6 +15,7 @@ vi.mock("@/hooks/useArgosHistory", () => ({
     getCurrentConversation: () => null,
     currentConversationId: null,
     currentPatientId: null,
+    isLoaded: true,
     getConversationsByPatient: () => [],
     createConversation: vi.fn(),
     loadConversation: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@/hooks/useArgosHistory", () => ({
     updateMessageSections: vi.fn(),
     updateTitleFromFirstMessage: vi.fn(),
     hydrateConversation: vi.fn(),
+    replaceConversations: vi.fn(),
   }),
 }));
 
