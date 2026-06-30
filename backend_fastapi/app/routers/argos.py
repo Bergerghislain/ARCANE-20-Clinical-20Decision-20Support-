@@ -15,7 +15,6 @@ from ..schemas import (
   ArgosMessageOut,
 )
 
-
 router = APIRouter(prefix="/api/argos", tags=["argos"])
 
 

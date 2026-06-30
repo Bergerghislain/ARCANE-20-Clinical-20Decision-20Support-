@@ -7,12 +7,15 @@ from fastapi import Depends, Header, HTTPException, status
 from .application.errors import ApplicationError
 from .application.ports.llm_ports import LlmSsePort
 from .application.services.admin_service import AdminService
+from .application.services.ai_service import AiService
 from .application.services.argos_service import ArgosService
 from .application.services.auth_service import AuthService
 from .application.services.patient_clinical_service import PatientClinicalService
 from .application.services.patient_service import PatientService
-from .application.services.ai_service import AiService
 from .application.use_cases.stream_llm_sse import StreamLlmSseUseCase
+from .db_sqlalchemy import get_db as get_sqlalchemy_db
+from .infrastructure.ai.mock_llm_client import MockJsonLlmClient
+from .infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
 from .infrastructure.repositories.argos_repository import (
   SqlActivityLogRepository,
   SqlArgosRepository,
@@ -22,9 +25,6 @@ from .infrastructure.repositories.patient_repository import SqlPatientRepository
 from .infrastructure.repositories.user_repository import SqlUserRepository
 from .infrastructure.repositories.user_repository_sqlalchemy import HybridUserRepository
 from .infrastructure.security.auth_gateways import PasswordGateway, TokenGateway
-from .infrastructure.ai.mock_llm_client import MockJsonLlmClient
-from .infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
-from .db_sqlalchemy import get_db as get_sqlalchemy_db
 from .settings import settings
 
 

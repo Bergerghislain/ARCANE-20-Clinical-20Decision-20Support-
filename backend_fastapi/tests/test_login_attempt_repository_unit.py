@@ -1,7 +1,7 @@
 """Tests du depot SqlLoginAttemptRepository (sans base reelle)."""
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import backend_fastapi.app.infrastructure.repositories.login_attempt_repository as mod
 from backend_fastapi.app.domain.login_throttle import AttemptState

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from .settings import settings
 
-
 # NOTE: SQLAlchemy est intégré **en parallèle** de psycopg (db.py).
 # On évite tout "side effect" au moment de l'import pour ne pas casser
 # les environnements sans DB (tests unitaires, CI, etc.).

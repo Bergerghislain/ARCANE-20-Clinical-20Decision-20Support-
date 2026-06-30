@@ -1,7 +1,7 @@
 """Tests de la logique pure anti-brute-force (domain/login_throttle)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from backend_fastapi.app.domain.login_throttle import (
   AttemptState,

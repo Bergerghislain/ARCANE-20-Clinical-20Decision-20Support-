@@ -8,8 +8,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from backend_fastapi.app.application.services.ai_service import AiService
-from backend_fastapi.app.infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
 from backend_fastapi.app.infrastructure.ai.llm_resilience import get_llm_circuit_breaker
+from backend_fastapi.app.infrastructure.ai.openai_compatible_client import OpenAiCompatibleClient
 from backend_fastapi.app.settings import settings
 
 

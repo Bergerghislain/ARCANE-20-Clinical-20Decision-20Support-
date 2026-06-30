@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+
 from backend_fastapi.app.application.errors import ApplicationError
 from backend_fastapi.app.application.use_cases.stream_llm_sse import StreamLlmSseUseCase
 from backend_fastapi.app.infrastructure.ai.mock_llm_client import MockJsonLlmClient

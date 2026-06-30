@@ -15,7 +15,7 @@ class User:
   password_hash: str | None = None
 
   @classmethod
-  def from_row(cls, row: dict[str, Any]) -> "User":
+  def from_row(cls, row: dict[str, Any]) -> User:
     return cls(
       id=int(row["id"]),
       username=str(row.get("username") or ""),

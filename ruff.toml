@@ -1,0 +1,10 @@
+target-version = "py312"
+line-length = 100
+src = ["backend_fastapi"]
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501", "UP047"]
+
+[lint.per-file-ignores]
+"backend_fastapi/alembic/**" = ["E501", "I001"]

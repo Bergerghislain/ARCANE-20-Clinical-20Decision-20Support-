@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from .settings import settings
-
 
 pwd_context = CryptContext(
   schemes=["bcrypt"],
@@ -39,7 +38,7 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
-  now = datetime.now(timezone.utc)
+  now = datetime.now(UTC)
   if settings.access_token_expire_seconds is not None:
     expire = now + timedelta(seconds=settings.access_token_expire_seconds)
   else:
@@ -72,7 +71,7 @@ def decode_token(token: str) -> dict[str, Any]:
 
 def create_refresh_token(subject: str) -> str:
   """Crée un refresh token JWT avec une durée de vie plus longue."""
-  now = datetime.now(timezone.utc)
+  now = datetime.now(UTC)
   expire = now + timedelta(days=settings.refresh_token_expire_days)
   payload: dict[str, Any] = {
     "sub": subject,

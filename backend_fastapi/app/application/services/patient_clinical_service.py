@@ -4,11 +4,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ...infrastructure.repositories.patient_clinical_write import SqlPatientClinicalWriteRepository
 from ..errors import ApplicationError
 from ..patient_profile_policy import assert_can_access_patient
 from ..ports.argos_ports import ActivityLogPort
 from ..ports.patient_ports import PatientRepositoryPort
-from ...infrastructure.repositories.patient_clinical_write import SqlPatientClinicalWriteRepository
 
 _audit_logger = logging.getLogger("arcane.audit")
 

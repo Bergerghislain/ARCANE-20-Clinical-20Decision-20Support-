@@ -10,7 +10,6 @@ from ..deps import get_auth_service
 from ..schemas import LoginIn, LoginOut, RegisterIn, UserOut
 from ..settings import settings
 
-
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
