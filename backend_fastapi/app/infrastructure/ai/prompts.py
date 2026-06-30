@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .prompt_safety import sanitize_chat_history, sanitize_profile, sanitize_untrusted_text, wrap_untrusted_block
+from .prompt_safety import (
+  sanitize_chat_history,
+  sanitize_profile,
+  sanitize_untrusted_text,
+  wrap_untrusted_block,
+)
 
 # Versionnage pour reproductibilité des recommandations (audit / traçabilité).
 PROMPT_VERSION = "arcane-prompts-v1.1.0"

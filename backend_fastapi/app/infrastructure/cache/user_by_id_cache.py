@@ -10,7 +10,7 @@ if TYPE_CHECKING:
   from ...domain.users import User
 
 _lock = threading.Lock()
-_entries: dict[int, tuple[float, "User"]] = {}
+_entries: dict[int, tuple[float, User]] = {}
 
 
 def _ttl() -> float:

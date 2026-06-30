@@ -3,10 +3,6 @@ from __future__ import annotations
 import pytest
 
 from backend_fastapi.app.db import execute, fetch_one
-from backend_fastapi.app.infrastructure.repositories.argos_repository import (
-  SqlActivityLogRepository,
-  SqlArgosRepository,
-)
 from backend_fastapi.app.infrastructure.repositories.patient_clinical_write import (
   SqlPatientClinicalWriteRepository,
 )

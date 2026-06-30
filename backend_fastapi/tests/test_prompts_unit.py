@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from backend_fastapi.app.infrastructure.ai.prompts import build_argos_messages, build_report_messages
+from backend_fastapi.app.infrastructure.ai.prompts import (
+  build_argos_messages,
+  build_report_messages,
+)
 
 
 def test_build_report_messages_returns_system_and_user_json_string():

@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearAuth, getStoredUser } from "@/lib/auth";
+import { logout, getStoredUser } from "@/lib/auth";
 
 interface HeaderProps {
   userName?: string;
@@ -66,8 +66,7 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
             size="sm"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => {
-              clearAuth();
-              navigate("/login");
+              void logout().finally(() => navigate("/login"));
             }}
           >
             <LogOut className="h-5 w-5" />

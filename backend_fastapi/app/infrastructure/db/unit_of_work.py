@@ -50,7 +50,7 @@ class DbUnitOfWork:
     self.conn: Any | None = None
     self.cursor: Any | None = None
 
-  def __enter__(self) -> "DbUnitOfWork":
+  def __enter__(self) -> DbUnitOfWork:
     self.conn = get_conn_tx()
     self.cursor = _DictCursor(self.conn.cursor())
     return self

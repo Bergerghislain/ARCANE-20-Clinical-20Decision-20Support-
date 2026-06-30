@@ -23,6 +23,7 @@ export default defineConfig({
         LLM_PROVIDER: "mock_json",
         JWT_SECRET: "e2e_test_secret",
         ALLOW_DEMO_PASSWORD_FALLBACK: "false",
+        ACCESS_TOKEN_EXPIRE_SECONDS: "5",
       },
     },
     {

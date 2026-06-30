@@ -85,7 +85,7 @@ def test_lock_after_threshold_then_429_on_next_attempt():
 def test_locked_account_rejects_even_correct_password():
   attempts = FakeAttempts()
   # On force un verrou actif.
-  from datetime import datetime, timedelta, UTC
+  from datetime import UTC, datetime, timedelta
 
   attempts.store["admin"] = AttemptState(locked_until=datetime.now(UTC) + timedelta(seconds=500))
   svc = _service(password_ok=True, attempts=attempts)

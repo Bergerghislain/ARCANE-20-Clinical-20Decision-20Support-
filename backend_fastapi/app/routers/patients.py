@@ -16,7 +16,6 @@ from ..schemas import (
   PatientUpdateIn,
 )
 
-
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
 

@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 
 from backend_fastapi.app.infrastructure.ai.mock_llm_client import MockJsonLlmClient
-from backend_fastapi.app.infrastructure.ai.prompts import build_argos_messages, build_report_messages
+from backend_fastapi.app.infrastructure.ai.prompts import (
+  build_argos_messages,
+  build_report_messages,
+)
 
 
 def test_mock_json_report_shape():

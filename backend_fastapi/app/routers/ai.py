@@ -13,7 +13,6 @@ from ..deps import ClinicianOrAdminUser, get_ai_service, get_stream_llm_sse_use_
 from ..infrastructure.ai.prompts import build_argos_messages, build_report_messages
 from ..schemas import PatientProfileIn
 
-
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 

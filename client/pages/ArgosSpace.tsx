@@ -261,7 +261,8 @@ export default function ArgosSpace() {
 
     let contextProfile = targetPatient.contextProfile;
     if (!contextProfile) {
-      contextProfile = await loadPatientReportProfile(targetPatient.id);
+      contextProfile =
+        (await loadPatientReportProfile(targetPatient.id)) ?? undefined;
     }
     if (!contextProfile) {
       const fallback = buildSimulatedAiReport({

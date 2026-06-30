@@ -34,6 +34,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: ESLint (client)
+        run: pnpm run lint
+
       - name: Frontend tests
         run: pnpm run test
 
@@ -84,7 +87,10 @@ jobs:
           cache-dependency-path: backend_fastapi/requirements.txt
 
       - name: Install backend dependencies
-        run: python -m pip install -r backend_fastapi/requirements.txt
+        run: python -m pip install -r backend_fastapi/requirements.txt ruff
+
+      - name: Ruff (backend)
+        run: ruff check backend_fastapi
 
       # Alembic est la source de vérité du schéma : une base vide est créée
       # intégralement par les migrations (plus de gros script SQL de schéma).

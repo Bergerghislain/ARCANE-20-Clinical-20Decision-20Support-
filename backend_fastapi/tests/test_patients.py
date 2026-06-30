@@ -10,7 +10,6 @@ from ..app.db import execute, fetch_one
 from ..app.main import app
 from ..app.security import pwd_context
 
-
 client = TestClient(app)
 
 # Vrai hash bcrypt de "password" : les helpers de test ne dépendent plus du
