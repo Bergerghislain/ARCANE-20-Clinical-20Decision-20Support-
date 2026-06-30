@@ -8,7 +8,7 @@ Le projet combine:
 - un **backend FastAPI** (authentification, patients, administration, ARGOS),
 - une base **PostgreSQL + Alembic**.
 
-> **Documentation complète** : voir le dossier [`docs/`](docs/README.md) (onboarding, roadmap, architecture, lacunes).
+> **Documentation** : [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md), [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md).
 
 ## Etat actuel du projet (mise a jour)
 
@@ -203,13 +203,16 @@ python -m pytest tests/ -q --benchmark-disable
 
 ## Documentation utile
 
-- **Index documentation** : [`docs/README.md`](docs/README.md)
-- Onboarding développeur : [`docs/ONBOARDING.md`](docs/ONBOARDING.md)
-- Roadmap & prochaines étapes : [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Onboarding : [`docs/ONBOARDING.md`](docs/ONBOARDING.md)
+- Roadmap : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Lacunes connues : [`docs/KNOWN_GAPS.md`](docs/KNOWN_GAPS.md)
 - État fonctionnel : [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
-- Architecture backend SOLID/DDD : `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`
-- README backend détaillé : `backend_fastapi/README.md`
+- Architecture (vue d'ensemble) : [`docs/ARCHITECTURE_OVERVIEW.md`](docs/ARCHITECTURE_OVERVIEW.md)
+- Sécurité labo : [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md)
+- Protection branches GitHub : [`docs/GITHUB_BRANCH_PROTECTION.md`](docs/GITHUB_BRANCH_PROTECTION.md)
+- Intégration LLM : [`docs/QWEN_INTEGRATION.md`](docs/QWEN_INTEGRATION.md)
+- Architecture backend : `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`
+- README backend : `backend_fastapi/README.md`
 
 ## Limitations connues / prochaines etapes
 

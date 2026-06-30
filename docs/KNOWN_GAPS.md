@@ -93,7 +93,7 @@ Complète votre grille de maturité (~5,5/10 global).
 
 | Gap | Fichier / zone | Priorité |
 |-----|----------------|----------|
-| ~~ARGOS historique en `localStorage`~~ | `useArgosHistory.ts` | **P0** — code corrigé, merge PR |
+| ~~ARGOS historique en `localStorage`~~ | `useArgosHistory.ts` | **P0** — 🟢 fait (PR #14) |
 | **Patients fictifs dans ARGOS** | `ArgosSpace.tsx` (`mockPatients`) | **P1** |
 | Pas de couche cache serveur unifiée (React Query) | Toutes les pages | P1 |
 | `strict: false` (seul `strictNullChecks`) | `tsconfig.json` | P2 |
@@ -128,7 +128,7 @@ Complète votre grille de maturité (~5,5/10 global).
 
 | Domaine | Comportement actuel | Comportement cible |
 |---------|---------------------|-------------------|
-| Historique ARGOS | ~~localStorage~~ → API (code prêt) | API seule — valider en merge |
+| Historique ARGOS | API (source de vérité) | API seule — 🟢 fait |
 | Liste patients ARGOS | Mocks hardcodés | API `/api/patients` |
 | Profil patient | Draft local **prioritaire** sur API au chargement | Explicite : choix utilisateur ou merge documenté |
 | Discussions ARGOS « générales » | Locales seulement | Décision produit à trancher |
