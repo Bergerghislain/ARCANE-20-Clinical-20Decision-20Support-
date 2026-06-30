@@ -24,11 +24,11 @@ Un clinicien peut :
 
 | ID | Issue | Titre | Statut |
 |----|-------|-------|--------|
-| P0.1 | [# à créer](GITHUB_ISSUES.md) | ARGOS : API seule source de vérité | 🟡 Code prêt — PR à merger |
+| P0.1 | [#17](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/17) | ARGOS : API seule source de vérité | 🟡 PR [#29](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/pull/29) ouverte |
 | P0.2 | — | Auth refresh automatique | 🟢 Fait |
 | P0.3 | — | PatientFile découpage phase 1 | 🟢 Fait |
 | P0.4 | — | ESLint + Ruff + strictNullChecks | 🟢 Fait |
-| P0.5 | [# à créer](GITHUB_ISSUES.md) | Aligner `main` + doc | 🔴 À faire |
+| P0.5 | [#18](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/18) | Aligner `main` + doc | 🔴 À faire |
 
 ### Critères d'acceptation (Definition of Done)
 
@@ -40,7 +40,7 @@ Un clinicien peut :
 - [ ] `client/lib/argosMappers.test.ts` + `ArgosSpace.test.tsx` verts
 - [ ] Test manuel F5 validé
 - [ ] `PROJECT_STATE.md` + `DECISIONS.md` ADR-007 mis à jour
-- [ ] PR mergée ; issue P0.1 fermée (`Fixes #N`)
+- [ ] PR mergée ; issue P0.1 fermée ([`Fixes #17`](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/pull/29))
 
 ---
 

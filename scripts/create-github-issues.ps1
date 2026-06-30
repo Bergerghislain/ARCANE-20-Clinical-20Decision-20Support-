@@ -1,13 +1,7 @@
-# PowerShell — créer les issues GitHub (équivalent de create-github-issues.sh)
-# Prérequis : gh auth login
-# Usage : powershell -File scripts/create-github-issues.ps1
-
-$ErrorActionPreference = "Stop"
+# Crée labels + backlog issues GitHub (Windows / PowerShell)
+# Prérequis : $env:GH_TOKEN ou gh auth login
+$ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot\..
-
-if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-  Write-Error "GitHub CLI (gh) introuvable. Installez-le : https://cli.github.com/"
-}
 
 $labels = @(
   @{ name = "P0"; color = "d73a4a"; desc = "Critique - sprint actuel" },
@@ -27,33 +21,52 @@ foreach ($l in $labels) {
   gh label create $l.name --color $l.color --description $l.desc 2>$null
 }
 
-function New-ArcaneIssue {
-  param(
-    [string]$Title,
-    [string]$Body,
-    [string[]]$Labels
-  )
-  Write-Host "--- Création : $Title"
-  $labelArgs = $Labels | ForEach-Object { "--label", $_ }
-  & gh issue create --title $Title --body $Body @labelArgs
+function New-ArcaneIssue([string]$Title, [string]$Body, [string[]]$Labels) {
+  Write-Host "--- $Title"
+  $args = @("issue", "create", "--title", $Title, "--body", $Body)
+  foreach ($label in $Labels) { $args += @("--label", $label) }
+  & gh @args
 }
 
-New-ArcaneIssue -Title "[P0.1] ARGOS : API seule source de vérité pour l'historique" -Labels @("P0","bug","backend","frontend","testing") -Body @"
+New-ArcaneIssue "[P0.1] ARGOS : API seule source de vérité pour l'historique" @"
 ## Contexte
 Historique ARGOS en double persistance localStorage + API.
 
 ## Critères d'acceptation
 - [ ] Plus de localStorage pour conversations ARGOS
-- [ ] Chargement via API au montage
+- [ ] Chargement via GET /api/argos/discussions
 - [ ] F5 = même historique
 - [ ] Tests intégration router ARGOS
 
 Voir docs/ROADMAP.md
-"@
+"@ @("P0", "bug", "backend", "frontend", "testing")
 
-New-ArcaneIssue -Title "[P1.1] ARGOS : brancher GET /api/patients" -Labels @("P1","enhancement","frontend") -Body "Remplacer mockPatients dans ArgosSpace.tsx. Voir docs/KNOWN_GAPS.md"
+New-ArcaneIssue "[P0.5] Aligner main avec l'état documenté (merge branches)" @"
+## Critères d'acceptation
+- [ ] main contient auth refresh, PatientFile découpé, ESLint/Ruff, ARGOS P0
+- [ ] README et docs/PROJECT_STATE.md cohérents
+- [ ] CI verte sur main
+"@ @("P0", "chore")
 
-New-ArcaneIssue -Title "[P1.2] Profil patient : draft vs sync API" -Labels @("P1","ux","frontend") -Body "Indicateurs UI brouillon/synchronisé. Voir ADR-006."
+New-ArcaneIssue "[P1.1] ARGOS : remplacer mockPatients par GET /api/patients" "Remplacer mockPatients dans ArgosSpace.tsx. Voir docs/KNOWN_GAPS.md" @("P1", "enhancement", "frontend")
 
-Write-Host "`nIssues créées. Liste :"
-gh issue list --limit 15
+New-ArcaneIssue "[P1.2] Profil patient : clarifier draft local vs synchronisation API" "Indicateurs UI brouillon/synchronisé. Voir ADR-006." @("P1", "ux", "frontend")
+
+New-ArcaneIssue "[P1.3] Politique i18n : français prioritaire dans l'UI clinicien" "Inventaire chaînes EN + pages critiques en FR." @("P1", "documentation", "frontend")
+
+New-ArcaneIssue "[P1.4] React Query pour l'état serveur frontend" "Cache patients, profil, clinical bundle, discussions ARGOS." @("P1", "enhancement", "frontend")
+
+New-ArcaneIssue "[P1.5] Seuil couverture tests frontend en CI" "Seuil minimal client/lib + pages critiques." @("P1", "testing")
+
+New-ArcaneIssue "[P1.6] E2E : ARGOS reload + profil autosave + admin assign" "Playwright : discussion ARGOS survit au F5." @("P1", "testing")
+
+New-ArcaneIssue "[P1.7] Runbook LLM labo (openai_compatible / Qwen)" "Procédure pas-à-pas + variables .env documentées." @("P1", "documentation", "backend")
+
+New-ArcaneIssue "[H2.1] Reset mot de passe (API + UI)" "ForgotPassword.tsx placeholder sans backend." @("H2", "enhancement", "backend", "frontend")
+
+New-ArcaneIssue "[H2.2] Observabilité : health, logs structurés, métriques" "/health, /ready, logs JSON, latence API/LLM." @("H2", "backend")
+
+New-ArcaneIssue "[H2.3] Traçabilité IA consultable par le clinicien" "UI ou export interactions IA (ai_audit.py)." @("H2", "enhancement")
+
+Write-Host "`nIssues créées :"
+gh issue list --limit 20
