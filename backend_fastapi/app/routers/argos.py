@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,6 +18,19 @@ from ..schemas import (
 router = APIRouter(prefix="/api/argos", tags=["argos"])
 
 
+def _request_ip(request: Request) -> str | None:
+  if not request.client:
+    return None
+  host = request.client.host
+  try:
+    return str(ipaddress.ip_address(host))
+  except ValueError:
+    # Starlette TestClient utilise l'hôte littéral « testclient ».
+    if host == "testclient":
+      return "127.0.0.1"
+    return None
+
+
 @router.post("/discussions", response_model=ArgosDiscussionOut, status_code=status.HTTP_201_CREATED)
 def create_discussion(
   payload: ArgosDiscussionCreateIn,
@@ -28,7 +42,7 @@ def create_discussion(
     result = argos_service.create_discussion(
       payload=payload.model_dump(),
       clinician_id=int(user["id"]),
-      ip_address=request.client.host if request.client else None,
+      ip_address=_request_ip(request),
       user_agent=request.headers.get("user-agent"),
     )
     return ArgosDiscussionOut(**result)
@@ -95,7 +109,7 @@ def add_message(
       discussion_id=discussion_id,
       payload=payload.model_dump(),
       clinician_id=int(user["id"]),
-      ip_address=request.client.host if request.client else None,
+      ip_address=_request_ip(request),
       user_agent=request.headers.get("user-agent"),
     )
     return ArgosMessageOut(**result)

@@ -83,6 +83,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     os.path.join("tests", "test_auth_admin_workflow.py"),
     os.path.join("tests", "test_patient_clinical_write_integration.py"),
     os.path.join("tests", "test_argos_repository_integration.py"),
+    os.path.join("tests", "test_argos_router_integration.py"),
     os.path.join("tests", "test_patient_clinical_router_integration.py"),
     os.path.join("tests", "test_rbac_access.py"),
     os.path.join("tests", "test_openai_compatible_integration.py"),
