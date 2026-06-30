@@ -132,5 +132,7 @@ M4 (fin H3)  : Dossier conformité + SSO prêt pour DSI
 
 - En **planning** : tirer 2–3 items P1 par sprint max.
 - En **revue** : cocher les statuts 🟢/🔴 et déplacer les items non livrés.
-- En **onboarding** : montrer la vision M1–M2 pour contextualiser les tâches « ingrates » (tests, lint, cohérence).
+- En **onboarding** : [ONBOARDING.md](ONBOARDING.md) puis vision M1–M2.
 - Backlog GitHub : [issues ouvertes](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues).
+
+Voir aussi : [KNOWN_GAPS.md](KNOWN_GAPS.md) pour le détail des écarts.

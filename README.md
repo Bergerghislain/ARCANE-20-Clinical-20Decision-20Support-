@@ -203,8 +203,11 @@ python -m pytest tests/ -q --benchmark-disable
 
 ## Documentation utile
 
+- Onboarding : [`docs/ONBOARDING.md`](docs/ONBOARDING.md)
 - Roadmap : [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Lacunes connues : [`docs/KNOWN_GAPS.md`](docs/KNOWN_GAPS.md)
 - État fonctionnel : [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
+- Architecture (vue d'ensemble) : [`docs/ARCHITECTURE_OVERVIEW.md`](docs/ARCHITECTURE_OVERVIEW.md)
 - Sécurité labo : [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md)
 - Protection branches GitHub : [`docs/GITHUB_BRANCH_PROTECTION.md`](docs/GITHUB_BRANCH_PROTECTION.md)
 - Intégration LLM : [`docs/QWEN_INTEGRATION.md`](docs/QWEN_INTEGRATION.md)
