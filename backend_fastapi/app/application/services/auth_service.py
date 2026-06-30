@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from ...domain import login_throttle
+from ...domain.users import User
 from ..errors import ApplicationError
 from ..ports.auth_ports import (
   LoginAttemptPort,
@@ -10,8 +12,6 @@ from ..ports.auth_ports import (
   TokenPort,
   UserRepositoryPort,
 )
-from ...domain import login_throttle
-from ...domain.users import User
 
 
 class AuthService:

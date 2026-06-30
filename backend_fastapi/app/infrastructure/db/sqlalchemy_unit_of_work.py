@@ -17,7 +17,7 @@ class SqlAlchemyUnitOfWork:
     self._session_factory = session_factory
     self.session: Session | None = None
 
-  def __enter__(self) -> "SqlAlchemyUnitOfWork":
+  def __enter__(self) -> SqlAlchemyUnitOfWork:
     self.session = self._session_factory()
     return self
 

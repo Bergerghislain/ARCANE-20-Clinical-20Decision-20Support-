@@ -3,15 +3,15 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from ..errors import ApplicationError
-from ..ports.llm_ports import LlmPort
 from ...infrastructure.ai.ai_audit import log_ai_request, log_ai_response
+from ...infrastructure.ai.json_parse import extract_json_object
 from ...infrastructure.ai.prompts import (
   build_argos_messages,
   build_report_messages,
 )
-from ...infrastructure.ai.json_parse import extract_json_object
 from ...infrastructure.ai.response_schemas import validate_argos_payload, validate_report_payload
+from ..errors import ApplicationError
+from ..ports.llm_ports import LlmPort
 
 
 class AiService:

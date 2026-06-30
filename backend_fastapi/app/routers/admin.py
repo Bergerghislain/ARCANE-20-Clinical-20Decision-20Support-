@@ -9,7 +9,6 @@ from ..application.errors import ApplicationError
 from ..application.services.admin_service import AdminService
 from ..deps import AdminUser, get_admin_service
 
-
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
