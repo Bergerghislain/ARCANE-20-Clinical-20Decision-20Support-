@@ -6,7 +6,9 @@ ARCANE est une plateforme clinique centree sur les cancers rares.
 Le projet combine:
 - un **frontend React/TypeScript** (dashboard patient, dossier patient, espace ARGOS),
 - un **backend FastAPI** (authentification, patients, administration, ARGOS),
-- une base **PostgreSQL + Alembic(ORM)**.
+- une base **PostgreSQL + Alembic**.
+
+> **Documentation complète** : voir le dossier [`docs/`](docs/README.md) (onboarding, roadmap, architecture, lacunes).
 
 ## Etat actuel du projet (mise a jour)
 
@@ -108,6 +110,7 @@ pnpm run dev:api
 Terminal 2 (frontend Vite):
 ```bash
 pnpm run dev
+
 ```
 
 - Frontend: `http://localhost:8080`
@@ -200,8 +203,13 @@ python -m pytest tests/ -q --benchmark-disable
 
 ## Documentation utile
 
-- Architecture backend SOLID/DDD: `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`
-- README backend detaille: `backend_fastapi/README.md`
+- **Index documentation** : [`docs/README.md`](docs/README.md)
+- Onboarding développeur : [`docs/ONBOARDING.md`](docs/ONBOARDING.md)
+- Roadmap & prochaines étapes : [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Lacunes connues : [`docs/KNOWN_GAPS.md`](docs/KNOWN_GAPS.md)
+- État fonctionnel : [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
+- Architecture backend SOLID/DDD : `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`
+- README backend détaillé : `backend_fastapi/README.md`
 
 ## Limitations connues / prochaines etapes
 

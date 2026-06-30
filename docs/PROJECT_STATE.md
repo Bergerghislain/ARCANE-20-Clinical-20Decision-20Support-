@@ -1,93 +1,114 @@
-# État du projet (référence “stable”)
+# État du projet (référence « stable »)
 
-Ce document sert de **snapshot** pour savoir ce qui est **fiable** avant d’améliorer/déployer.
+Snapshot pour savoir ce qui est **fiable aujourd'hui** avant d'améliorer ou déployer.  
+**Index doc** : [README.md](README.md) · **Roadmap** : [ROADMAP.md](ROADMAP.md) · **Lacunes** : [KNOWN_GAPS.md](KNOWN_GAPS.md)
+
+Dernière mise à jour : mars 2026.
+
+---
 
 ## Périmètre
 
 - **Frontend** : `client/` (React + TypeScript + Vite)
 - **Backend** : `backend_fastapi/` (FastAPI)
-- **Base de données** : PostgreSQL (schéma : **Alembic** ; seeds : `scripts/seed_demo.py`)
+- **Base** : PostgreSQL (Alembic + `scripts/seed_demo.py`)
 
-## Fonctionnalités disponibles (actuel)
+---
 
-- **Authentification**
-  - `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `POST /api/auth/register`
-  - Cookie refresh token `httpOnly`, configurable (`COOKIE_SECURE`, `COOKIE_SAMESITE`, `COOKIE_DOMAIN`)
-- **Rôles et accès**
-  - Rôles connus : `admin`, `clinician`, `researcher` (contrôle appliqué côté routes/services)
-- **Patients**
-  - CRUD patient, pagination, compat payload legacy (champs `age`, `gender`, `birthDate`)
-  - Assignation patient à un clinicien (admin)
-- **Profil patient**
-  - Persistance dédiée : table `patient_profiles` (JSONB + version optimiste)
-  - Fallback lecture legacy : `patients.health_info.manual_profile`
-- **Dossier clinique structuré**
-  - Lecture bundle : `GET /api/patients/{id}/clinical`
-  - CRUD par section (mesures, médicaments, chirurgies, radiothérapies, imagerie, cancers/événements TNM, prélèvements, biomarqueurs)
-  - Liaison `primary_cancer_id` (migration Alembic `002`)
-- **ARGOS**
-  - Discussions et messages (endpoints dédiés)
-- **IA**
-  - Ports `LlmPort` / `LlmSsePort`
-  - Providers : `disabled` | `mock_json` | `openai_compatible`
-  - Streaming SSE via cas d’usage dédié
+## Maturité globale estimée : ~5,5 / 10
 
-## Fonctionnalités incomplètes / à confirmer
+Backend et CI au-dessus de la moyenne ; frontend et prod-ready en retard. Détail : [KNOWN_GAPS.md](KNOWN_GAPS.md).
 
-- **Migrations Alembic** : couvrent désormais **tout** le schéma (`000` initial + `001`/`002`). Les seeds sont gérés par `scripts/seed_demo.py`.
-- **Tests d’intégration DB** : supposent une DB migrée (Alembic) + seedée (`seed_demo.py`). Ils ne dépendent **plus** du fallback démo (`ALLOW_DEMO_PASSWORD_FALLBACK=false`).
-- **Durcissement prod** : dépend de la configuration d’environnement (CORS, cookies secure, secret JWT). Le fallback démo est désormais désactivé partout (vrais hashes bcrypt).
+---
 
-## Tests existants
+## Fonctionnalités fiables
 
-- **Frontend** : Vitest (unit + tests de flux pages/composants)
-  - Commandes : `pnpm run typecheck`, `pnpm run test`, `pnpm run build`
-  - **E2E** : Playwright (`pnpm run test:e2e:install` puis `pnpm run test:e2e`) — scénario ARGOS minimal
-- **Backend** : Pytest (unit + intégration)
-  - Commande : `python -m pytest backend_fastapi/tests -q --benchmark-disable`
-  - **Couverture globale** : seuil CI ≥ 65 % (`pytest.ini` / `.coveragerc`)
-  - **Modules critiques** : ≥ 80 % via `scripts/check-critical-coverage.py` (`patient_clinical_write`, `argos_repository`, `patient_clinical` router)
-  - **Pré-requis intégration** : PostgreSQL + DB **seedée** (voir section DB)
+### Authentification
 
-## IA / ARGOS (P1 — durcissement)
+- `POST /api/auth/login`, `refresh`, `logout`, `register`
+- Cookie refresh HttpOnly (`COOKIE_SECURE`, `COOKIE_SAMESITE`, `COOKIE_DOMAIN`)
+- **Frontend** : access token en mémoire ; intercepteur 401 → refresh → retry (`client/lib/api.ts`) ; bootstrap au chargement (`App.tsx`)
 
-- **Backend** (`backend_fastapi/app/infrastructure/ai/`)
-  - `llm_resilience.py` : retries + circuit breaker sur appels LLM
-  - `prompt_safety.py` : sanitisation anti prompt-injection, blocs `<untrusted_*>` dans les prompts
-  - `ai_audit.py` : journalisation audit sans PII (hashes)
-  - `response_schemas.py` : validation JSON stricte des réponses rapport / ARGOS
-  - `prompts.py` : version `PROMPT_VERSION=v1.1.0`
-- **Frontend**
-  - `ClinicalAiDisclaimer.tsx` : mention « aide à la décision » (ARGOS)
-  - `client/lib/argosAiStream.ts` : parsing SSE centralisé
-  - `ArgosSpace.tsx` : erreurs IA visibles ; fallback mock **uniquement** si `VITE_ARGOS_MOCK_FALLBACK=true`
-- **Provider LLM** : `mock_json` pour dev/CI sans GPU ; `openai_compatible` pour Qwen/vLLM en local
+### Rôles
 
-## Variables d’environnement (référence)
+- `admin`, `clinician`, `researcher` — RBAC routes/services
 
-Source : `.env.example` (racine), surcharge possible par `backend_fastapi/.env`.
+### Patients
 
-Variables sensibles / sécurité :
-- `JWT_SECRET` : **doit** être long et aléatoire en labo/prod
-- `ALLOW_DEMO_PASSWORD_FALLBACK` : **false en production**
-- `COOKIE_SECURE` : **true** si HTTPS
-- `CORS_ORIGINS` : liste stricte (pas de `*`)
-- `LLM_API_KEY` : **jamais exposée côté frontend** (backend uniquement)
+- CRUD, pagination, profil JSON (`patient_profiles`)
+- Assignation clinicien (admin)
+- Bundle clinique structuré `GET /api/patients/{id}/clinical` + CRUD sections
 
-## Base de données (état actuel)
+### Dossier patient (UI)
 
-- **Source de vérité du schéma** : **Alembic** (`000_initial_schema` crée tout le schéma ; `001`/`002` = ajustements).
-- **`scripts/seed_demo.py`** : seeds de démo (users avec **vrais hashes bcrypt** + patients), idempotents, à charger après les migrations.
-- Création d'une base neuve : `alembic upgrade head` (schéma) puis `python backend_fastapi/scripts/seed_demo.py` (seeds).
+- `PatientFile.tsx` orchestrateur (~200 lignes)
+- Logique : `usePatientReport`, `usePatientClinicalBundle`
+- UI : `components/patient-file/*`
+- Autosave profil : draft `localStorage` + API
 
-Initialisation DB de test (comme en CI, sans `psql`) :
-- Linux/macOS : `bash scripts/ci-init-db.sh`
-- Windows : `powershell -File scripts/ci-init-db.ps1`
+### ARGOS
 
-Déploiement Docker : `deploy/entrypoint.sh` applique `alembic upgrade head` (+ seeds) au démarrage du conteneur.
+- API : discussions + messages persistés PostgreSQL
+- Frontend : historique chargé via **API** (`useArgosHistory` + `argosMappers`) — plus de `localStorage` pour les conversations (P0.1 livré en code, merge PR en attente)
+- `ArgosSpace` : liste patients **mockée** (pas encore `/api/patients`) — P1
 
-## Limites connues
+### IA
 
-- Sur un poste **sans** Docker et **sans** `psql`, l’initialisation automatique de la DB de tests n’est pas possible via scripts.
-- Les tests d’intégration “auth/patients/admin workflow” supposent des seeds (utilisateurs + patients) chargés via `scripts/seed_demo.py`.
+- Providers : `disabled` | `mock_json` | `openai_compatible`
+- Streaming SSE rapport ; prompt safety, audit, schémas JSON stricts côté backend
+- Fallback mock frontend si `VITE_ARGOS_MOCK_FALLBACK=true`
 
+### Admin
+
+- `/admin/users`, `/admin/patient-handler`
+
+---
+
+## Outillage & CI
+
+| Outil | Scope |
+|-------|--------|
+| TypeScript `strictNullChecks` | `client/` |
+| ESLint | `client/` (`pnpm run lint`) |
+| Ruff | `backend_fastapi/` |
+| Vitest | ~19 fichiers tests frontend |
+| Pytest | ~38 fichiers tests backend |
+| Playwright | `e2e/argos-flow.spec.ts`, `e2e/auth-session.spec.ts` |
+
+Workflow : `.github/workflows/ci.yml` (frontend + backend + e2e).
+
+---
+
+## Variables d'environnement sensibles
+
+Voir `.env.example` et [LABO_SECURITY.md](LABO_SECURITY.md).
+
+- `JWT_SECRET` — obligatoire en prod
+- `ALLOW_DEMO_PASSWORD_FALLBACK=false`
+- `LLM_API_KEY` — backend uniquement
+
+---
+
+## Base de données
+
+- Schéma : `alembic upgrade head`
+- Seeds : `python backend_fastapi/scripts/seed_demo.py`
+- Init type CI : `scripts/ci-init-db.ps1` / `.sh`
+
+---
+
+## Limites connues (résumé)
+
+1. ARGOS : patients fictifs dans l'UI (P1).
+2. Mot de passe oublié : écran sans API.
+3. Pas d'observabilité prod (logs structurés, metrics).
+4. Couverture frontend non seuillée en CI.
+5. i18n mixte FR/EN.
+
+Liste complète : [KNOWN_GAPS.md](KNOWN_GAPS.md).
+
+---
+
+## Prochaines étapes recommandées
+
+Voir [ROADMAP.md](ROADMAP.md) et [SPRINT_CURRENT.md](SPRINT_CURRENT.md) — merger P0.1 puis P0.5 alignement `main`.
