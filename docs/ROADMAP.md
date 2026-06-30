@@ -20,7 +20,7 @@ Offrir aux équipes soignantes un **espace unique** pour consulter le dossier pa
 | Cohérence produit | 5/10 | 7,5/10 |
 | **Global** | **~5,5/10** | **~7/10** |
 
-¹ Après auth refresh, découpage PatientFile, ESLint/Ruff, P0.1 ARGOS (code prêt) — mock patients ARGOS reste une dette P1.
+¹ Auth refresh, PatientFile découpé, ESLint/Ruff et ARGOS P0 sont sur `main` — dette P1 : mock patients dans ARGOS.
 
 ---
 
@@ -33,17 +33,17 @@ Offrir aux équipes soignantes un **espace unique** pour consulter le dossier pa
 
 ---
 
-## Horizon 0 — Stabilisation (en cours, ~2 semaines)
+## Horizon 0 — Stabilisation (terminé sur `main`)
 
 Objectif : supprimer les bugs « visibles clinicien » et la dette de cohérence.
 
 | ID | Thème | Statut | Critère de done |
 |----|-------|--------|-----------------|
-| **P0.1** | ARGOS : API seule source de vérité historique | 🟡 Code prêt — PR à merger | F5 = même historique ; plus de `localStorage` conversations |
-| **P0.2** | Auth : refresh automatique session | 🟢 Fait | Pas de déconnexion surprise 15–30 min |
-| **P0.3** | PatientFile : découpage phase 1 | 🟢 Fait | `PatientFile.tsx` < 400 lignes, tests verts |
+| **P0.1** | ARGOS : API seule source de vérité historique | 🟢 Fait (PR #14) | F5 = même historique ; plus de `localStorage` conversations |
+| **P0.2** | Auth : refresh automatique session | 🟢 Fait (PR #15–#16) | Pas de déconnexion surprise 15–30 min |
+| **P0.3** | PatientFile : découpage phase 1 | 🟢 Fait (PR #16) | `PatientFile.tsx` < 400 lignes, tests verts |
 | **P0.4** | Outillage : ESLint, Ruff, `strictNullChecks` | 🟢 Fait | CI verte avec linters |
-| **P0.5** | Merger / intégrer branches ouvertes | 🟡 En cours | `main` reflète l'état documenté |
+| **P0.5** | Aligner `main` avec l'état documenté | 🟢 Fait | `main` à jour |
 
 **Livrable sprint** : démo clinique « login → patient → ARGOS → F5 → historique intact » sans mock critique.
 
@@ -130,9 +130,7 @@ M4 (fin H3)  : Dossier conformité + SSO prêt pour DSI
 
 ## Comment utiliser ce document
 
-- En **planning** : tirer 2–3 items P0/P1 par sprint max → voir [SPRINT_CURRENT.md](SPRINT_CURRENT.md).
+- En **planning** : tirer 2–3 items P1 par sprint max.
 - En **revue** : cocher les statuts 🟢/🔴 et déplacer les items non livrés.
 - En **onboarding** : montrer la vision M1–M2 pour contextualiser les tâches « ingrates » (tests, lint, cohérence).
-- En **backlog GitHub** : `scripts/create-github-issues.sh` — voir [GITHUB_ISSUES.md](GITHUB_ISSUES.md).
-
-Voir aussi : [KNOWN_GAPS.md](KNOWN_GAPS.md) pour le détail des écarts.
+- Backlog GitHub : [issues ouvertes](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues).
