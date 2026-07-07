@@ -108,6 +108,33 @@ def test_argos_router_list_discussions_after_message():
 
 
 @pytest.mark.integration
+def test_argos_router_admin_can_create_and_list_discussions():
+  """Les admins doivent accéder à ARGOS comme les cliniciens (pas de 403)."""
+  token = login("admin@arcane.com")
+  headers = auth_headers(token)
+  patient_id = patient_id_by_ipp("PAT001")
+
+  create = client.post(
+    "/api/argos/discussions",
+    headers=headers,
+    json={"patient_id": patient_id, "title": "Discussion admin ARGOS"},
+  )
+  assert create.status_code == 201, create.text
+  discussion_id = int(create.json()["id"])
+
+  try:
+    listed = client.get(
+      f"/api/argos/discussions?patient_id={patient_id}",
+      headers=headers,
+    )
+    assert listed.status_code == 200, listed.text
+    ids = {int(row["id"]) for row in listed.json()}
+    assert discussion_id in ids
+  finally:
+    _cleanup_discussion(discussion_id)
+
+
+@pytest.mark.integration
 def test_argos_router_other_clinician_cannot_read_messages():
   martin_token = login("martin@hospital.com")
   leclerc_token = login("leclerc@hospital.com")

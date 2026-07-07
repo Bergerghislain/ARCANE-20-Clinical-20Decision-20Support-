@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..application.errors import ApplicationError
 from ..application.services.argos_service import ArgosService
-from ..deps import ClinicianUser, get_argos_service
+from ..deps import ClinicianOrAdminUser, get_argos_service
 from ..schemas import (
   ArgosDiscussionCreateIn,
   ArgosDiscussionOut,
@@ -35,7 +35,7 @@ def _request_ip(request: Request) -> str | None:
 def create_discussion(
   payload: ArgosDiscussionCreateIn,
   request: Request,
-  user: ClinicianUser,
+  user: ClinicianOrAdminUser,
   argos_service: Annotated[ArgosService, Depends(get_argos_service)],
 ) -> ArgosDiscussionOut:
   try:
@@ -52,7 +52,7 @@ def create_discussion(
 
 @router.get("/discussions", response_model=list[ArgosDiscussionOut])
 def list_discussions(
-  user: ClinicianUser,
+  user: ClinicianOrAdminUser,
   argos_service: Annotated[ArgosService, Depends(get_argos_service)],
   patient_id: int | None = None,
 ) -> list[ArgosDiscussionOut]:
@@ -69,7 +69,7 @@ def list_discussions(
 @router.get("/discussions/{discussion_id}", response_model=ArgosDiscussionOut)
 def get_discussion(
   discussion_id: int,
-  user: ClinicianUser,
+  user: ClinicianOrAdminUser,
   argos_service: Annotated[ArgosService, Depends(get_argos_service)],
 ) -> ArgosDiscussionOut:
   try:
@@ -82,7 +82,7 @@ def get_discussion(
 @router.get("/discussions/{discussion_id}/messages", response_model=list[ArgosMessageOut])
 def list_messages(
   discussion_id: int,
-  user: ClinicianUser,
+  user: ClinicianOrAdminUser,
   argos_service: Annotated[ArgosService, Depends(get_argos_service)],
 ) -> list[ArgosMessageOut]:
   try:
@@ -101,7 +101,7 @@ def add_message(
   discussion_id: int,
   payload: ArgosMessageCreateIn,
   request: Request,
-  user: ClinicianUser,
+  user: ClinicianOrAdminUser,
   argos_service: Annotated[ArgosService, Depends(get_argos_service)],
 ) -> ArgosMessageOut:
   try:
