@@ -21,7 +21,9 @@ test.describe("Parcours clinique ARCANE", () => {
 
     // Le disclaimer et le champ de saisie ne sont visibles qu'après ouverture d'une conversation.
     await page.getByRole("button", { name: /Poser une question générale/i }).click();
-    await expect(page.getByText(/Aide à la décision clinique/i)).toBeVisible();
+    await expect(
+      page.getByText(/ne se substitue pas au jugement médical/i),
+    ).toBeVisible();
 
     const input = page.getByPlaceholder(/Ask ARGOS/i);
     await input.fill("Quelle est la prochaine étape clinique?");
