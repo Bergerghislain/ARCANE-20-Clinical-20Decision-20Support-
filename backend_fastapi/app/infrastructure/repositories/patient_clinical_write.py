@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 from ...db import execute, fetch_one
+from ..db.unit_of_work import DbUnitOfWork
 from .patient_clinical_read import (
   _map_biomarker,
   _map_imaging_study,
@@ -437,29 +438,36 @@ class SqlPatientClinicalWriteRepository:
     ) > 0
 
   def create_biomarker(self, patient_id: int, specimen_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-    if not fetch_one(
-      "SELECT 1 FROM biological_specimens WHERE id = %s AND patient_id = %s LIMIT 1",
-      (specimen_id, patient_id),
-    ):
-      raise ValueError("specimen_not_found")
-    row = fetch_one(
-      """
-      INSERT INTO biomarkers (
-        specimen_id, biomarker_name, biomarker_value, biomarker_unit, test_method,
-        test_date_year, test_date_month
-      ) VALUES (%s,%s,%s,%s,%s,%s,%s)
-      RETURNING *
-      """,
-      (
-        specimen_id,
-        payload.get("biomarkerName") or "",
-        payload.get("biomarkerValue"),
-        payload.get("biomarkerUnit"),
-        payload.get("testMethod"),
-        payload.get("testDateYear"),
-        payload.get("testDateMonth"),
-      ),
-    )
+    with DbUnitOfWork() as uow:
+      cur = uow.cursor
+      if cur is None:
+        raise RuntimeError("Transaction cursor not initialized")
+      cur.execute(
+        "SELECT 1 FROM biological_specimens WHERE id = %s AND patient_id = %s LIMIT 1",
+        (specimen_id, patient_id),
+      )
+      if not cur.fetchone():
+        raise ValueError("specimen_not_found")
+      cur.execute(
+        """
+        INSERT INTO biomarkers (
+          specimen_id, biomarker_name, biomarker_value, biomarker_unit, test_method,
+          test_date_year, test_date_month
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s)
+        RETURNING *
+        """,
+        (
+          specimen_id,
+          payload.get("biomarkerName") or "",
+          payload.get("biomarkerValue"),
+          payload.get("biomarkerUnit"),
+          payload.get("testMethod"),
+          payload.get("testDateYear"),
+          payload.get("testDateMonth"),
+        ),
+      )
+      row = cur.fetchone()
+      uow.commit()
     return _entity_out(row or {}, _map_biomarker)
 
   def update_biomarker(

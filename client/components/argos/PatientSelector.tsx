@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ChevronDown, Search, Plus, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { fr } from "@/lib/i18n/fr";
 
 interface Patient {
   id: string;
@@ -78,20 +79,20 @@ export function PatientSelector({
                     {selectedPatient.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedPatient.condition || "Unknown condition"} •{" "}
+                    {selectedPatient.condition || fr.argos.unknownCondition} •{" "}
                     {typeof selectedPatient.age === "number"
                       ? selectedPatient.age
                       : "—"}{" "}
-                    years
+                    {fr.argos.years}
                   </p>
                 </div>
               ) : (
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    Select a patient
+                    {fr.argos.selectPatient}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Choose a patient to start consulting with ARGOS
+                    {fr.argos.selectPatientHint}
                   </p>
                 </div>
               )}
@@ -112,7 +113,7 @@ export function PatientSelector({
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Search by name, condition, or MRN..."
+                    placeholder={fr.dashboard.searchPlaceholder}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 py-2 text-sm"
@@ -136,7 +137,7 @@ export function PatientSelector({
                             {patient.name}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {patient.condition || "Unknown condition"} •{" "}
+                            {patient.condition || fr.argos.unknownCondition} •{" "}
                             {typeof patient.age === "number"
                               ? patient.age
                               : "—"}{" "}

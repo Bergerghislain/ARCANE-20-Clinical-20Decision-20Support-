@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import PatientFile from "@/pages/PatientFile";
@@ -107,6 +108,17 @@ const patientApiResponse = {
   }),
 } as Response;
 
+function renderPatientFile() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <PatientFile />
+    </QueryClientProvider>,
+  );
+}
+
 describe("PatientFile flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,7 +148,7 @@ describe("PatientFile flow", () => {
       profile: makeProfile("Diagnostic local", "local"),
     });
 
-    render(<PatientFile />);
+    renderPatientFile();
 
     const diagnosisInput = (await screen.findByLabelText(
       "Pathologie principale",
@@ -152,12 +164,12 @@ describe("PatientFile flow", () => {
 
   it("genere un report depuis l'onglet Patient Infos", async () => {
     const user = userEvent.setup();
-    render(<PatientFile />);
+    renderPatientFile();
 
     await screen.findByLabelText("Pathologie principale");
     await user.click(
       screen.getByRole("button", {
-        name: /Generate Report/i,
+        name: /Générer le rapport/i,
       }),
     );
 
@@ -167,7 +179,7 @@ describe("PatientFile flow", () => {
 
   it("transfere le contexte patient vers ARGOS avec navigation", async () => {
     const user = userEvent.setup();
-    render(<PatientFile />);
+    renderPatientFile();
 
     await screen.findByLabelText("Pathologie principale");
     await user.click(
@@ -195,7 +207,7 @@ describe("PatientFile flow", () => {
 
   it("affiche une erreur si import JSON invalide", async () => {
     const user = userEvent.setup();
-    const { container } = render(<PatientFile />);
+    const { container } = renderPatientFile();
 
     await screen.findByLabelText("Pathologie principale");
     vi.mocked(normalizePatientReportProfile).mockReturnValueOnce(null);
@@ -218,13 +230,19 @@ describe("PatientFile flow", () => {
 
   it("efface le draft local via le bouton dedie", async () => {
     const user = userEvent.setup();
-    render(<PatientFile />);
+    vi.mocked(loadPatientProfileDraft).mockReturnValue({
+      schemaVersion: 1,
+      savedAt: "2026-03-17T12:00:00.000Z",
+      profile: makeProfile("Diagnostic local", "local"),
+    });
+
+    renderPatientFile();
 
     await screen.findByLabelText("Pathologie principale");
-    await user.click(screen.getByRole("button", { name: /Effacer draft local/i }));
+    await user.click(screen.getByRole("button", { name: /Effacer brouillon local/i }));
 
     expect(clearPatientProfileDraft).toHaveBeenCalledWith("1");
-    expect(screen.getByText(/Draft local efface\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Brouillon local effacé\./i)).toBeInTheDocument();
   });
 });
 

@@ -15,9 +15,10 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { usePatientClinicalBundle } from "@/hooks/usePatientClinicalBundle";
+import { usePatientDetailQuery } from "@/hooks/queries/usePatientDetailQuery";
 import { usePatientReport } from "@/hooks/usePatientReport";
-import { apiFetch } from "@/lib/api";
 import { findPatientRowInListCache } from "@/lib/dashboardPatientsCache";
+import { fr } from "@/lib/i18n/fr";
 import {
   getStatusStyle,
   normalizePatientDetail,
@@ -35,47 +36,37 @@ export default function PatientFile() {
     reload: reloadClinicalBundle,
   } = usePatientClinicalBundle(patientId);
 
-  const [patient, setPatient] = useState<PatientViewModel | null>(null);
+  const {
+    data: patient,
+    isLoading,
+    isFetching,
+  } = usePatientDetailQuery(patientId);
+
   const [listCachePreview, setListCachePreview] = useState<PatientViewModel | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("patient-info");
 
-  const report = usePatientReport(patient, clinicalBundle, navigate);
+  const report = usePatientReport(patient ?? null, clinicalBundle, navigate);
 
   useEffect(() => {
-    const fetchPatient = async () => {
+    if (!patientId) {
       setListCachePreview(null);
-      if (patientId) {
-        const fromList = findPatientRowInListCache(patientId);
-        if (fromList) {
-          try {
-            setListCachePreview(normalizePatientDetail(fromList as PatientApiRow));
-          } catch {
-            setListCachePreview(null);
-          }
-        }
-      }
-      setIsLoading(true);
-      try {
-        const res = await apiFetch(`/api/patients/${patientId}`);
-        if (!res.ok) {
-          setPatient(null);
-          return;
-        }
-        const data = (await res.json()) as PatientApiRow;
-        setPatient(normalizePatientDetail(data));
-      } catch {
-        setPatient(null);
-      } finally {
-        setListCachePreview(null);
-        setIsLoading(false);
-      }
-    };
+      return;
+    }
+    const fromList = findPatientRowInListCache(patientId);
+    if (!fromList || patient) {
+      setListCachePreview(null);
+      return;
+    }
+    try {
+      setListCachePreview(normalizePatientDetail(fromList as PatientApiRow));
+    } catch {
+      setListCachePreview(null);
+    }
+  }, [patientId, patient]);
 
-    void fetchPatient();
-  }, [patientId]);
+  const showLoading = isLoading || (isFetching && !patient);
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <MainLayout>
         <div className="space-y-4 p-6">
@@ -166,11 +157,11 @@ export default function PatientFile() {
             <TabsList className="grid w-full grid-cols-3 lg:w-auto">
               <TabsTrigger value="patient-info" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                <span>Patient Infos</span>
+                <span>{fr.patientFile.tabInfos}</span>
               </TabsTrigger>
               <TabsTrigger value="report" className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
-                <span>Report</span>
+                <span>{fr.patientFile.tabReport}</span>
               </TabsTrigger>
               <TabsTrigger value="discussions" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />

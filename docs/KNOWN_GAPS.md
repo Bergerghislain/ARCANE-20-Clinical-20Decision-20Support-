@@ -18,8 +18,8 @@ Complète votre grille de maturité (~5,5/10 global).
 
 **À renforcer**
 
-- Pas encore de pattern « transaction » explicite partout (certaines écritures multi-tables).
-- Documentation des frontières de responsabilité entre `PatientService` et `PatientClinicalService` pour les nouveaux.
+- Pattern transaction `DbUnitOfWork` : en place pour profil patient, ARGOS et `create_biomarker` ; à généraliser aux autres écritures multi-étapes du dépôt clinique.
+- Frontières `PatientService` / `PatientClinicalService` : documentées dans [`backend_fastapi/docs/SERVICE_BOUNDARIES.md`](../backend_fastapi/docs/SERVICE_BOUNDARIES.md) — à maintenir à chaque nouvel endpoint.
 
 ---
 
@@ -94,10 +94,10 @@ Complète votre grille de maturité (~5,5/10 global).
 | Gap | Fichier / zone | Priorité |
 |-----|----------------|----------|
 | ~~ARGOS historique en `localStorage`~~ | `useArgosHistory.ts` | **P0** — 🟢 fait (PR #14) |
-| **Patients fictifs dans ARGOS** | `ArgosSpace.tsx` (`mockPatients`) | **P1** |
-| Pas de couche cache serveur unifiée (React Query) | Toutes les pages | P1 |
+| ~~**Patients fictifs dans ARGOS**~~ | `ArgosSpace.tsx` | **P1** — 🟢 `GET /api/patients` via `useArgosPatients` |
+| ~~Pas de couche cache serveur unifiée (React Query)~~ | Patients, profil, bundle, ARGOS | **P1** — 🟢 hooks `queries/` + mutations ARGOS |
 | `strict: false` (seul `strictNullChecks`) | `tsconfig.json` | P2 |
-| Mélange FR/EN dans l'UI | Global | P1 |
+| ~~Mélange FR/EN dans l'UI (pages critiques + layout)~~ | Global | **P1** — 🟢 `fr.ts` + Header/Sidebar/Settings |
 | Beaucoup de composants shadcn non testés | `components/ui/` | P2 |
 | État formulaire PatientFile très verbeux | `usePatientReport.ts` | P2 |
 
@@ -129,8 +129,8 @@ Complète votre grille de maturité (~5,5/10 global).
 | Domaine | Comportement actuel | Comportement cible |
 |---------|---------------------|-------------------|
 | Historique ARGOS | API (source de vérité) | API seule — 🟢 fait |
-| Liste patients ARGOS | Mocks hardcodés | API `/api/patients` |
-| Profil patient | Draft local **prioritaire** sur API au chargement | Explicite : choix utilisateur ou merge documenté |
+| Liste patients ARGOS | `GET /api/patients` | API `/api/patients` — 🟢 fait |
+| Profil patient | Draft local prioritaire si présent | Badge brouillon / synchronisé (ADR-006) — 🟡 partiel |
 | Discussions ARGOS « générales » | Locales seulement | Décision produit à trancher |
 | Rapport IA | Stream réel OU fallback local silencieux | Indicateur clair « simulé » vs « IA » |
 

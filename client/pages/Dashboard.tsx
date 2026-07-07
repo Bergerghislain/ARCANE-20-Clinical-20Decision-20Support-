@@ -4,16 +4,11 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
-import {
-  clearPatientsListCache,
-  readPatientsListCache,
-  stashPatientsListPayload,
-} from "@/lib/dashboardPatientsCache";
-import {
-  normalizePatient,
-  PATIENTS_PAGE_SIZE,
-  type Patient,
-} from "@/lib/patientNormalize";
+import { clearPatientsListCache } from "@/lib/dashboardPatientsCache";
+import { usePatientsInfiniteQuery } from "@/hooks/queries/usePatientsInfiniteQuery";
+import { invalidatePatientsList } from "@/lib/queryInvalidation";
+import { fr } from "@/lib/i18n/fr";
+import { type Patient } from "@/lib/patientNormalize";
 
 import {
   Search,
@@ -29,70 +24,29 @@ const DASHBOARD_AUTO_REFRESH_MS = 15000;
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<Patient[]>(() => {
-    const raw = readPatientsListCache();
-    return raw?.map((row, index) => normalizePatient(row, index)) ?? [];
-  });
-  const [isLoading, setIsLoading] = useState(() => readPatientsListCache() === null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMorePatients, setHasMorePatients] = useState(false);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = usePatientsInfiniteQuery();
+
+  const patients = useMemo(
+    () => data?.pages.flatMap((page) => page.patients) ?? [],
+    [data],
+  );
+
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<Patient["status"] | "all">("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fetchPatientsPage = useCallback(
-    async (
-      offset: number,
-      mode: "replace" | "append" = "replace",
-    ): Promise<boolean> => {
-      const res = await apiFetch(
-        `/api/patients?limit=${PATIENTS_PAGE_SIZE}&offset=${offset}`,
-      );
-      if (!res.ok) {
-        if (mode === "replace") setPatients([]);
-        setHasMorePatients(false);
-        return false;
-      }
-      const data = await res.json();
-      const normalized = Array.isArray(data)
-        ? data.map((row, index) => normalizePatient(row, offset + index))
-        : [];
-      if (mode === "replace" && offset === 0 && Array.isArray(data)) {
-        stashPatientsListPayload(data);
-      }
-      setHasMorePatients(normalized.length === PATIENTS_PAGE_SIZE);
-      if (mode === "replace") {
-        setPatients(normalized);
-      } else {
-        setPatients((current) => {
-          const existingIds = new Set(current.map((patient) => patient.id));
-          const incoming = normalized.filter((patient) => !existingIds.has(patient.id));
-          return [...current, ...incoming];
-        });
-      }
-      return true;
-    },
-    [],
-  );
-
   const refreshPatients = useCallback(async () => {
-    await fetchPatientsPage(0, "replace");
-  }, [fetchPatientsPage]);
-
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        await refreshPatients();
-      } catch (error) {
-        console.error("Failed to load patients:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    void fetchPatients();
-  }, [refreshPatients]);
+    await refetch();
+  }, [refetch]);
 
   useEffect(() => {
     const refreshSafely = () => {
@@ -131,7 +85,7 @@ export default function Dashboard() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        let message = "Import failed";
+        let message = fr.dashboard.importFailed;
         try {
           const errorPayload = await res.json();
           if (typeof errorPayload?.details === "string") {
@@ -144,12 +98,12 @@ export default function Dashboard() {
         }
         throw new Error(message);
       }
-      await fetchPatientsPage(0, "replace");
+      await invalidatePatientsList();
       clearPatientsListCache();
       window.dispatchEvent(new Event("arcane:patients-updated"));
     } catch (error) {
       setImportError(
-        error instanceof Error ? error.message : "Unable to import file",
+        error instanceof Error ? error.message : fr.dashboard.importFileError,
       );
     } finally {
       setIsImporting(false);
@@ -187,16 +141,19 @@ export default function Dashboard() {
     [filteredPatients],
   );
 
-  const handleLoadMore = async () => {
-    if (isLoadingMore || !hasMorePatients) return;
-    setIsLoadingMore(true);
-    try {
-      await fetchPatientsPage(patients.length, "append");
-    } catch (error) {
-      console.error("Failed to load more patients:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
+  const handleLoadMore = () => {
+    if (isFetchingNextPage || !hasNextPage) return;
+    void fetchNextPage();
+  };
+
+  const statusFilterLabels: Record<
+    "all" | NonNullable<Patient["status"]>,
+    string
+  > = {
+    all: fr.dashboard.filterAll,
+    active: fr.dashboard.filterActive,
+    pending: fr.dashboard.filterPending,
+    completed: fr.dashboard.filterCompleted,
   };
 
   const getStatusColor = (status: Patient["status"]) => {
@@ -231,9 +188,7 @@ export default function Dashboard() {
           <div className="mx-auto max-w-7xl px-6 py-8">
             <div className="mb-6">
               <h1 className="text-3xl font-bold text-primary">Dashboard Clinicien</h1>
-              <p className="mt-2 text-muted-foreground">
-                Manage your patients and access ARGOS clinical decision support
-              </p>
+              <p className="mt-2 text-muted-foreground">{fr.dashboard.subtitle}</p>
             </div>
 
             <div className="flex gap-3 flex-wrap">
@@ -243,7 +198,7 @@ export default function Dashboard() {
   onClick={() => navigate("/add-patient")}
 >
   <Plus className="mr-2 h-5 w-5" />
-  Add Patient
+  {fr.dashboard.addPatient}
 </Button>
               <input
                 ref={fileInputRef}
@@ -264,7 +219,7 @@ export default function Dashboard() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
               >
-                {isImporting ? "Importing..." : "Import JSON"}
+                {isImporting ? fr.dashboard.importing : fr.dashboard.importJson}
               </Button>
 
               <Button
@@ -273,7 +228,7 @@ export default function Dashboard() {
                 onClick={() => navigate("/argos")}
               >
                 <Bot className="mr-2 h-5 w-5" />
-                Open ARGOS
+                {fr.dashboard.openArgos}
               </Button>
             </div>
           </div>
@@ -292,7 +247,7 @@ export default function Dashboard() {
               <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search by patient name or condition..."
+                placeholder={fr.dashboard.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -310,7 +265,7 @@ export default function Dashboard() {
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {statusFilterLabels[status]}
                 </button>
               ))}
             </div>
@@ -319,13 +274,13 @@ export default function Dashboard() {
           {/* Liste des patients */}
           <div className="mb-3 text-xs text-muted-foreground">
             {isLoading
-              ? "Loading patients..."
+              ? fr.dashboard.loadingPatients
               : `${patients.length} patient(s) loaded`}
           </div>
           <div className="space-y-3">
             {isLoading ? (
               <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
-                <p className="text-muted-foreground">Loading patients...</p>
+                <p className="text-muted-foreground">{fr.dashboard.loadingPatients}</p>
               </div>
             ) : filteredPatients.length > 0 ? (
               filteredPatients.map((patient) => (
@@ -338,7 +293,7 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-foreground">
-                          {patient.name || "Unknown patient"}
+                          {patient.name || fr.dashboard.unknownPatient}
                         </h3>
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(patient.status)}`}
@@ -355,7 +310,7 @@ export default function Dashboard() {
                           </span>{" "}
                           years
                         </div>
-                        <div>{patient.condition || "Unknown condition"}</div>
+                        <div>{patient.condition || fr.dashboard.unknownCondition}</div>
                         <div>
                           {patient.birthDate
                             ? new Date(patient.birthDate).toLocaleDateString(
@@ -366,7 +321,7 @@ export default function Dashboard() {
                                   year: "numeric",
                                 },
                               )
-                            : "Unknown birth date"}
+                            : fr.dashboard.unknownBirthDate}
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
@@ -379,7 +334,7 @@ export default function Dashboard() {
                                   year: "numeric",
                                 },
                               )
-                            : "Unknown"}
+                            : "Non renseigné"}
                         </div>
                       </div>
                     </div>
@@ -388,20 +343,20 @@ export default function Dashboard() {
                         variant="outline"
                         size="sm"
                         className="border-secondary text-secondary hover:bg-secondary/10"
-                        aria-label={`Open ARGOS for ${patient.name || "patient"}`}
+                        aria-label={`Ouvrir ARGOS pour ${patient.name || "patient"}`}
                         onClick={(e) => {
                           e.preventDefault();
                           navigate("/argos", {
                             state: {
                               patient: {
                                 id: patient.id,
-                                name: patient.name || "Unknown patient",
+                                name: patient.name || fr.dashboard.unknownPatient,
                                 age:
                                   typeof patient.age === "number"
                                     ? patient.age
                                     : 0,
                                 condition:
-                                  patient.condition || "Unknown condition",
+                                  patient.condition || fr.dashboard.unknownCondition,
                                 mrn: patient.mrn || patient.id,
                                 status: patient.status || "active",
                               },
@@ -420,7 +375,7 @@ export default function Dashboard() {
                           navigate(`/patient/${patient.id}`);
                         }}
                       >
-                        <span className="text-xs font-medium">Open</span>
+                        <span className="text-xs font-medium">Ouvrir</span>
                       </Button>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-secondary" />
                     </div>
@@ -434,16 +389,16 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          {!isLoading && hasMorePatients && (
+          {!isLoading && hasNextPage && (
             <div className="mt-4 flex justify-center">
               <Button
                 variant="outline"
                 onClick={() => {
                   void handleLoadMore();
                 }}
-                disabled={isLoadingMore}
+                disabled={isFetchingNextPage}
               >
-                {isLoadingMore ? "Loading..." : "Load more patients"}
+                {isFetchingNextPage ? fr.dashboard.loading : fr.dashboard.loadMore}
               </Button>
             </div>
           )}

@@ -6,6 +6,9 @@ import {
   fetchPatientProfileFromApi,
   savePatientProfileToApi,
 } from "@/lib/patientProfileApi";
+import { queryClient } from "@/lib/queryClient";
+import { queryKeys } from "@/lib/queryKeys";
+import { invalidatePatient } from "@/lib/queryInvalidation";
 import {
   clearPatientProfileDraft,
   loadPatientProfileDraft,
@@ -69,6 +72,10 @@ export function usePatientReport(
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [profileDataSource, setProfileDataSource] = useState<
+    "api" | "local-draft" | "json-file" | "none"
+  >("none");
+  const [hasLocalDraft, setHasLocalDraft] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isJsonLoading, setIsJsonLoading] = useState(false);
 
@@ -176,6 +183,15 @@ export function usePatientReport(
       lastSyncedFingerprintRef.current = JSON.stringify(profile);
       setSyncState("saved");
       setLastSavedAt(new Date().toISOString());
+      if (sourceLabel === "API backend") {
+        setProfileDataSource("api");
+        setHasLocalDraft(false);
+      } else if (sourceLabel.startsWith("patient-reports/")) {
+        setProfileDataSource("json-file");
+      }
+    } else if (sourceLabel === "localStorage") {
+      setProfileDataSource("local-draft");
+      setHasLocalDraft(true);
     }
     window.setTimeout(() => {
       isFormHydratingRef.current = false;
@@ -183,6 +199,9 @@ export function usePatientReport(
   };
 
   const loadProfilesForPatient = async (normalized: PatientViewModel) => {
+    setProfileDataSource("none");
+    setHasLocalDraft(false);
+
     const jsonProfile = await loadPatientReportProfile(normalized.id);
     if (jsonProfile) {
       hydrateFormFromProfile(jsonProfile, `patient-reports/${normalized.id}.json`, {
@@ -191,7 +210,10 @@ export function usePatientReport(
     }
 
     try {
-      const apiProfile = await fetchPatientProfileFromApi(normalized.id);
+      const apiProfile = await queryClient.fetchQuery({
+        queryKey: queryKeys.patients.profile(normalized.id),
+        queryFn: () => fetchPatientProfileFromApi(normalized.id),
+      });
       if (apiProfile) {
         hydrateFormFromProfile(apiProfile, "API backend", { markAsPersisted: true });
       }
@@ -210,6 +232,22 @@ export function usePatientReport(
 
     isAutosaveReadyRef.current = true;
   };
+
+  const profileSyncStatus = useMemo(() => {
+    if (syncState === "saving") return "saving" as const;
+    if (syncState === "error") return "sync-error" as const;
+    if (hasLocalDraft || profileDataSource === "local-draft") {
+      return "local-draft" as const;
+    }
+    if (
+      syncState === "saved" ||
+      profileDataSource === "api" ||
+      profileDataSource === "json-file"
+    ) {
+      return "synced" as const;
+    }
+    return null;
+  }, [syncState, profileDataSource, hasLocalDraft]);
 
   useEffect(() => {
     if (!patient) return;
@@ -476,14 +514,19 @@ export function usePatientReport(
                 ? savedProfile.profileVersion
                 : null,
             );
+            setProfileDataSource("api");
+            setHasLocalDraft(false);
           } else {
             lastSyncedFingerprintRef.current = fingerprint;
           }
           setSyncState("saved");
           setLastSavedAt(new Date().toISOString());
+          void invalidatePatient(patient.id);
         })
         .catch(() => {
           setSyncState("error");
+          setHasLocalDraft(true);
+          setProfileDataSource("local-draft");
         });
     }, 700);
 
@@ -569,9 +612,23 @@ export function usePatientReport(
   const clearLocalDraft = () => {
     if (!patient) return;
     clearPatientProfileDraft(patient.id);
-    setInfoMessage("Draft local efface.");
-    setSyncState("idle");
-    setLastSavedAt(null);
+    setHasLocalDraft(false);
+    void (async () => {
+      try {
+        const apiProfile = await fetchPatientProfileFromApi(patient.id);
+        if (apiProfile) {
+          hydrateFormFromProfile(apiProfile, "API backend", { markAsPersisted: true });
+          setInfoMessage("Brouillon local effacé. Profil serveur rechargé.");
+          return;
+        }
+      } catch {
+        // Pas de profil API : on garde le formulaire tel quel.
+      }
+      setProfileDataSource("none");
+      setSyncState("idle");
+      setLastSavedAt(null);
+      setInfoMessage("Brouillon local effacé.");
+    })();
   };
 
   return {
@@ -617,6 +674,9 @@ export function usePatientReport(
     infoMessage,
     errorMessage,
     syncState,
+    profileSyncStatus,
+    profileDataSource,
+    hasLocalDraft,
     lastSavedAt,
     isJsonLoading,
     parsedClinicalSections,

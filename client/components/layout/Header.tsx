@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { LogOut, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logout, getStoredUser } from "@/lib/auth";
+import { fr } from "@/lib/i18n/fr";
 
 interface HeaderProps {
   userName?: string;
@@ -13,7 +14,7 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const storedUser = getStoredUser();
   const displayName =
-    userName || storedUser?.full_name || storedUser?.username || "Clinician";
+    userName || storedUser?.full_name || storedUser?.username || fr.layout.clinician;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-white/80 backdrop-blur shadow-sm">
@@ -22,7 +23,7 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg shadow-md">
             <img
               src="https://cdn.builder.io/api/v1/image/assets%2F7cd1f0a31d4341f88052d23a9c109ccd%2F8bdc503ce9cf4432ae8603c4be99f69b?format=webp&width=800"
-              alt="ARCANE Logo"
+              alt="Logo ARCANE"
               className="h-10 w-10 object-contain"
             />
           </div>
@@ -30,9 +31,7 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
             <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
               ARCANE
             </h1>
-            <p className="text-xs text-muted-foreground">
-              Clinical Decision Support
-            </p>
+            <p className="text-xs text-muted-foreground">{fr.layout.tagline}</p>
           </div>
         </Link>
 
@@ -44,14 +43,14 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
                 onClick={() => navigate("/admin/users")}
                 className="text-xs font-medium text-secondary hover:text-secondary/80"
               >
-                Dashboard admin
+                {fr.layout.adminDashboard}
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/admin/patient-handler")}
                 className="text-xs font-medium text-secondary hover:text-secondary/80"
               >
-                Patient handler
+                {fr.layout.patientHandler}
               </button>
             </div>
           )}
@@ -74,6 +73,7 @@ export function Header({ userName, onMenuClick }: HeaderProps) {
           <button
             onClick={onMenuClick}
             className="inline-flex sm:hidden items-center justify-center h-9 w-9 rounded-md hover:bg-secondary/10"
+            aria-label="Menu"
           >
             <Menu className="h-5 w-5" />
           </button>

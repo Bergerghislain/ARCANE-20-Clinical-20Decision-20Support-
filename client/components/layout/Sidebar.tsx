@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Users, Bot, Settings, HelpCircle, Shield, RefreshCw, X } from "lucide-react";
 import { getStoredUser } from "@/lib/auth";
+import { fr } from "@/lib/i18n/fr";
 
 interface NavItem {
   label: string;
@@ -21,27 +22,35 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const navItems: NavItem[] = [
     {
-      label: "Patients",
+      label: fr.layout.navPatients,
       icon: <Users className="h-5 w-5" />,
       href: "/dashboard",
     },
-    { label: "ARGOS Space", icon: <Bot className="h-5 w-5" />, href: "/argos" },
     {
-      label: "Settings",
+      label: fr.layout.navArgos,
+      icon: <Bot className="h-5 w-5" />,
+      href: "/argos",
+    },
+    {
+      label: fr.layout.navSettings,
       icon: <Settings className="h-5 w-5" />,
       href: "/settings",
     },
-    { label: "Help", icon: <HelpCircle className="h-5 w-5" />, href: "/help" },
+    {
+      label: fr.layout.navHelp,
+      icon: <HelpCircle className="h-5 w-5" />,
+      href: "/help",
+    },
   ];
 
   if (isAdmin) {
     navItems.push({
-      label: "Administration",
+      label: fr.layout.navAdmin,
       icon: <Shield className="h-5 w-5" />,
       href: "/admin/users",
     });
     navItems.push({
-      label: "Patient Handler",
+      label: fr.layout.navPatientHandler,
       icon: <RefreshCw className="h-5 w-5" />,
       href: "/admin/patient-handler",
     });
@@ -97,7 +106,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           {/* Footer */}
           <div className="border-t border-sidebar-border p-4">
             <p className="text-xs text-sidebar-foreground/60">
-              ARCANE Phase 1 • Rare Cancer Support
+              {fr.layout.sidebarFooter}
             </p>
           </div>
         </div>

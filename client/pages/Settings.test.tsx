@@ -24,7 +24,7 @@ describe("Settings page", () => {
         <Settings />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("heading", { name: /Settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Paramètres/i })).toBeInTheDocument();
     expect(screen.getByText("admin@arcane.com")).toBeInTheDocument();
   });
 });
