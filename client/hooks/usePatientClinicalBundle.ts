@@ -9,6 +9,8 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     data: data ?? null,
     isLoading,
     error: error instanceof Error ? error.message : null,
-    reload: refetch,
+    reload: async () => {
+      await refetch();
+    },
   };
 }

@@ -146,7 +146,10 @@ export default function Dashboard() {
     void fetchNextPage();
   };
 
-  const statusFilterLabels: Record<Patient["status"] | "all", string> = {
+  const statusFilterLabels: Record<
+    "all" | NonNullable<Patient["status"]>,
+    string
+  > = {
     all: fr.dashboard.filterAll,
     active: fr.dashboard.filterActive,
     pending: fr.dashboard.filterPending,

@@ -129,7 +129,7 @@ describe("Dashboard flow", () => {
 
     await screen.findByText("Marie Dubois");
     await user.click(screen.getByRole("button", { name: /Ajouter un patient/i }));
-    await user.click(screen.getByRole("button", { name: "Ouvrir ARGOS", exact: true }));
+    await user.click(screen.getByRole("button", { name: /^Ouvrir ARGOS$/ }));
 
     expect(navigateMock).toHaveBeenCalledWith("/add-patient");
     expect(navigateMock).toHaveBeenCalledWith("/argos");
