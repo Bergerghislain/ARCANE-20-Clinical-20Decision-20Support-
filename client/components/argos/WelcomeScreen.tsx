@@ -1,6 +1,7 @@
 import React from "react";
 import { Bot, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fr } from "@/lib/i18n/fr";
 
 interface WelcomeScreenProps {
   onSelectPatient: () => void;
@@ -14,32 +15,24 @@ export function WelcomeScreen({
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-8">
       <div className="max-w-xl text-center">
-        {/* Icon */}
         <div className="mb-6 flex justify-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-secondary to-cyan-600 shadow-lg">
             <Bot className="h-10 w-10 text-white" />
           </div>
         </div>
 
-        {/* Title */}
         <h2 className="mb-3 text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-          ARGOS Clinical Assistant
+          {fr.argos.title}
         </h2>
 
-        {/* Subtitle */}
-        <p className="mb-6 text-lg text-muted-foreground">
-          Your intelligent clinical decision support system
-        </p>
+        <p className="mb-6 text-lg text-muted-foreground">{fr.argos.subtitle}</p>
 
-        {/* Description */}
         <p className="mb-8 text-sm text-muted-foreground leading-relaxed">
-          ARGOS leverages advanced AI to provide structured clinical reasoning,
-          treatment hypotheses, and evidence-based recommendations. Select a
-          patient to begin a consultation and receive comprehensive clinical
-          support.
+          ARGOS s&apos;appuie sur l&apos;IA pour fournir un raisonnement clinique
+          structuré, des hypothèses thérapeutiques et des recommandations fondées
+          sur les données. Sélectionnez un patient pour démarrer une consultation.
         </p>
 
-        {/* Features List */}
         <div className="mb-8 space-y-3 text-left">
           <div className="flex gap-3 rounded-lg bg-primary/5 p-4">
             <div className="mt-1 h-5 w-5 flex-shrink-0 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
@@ -47,10 +40,10 @@ export function WelcomeScreen({
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                Structured Clinical Reasoning
+                Raisonnement clinique structuré
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Synthesis, hypotheses, and evidence-based arguments
+                Synthèse, hypothèses et arguments fondés sur les preuves
               </p>
             </div>
           </div>
@@ -61,10 +54,10 @@ export function WelcomeScreen({
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                Conversation History
+                Historique des conversations
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Access all previous discussions with each patient
+                Retrouvez toutes les discussions passées par patient
               </p>
             </div>
           </div>
@@ -75,16 +68,15 @@ export function WelcomeScreen({
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                Decision Support Framework
+                Cadre d&apos;aide à la décision
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Traceability to clinical guidelines and evidence
+                Traçabilité vers les recommandations et la littérature
               </p>
             </div>
           </div>
         </div>
 
-        {/* CTA Button */}
         <div className="space-y-3">
           <Button
             variant="default"
@@ -92,7 +84,7 @@ export function WelcomeScreen({
             onClick={onSelectPatient}
             className="w-full"
           >
-            <span>Select a Patient to Begin</span>
+            <span>Sélectionner un patient</span>
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <Button
@@ -101,14 +93,13 @@ export function WelcomeScreen({
             onClick={onStartGeneral}
             className="w-full"
           >
-            <span>Ask a General Question</span>
+            <span>Poser une question générale</span>
           </Button>
         </div>
 
-        {/* Footer Text */}
         <p className="mt-6 text-xs text-muted-foreground">
-          ARGOS recommendations are for decision support only. Always validate
-          with clinical expertise and institutional protocols.
+          Les recommandations ARGOS sont une aide à la décision uniquement. Toujours
+          valider avec l&apos;expertise clinique et les protocoles de votre établissement.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Dashboard from "@/pages/Dashboard";
@@ -35,10 +36,15 @@ function jsonResponse(body: unknown, ok = true): Response {
 }
 
 function renderDashboard() {
+  const testClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter>
-      <Dashboard />
-    </MemoryRouter>,
+    <QueryClientProvider client={testClient}>
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -102,16 +108,16 @@ describe("Dashboard flow", () => {
     await screen.findByText("Marie Dubois");
 
     await user.type(
-      screen.getByPlaceholderText(/Search by patient name or condition/i),
+      screen.getByPlaceholderText(/Rechercher par nom ou pathologie/i),
       "sarcome",
     );
     expect(screen.getByText("Jean Martin")).toBeInTheDocument();
     expect(screen.queryByText("Marie Dubois")).not.toBeInTheDocument();
 
     await user.clear(
-      screen.getByPlaceholderText(/Search by patient name or condition/i),
+      screen.getByPlaceholderText(/Rechercher par nom ou pathologie/i),
     );
-    await user.click(screen.getByRole("button", { name: "Pending" }));
+    await user.click(screen.getByRole("button", { name: "En attente" }));
 
     expect(screen.getByText("Jean Martin")).toBeInTheDocument();
     expect(screen.queryByText("Sophie Bernard")).not.toBeInTheDocument();
@@ -122,8 +128,8 @@ describe("Dashboard flow", () => {
     renderDashboard();
 
     await screen.findByText("Marie Dubois");
-    await user.click(screen.getByRole("button", { name: "Add Patient" }));
-    await user.click(screen.getByRole("button", { name: "Open ARGOS" }));
+    await user.click(screen.getByRole("button", { name: /Ajouter un patient/i }));
+    await user.click(screen.getByRole("button", { name: "Ouvrir ARGOS", exact: true }));
 
     expect(navigateMock).toHaveBeenCalledWith("/add-patient");
     expect(navigateMock).toHaveBeenCalledWith("/argos");
@@ -134,7 +140,7 @@ describe("Dashboard flow", () => {
     renderDashboard();
 
     await screen.findByText("Marie Dubois");
-    await user.click(screen.getAllByRole("button", { name: /^Open$/i })[0]);
+    await user.click(screen.getAllByRole("button", { name: /^Ouvrir$/i })[0]);
 
     expect(navigateMock).toHaveBeenCalledWith("/patient/1");
   });
@@ -146,7 +152,7 @@ describe("Dashboard flow", () => {
     await screen.findByText("Marie Dubois");
     await user.click(
       screen.getByRole("button", {
-        name: "Open ARGOS for Marie Dubois",
+        name: "Ouvrir ARGOS pour Marie Dubois",
       }),
     );
 
@@ -282,7 +288,7 @@ describe("Dashboard flow", () => {
     renderDashboard();
     expect(await screen.findByText("Patient 1")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: /Load more patients/i }),
+      screen.getByRole("button", { name: /Charger plus de patients/i }),
     );
 
     expect(await screen.findByText("Patient 25")).toBeInTheDocument();

@@ -1,35 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  fetchPatientClinicalBundle,
-  type PatientClinicalBundle,
-} from "@/lib/patientClinicalApi";
+import { usePatientClinicalBundleQuery } from "@/hooks/queries/usePatientClinicalBundleQuery";
 
+/** Bundle clinique — cache React Query + invalidation via `invalidatePatient`. */
 export function usePatientClinicalBundle(patientId: string | undefined) {
-  const [data, setData] = useState<PatientClinicalBundle | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error, refetch } =
+    usePatientClinicalBundleQuery(patientId);
 
-  const reload = useCallback(async () => {
-    if (!patientId) {
-      setData(null);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
-      const bundle = await fetchPatientClinicalBundle(patientId);
-      setData(bundle);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : "Erreur de chargement clinique.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [patientId]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  return { data, isLoading, error, reload };
+  return {
+    data: data ?? null,
+    isLoading,
+    error: error instanceof Error ? error.message : null,
+    reload: refetch,
+  };
 }

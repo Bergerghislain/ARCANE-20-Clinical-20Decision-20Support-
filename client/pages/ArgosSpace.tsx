@@ -16,20 +16,26 @@ import {
   X,
 } from "lucide-react";
 import { useArgosHistory, type UseArgosHistory, type Conversation } from "@/hooks/useArgosHistory";
+import {
+  useArgosPatients,
+  type ArgosPatientOption,
+} from "@/hooks/useArgosPatients";
 import { WelcomeScreen } from "@/components/argos/WelcomeScreen";
 import { PatientSelector } from "@/components/argos/PatientSelector";
 import { ArgosSidebar } from "@/components/argos/ArgosSidebar";
 import {
-  createArgosDiscussion,
   fetchArgosDiscussions,
   fetchArgosMessages,
-  postArgosMessage,
 } from "@/lib/argosApi";
 import {
-  ARGOS_WELCOME_MESSAGE,
   backendDiscussionIdFromConversationId,
   mapDiscussionToConversation,
 } from "@/lib/argosMappers";
+import { queryClient } from "@/lib/queryClient";
+import { queryKeys } from "@/lib/queryKeys";
+import { fr } from "@/lib/i18n/fr";
+import { useCreateArgosDiscussionMutation } from "@/hooks/mutations/useCreateArgosDiscussionMutation";
+import { usePostArgosMessageMutation } from "@/hooks/mutations/usePostArgosMessageMutation";
 import { ClinicalAiDisclaimer } from "@/components/ClinicalAiDisclaimer";
 import { streamArgosAiResponse } from "@/lib/argosAiStream";
 import {
@@ -39,77 +45,19 @@ import {
   PatientReportProfile,
 } from "@/lib/patientReport";
 
-interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  condition: string;
-  mrn?: string;
-  status?: "active" | "pending" | "completed" | "unknown";
+interface Patient extends ArgosPatientOption {
   contextProfile?: PatientReportProfile;
   contextMessage?: string;
 }
 
 const GENERAL_PATIENT: Patient = {
   id: "general",
-  name: "General discussion",
+  name: fr.argos.generalDiscussion,
   age: 0,
-  condition: "General question",
+  condition: fr.argos.generalCondition,
 };
 
-// Mock patients from dashboard
-const mockPatients: Patient[] = [
-  {
-    id: "1",
-    name: "Marie Dubois",
-    age: 52,
-    condition: "Rare Lymphoma",
-    mrn: "MRN-2024-001234",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Jean Martin",
-    age: 67,
-    condition: "Sarcoma of the Jaw",
-    mrn: "MRN-2024-001235",
-    status: "pending",
-  },
-  {
-    id: "3",
-    name: "Sophie Bernard",
-    age: 45,
-    condition: "Neuroendocrine Tumor",
-    mrn: "MRN-2024-001236",
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Pierre Leclerc",
-    age: 59,
-    condition: "Angiosarcoma",
-    mrn: "MRN-2024-001237",
-    status: "completed",
-  },
-  {
-    id: "5",
-    name: "Isabelle Fournier",
-    age: 38,
-    condition: "Epithelioid Sarcoma",
-    mrn: "MRN-2024-001238",
-    status: "active",
-  },
-];
-
 const AUTO_CONTEXT_HEADER = "[Contexte Patient Auto Charge]";
-
-function resolvePatientName(patientId: string): string {
-  const fromList = [...mockPatients, GENERAL_PATIENT].find(
-    (p) => p.id === patientId,
-  );
-  if (fromList) return fromList.name;
-  return `Patient ${patientId}`;
-}
 
 function buildMockArgosResponse(patient: Patient | null) {
   const fallbackReport = buildSimulatedAiReport({
@@ -145,6 +93,13 @@ function buildMockArgosResponse(patient: Patient | null) {
 export default function ArgosSpace() {
   const location = useLocation();
   const argosHistory: UseArgosHistory = useArgosHistory();
+  const {
+    patients: apiPatients,
+    isLoading: patientsLoading,
+    error: patientsError,
+  } = useArgosPatients();
+  const createDiscussionMutation = useCreateArgosDiscussionMutation();
+  const postMessageMutation = usePostArgosMessageMutation();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -157,12 +112,32 @@ export default function ArgosSpace() {
 
   const currentConversation = argosHistory.getCurrentConversation();
 
+  const patientNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    map.set(GENERAL_PATIENT.id, GENERAL_PATIENT.name);
+    for (const patient of apiPatients) {
+      map.set(patient.id, patient.name);
+    }
+    if (selectedPatient && selectedPatient.id !== GENERAL_PATIENT.id) {
+      map.set(selectedPatient.id, selectedPatient.name);
+    }
+    return map;
+  }, [apiPatients, selectedPatient]);
+
+  const resolvePatientName = (patientId: string) =>
+    patientNameById.get(patientId) ?? `Patient ${patientId}`;
+
   const patients = useMemo(() => {
-    if (!selectedPatient) return [GENERAL_PATIENT, ...mockPatients];
-    const exists = mockPatients.some((p) => p.id === selectedPatient.id);
-    const base = exists ? mockPatients : [selectedPatient, ...mockPatients];
-    return [GENERAL_PATIENT, ...base];
-  }, [selectedPatient]);
+    let list: Patient[] = [...apiPatients];
+    if (
+      selectedPatient &&
+      selectedPatient.id !== GENERAL_PATIENT.id &&
+      !list.some((p) => p.id === selectedPatient.id)
+    ) {
+      list = [selectedPatient, ...list];
+    }
+    return [GENERAL_PATIENT, ...list];
+  }, [apiPatients, selectedPatient]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -176,10 +151,16 @@ export default function ArgosSpace() {
     conversationId ? backendDiscussionIdFromConversationId(conversationId) : null;
 
   const syncAllDiscussionsFromBackend = async () => {
-    const discussions = await fetchArgosDiscussions();
+    const discussions = await queryClient.fetchQuery({
+      queryKey: queryKeys.argos.discussions(),
+      queryFn: () => fetchArgosDiscussions(),
+    });
     const loaded: Conversation[] = [];
     for (const discussion of discussions) {
-      const messages = await fetchArgosMessages(discussion.id);
+      const messages = await queryClient.fetchQuery({
+        queryKey: queryKeys.argos.messages(discussion.id),
+        queryFn: () => fetchArgosMessages(discussion.id),
+      });
       const patientName = resolvePatientName(String(discussion.patient_id));
       loaded.push(
         mapDiscussionToConversation(discussion, messages, patientName),
@@ -190,21 +171,17 @@ export default function ArgosSpace() {
 
   const createBackendConversation = async (
     patient: Patient,
-    title = "New Conversation",
+    title = fr.argos.newConversation,
   ): Promise<Conversation> => {
     const patientIdNum = Number(patient.id);
-    const discussion = await createArgosDiscussion({
+    const result = await createDiscussionMutation.mutateAsync({
       patientId: patientIdNum,
+      patientName: patient.name,
       title,
     });
-    await postArgosMessage(discussion.id, {
-      message_type: "argos_response",
-      content: ARGOS_WELCOME_MESSAGE,
-    });
-    const messages = await fetchArgosMessages(discussion.id);
     const conversation = mapDiscussionToConversation(
-      discussion,
-      messages,
+      result.discussion,
+      result.messages,
       patient.name,
     );
     argosHistory.hydrateConversation(conversation);
@@ -302,12 +279,16 @@ export default function ArgosSpace() {
 
     const discussionId = getBackendDiscussionId(conversationId);
     if (discussionId) {
-      void postArgosMessage(discussionId, {
-        message_type: "clinician_note",
-        content: contextMessage,
-      }).catch(() => {
-        // Le contexte reste visible dans l'UI même si la synchro backend échoue.
-      });
+      void postMessageMutation
+        .mutateAsync({
+          discussionId,
+          patientId: Number(targetPatient.id),
+          message_type: "clinician_note",
+          content: contextMessage,
+        })
+        .catch(() => {
+          // Le contexte reste visible dans l'UI même si la synchro backend échoue.
+        });
     }
 
     injectedContextKeysRef.current.add(markerKey);
@@ -458,7 +439,9 @@ export default function ArgosSpace() {
       const backendDiscussionId = getBackendDiscussionId(conversation.id);
       if (backendDiscussionId && userMessage) {
         try {
-          await postArgosMessage(backendDiscussionId, {
+          await postMessageMutation.mutateAsync({
+            discussionId: backendDiscussionId,
+            patientId: selectedPatient ? Number(selectedPatient.id) : undefined,
             message_type: "user_query",
             content: userMessage.content,
           });
@@ -512,7 +495,9 @@ export default function ArgosSpace() {
 
         if (backendDiscussionId && assistantMessage) {
           try {
-            await postArgosMessage(backendDiscussionId, {
+            await postMessageMutation.mutateAsync({
+              discussionId: backendDiscussionId,
+              patientId: selectedPatient ? Number(selectedPatient.id) : undefined,
               message_type: "argos_response",
               content: finalContent,
               sections: finalSections,
@@ -581,7 +566,7 @@ export default function ArgosSpace() {
               )}
             </button>
             <span className="text-sm font-medium text-muted-foreground flex-1">
-              {selectedPatient ? selectedPatient.name : "Select a patient"}
+              {selectedPatient ? selectedPatient.name : fr.argos.selectPatient}
             </span>
           </div>
 
@@ -596,12 +581,12 @@ export default function ArgosSpace() {
                       <Bot className="h-6 w-6 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                      ARGOS Clinical Assistant
+                      {fr.argos.title}
                     </h1>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {selectedPatient.id === GENERAL_PATIENT.id
-                      ? "General discussion"
+                      ? fr.argos.generalDiscussion
                       : `Patient: ${selectedPatient.name} ${
                           selectedPatient.mrn ? `(${selectedPatient.mrn})` : ""
                         } • ${selectedPatient.condition}`}
@@ -620,10 +605,19 @@ export default function ArgosSpace() {
 
               <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-2 space-y-2">
                 <ClinicalAiDisclaimer compact />
-                {historyLoading && (
+                {patientsLoading && (
                   <p className="text-xs text-muted-foreground">
-                    Chargement de l&apos;historique ARGOS…
+                    Chargement des patients depuis l&apos;API…
                   </p>
+                )}
+                {patientsError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{patientsError}</span>
+                  </div>
                 )}
                 {historyError && (
                   <div

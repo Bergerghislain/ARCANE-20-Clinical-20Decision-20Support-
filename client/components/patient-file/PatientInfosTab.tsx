@@ -23,6 +23,8 @@ import { PrimaryCancerClinicalSection } from "@/components/patient-clinical/Prim
 import { SpecimensClinicalSection } from "@/components/patient-clinical/SpecimensClinicalSection";
 import { TreatmentsClinicalSection } from "@/components/patient-clinical/TreatmentsClinicalSection";
 import { ArgosContextButton } from "@/components/patient-file/ArgosTabLink";
+import { fr } from "@/lib/i18n/fr";
+import { ProfileSyncStatusBadge } from "@/components/patient-file/ProfileSyncStatusBadge";
 import type { UsePatientReportReturn } from "@/hooks/usePatientReport";
 import type { PatientClinicalBundle } from "@/lib/patientClinicalApi";
 import type { PatientViewModel } from "@/lib/patientFileModel";
@@ -50,7 +52,7 @@ function SectionActions({
     <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-2xl border border-primary/20 bg-background/90 p-3 backdrop-blur">
       <Button onClick={onGenerateReport}>
         <Sparkles className="mr-2 h-4 w-4" />
-        Generate Report
+        {fr.patientFile.generateReport}
       </Button>
       <ArgosContextButton onOpenDiscussion={onOpenArgos} />
     </div>
@@ -110,7 +112,9 @@ export function PatientInfosTab({
     setSurgeryJson,
     infoMessage,
     errorMessage,
-    syncState,
+    profileSyncStatus,
+    profileDataSource,
+    hasLocalDraft,
     lastSavedAt,
     isJsonLoading,
     parsedClinicalSections,
@@ -124,11 +128,21 @@ export function PatientInfosTab({
     <div className="space-y-6">
       <Card className="overflow-hidden border-blue-200/60 bg-gradient-to-br from-blue-50 via-white to-cyan-50 shadow-sm">
         <CardHeader className="border-b border-blue-100/70">
-          <CardTitle className="text-xl">Source des donnees patient</CardTitle>
-          <CardDescription>
-            Vous pouvez charger un JSON preconfigure par patient, importer un JSON local,
-            ou saisir les informations manuellement.
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl">Source des donnees patient</CardTitle>
+              <CardDescription>
+                Vous pouvez charger un JSON preconfigure par patient, importer un JSON local,
+                ou saisir les informations manuellement.
+              </CardDescription>
+            </div>
+            {profileSyncStatus && (
+              <ProfileSyncStatusBadge
+                status={profileSyncStatus}
+                lastSavedAt={lastSavedAt}
+              />
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 bg-white/70">
           <div className="flex flex-wrap gap-3">
@@ -159,10 +173,16 @@ export function PatientInfosTab({
               <Upload className="mr-2 h-4 w-4" />
               Importer un JSON local
             </Button>
-            <Button variant="ghost" onClick={clearLocalDraft}>
-              Effacer draft local
+            <Button variant="ghost" onClick={clearLocalDraft} disabled={!hasLocalDraft}>
+              Effacer brouillon local
             </Button>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            {profileDataSource === "local-draft" || hasLocalDraft
+              ? "Le brouillon local est affiche en priorite sur le profil serveur (ADR-006). Effacez-le pour recharger l'API."
+              : "Le profil affiche provient du serveur ou d'un fichier JSON charge."}
+          </p>
 
           {infoMessage && (
             <div className="rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
@@ -174,17 +194,6 @@ export function PatientInfosTab({
               {errorMessage}
             </div>
           )}
-          <div className="text-xs text-muted-foreground">
-            {syncState === "saving" && "Synchronisation en cours..."}
-            {syncState === "saved" &&
-              `Profil synchronise${lastSavedAt ? ` (${new Date(lastSavedAt).toLocaleTimeString("fr-FR")})` : ""}.`}
-            {syncState === "error" &&
-              "Synchronisation API indisponible. Le draft local est conserve."}
-            {syncState === "idle" &&
-              (lastSavedAt
-                ? `Dernier draft local: ${new Date(lastSavedAt).toLocaleString("fr-FR")}`
-                : "Aucun draft local pour le moment.")}
-          </div>
         </CardContent>
       </Card>
 

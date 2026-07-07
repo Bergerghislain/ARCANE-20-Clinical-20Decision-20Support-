@@ -57,16 +57,16 @@ Objectif : un clinicien peut utiliser ARCANE **quotidiennement** sur des vrais p
 
 | Item | Description | Effort |
 |------|-------------|--------|
-| **ARGOS ↔ patients réels** | Remplacer `mockPatients` dans `ArgosSpace.tsx` par `GET /api/patients` (comme Dashboard) | M |
+| **ARGOS ↔ patients réels** | ~~`mockPatients`~~ → `useArgosPatients` + `GET /api/patients` | 🟢 Fait |
 | **Discussions générales ARGOS** | Décider : persister côté API (patient générique) ou retirer l'UX « general discussion » | S |
-| **Profil patient : draft vs API** | UI claire « brouillon local » vs « synchronisé serveur » ; éviter écrasement silencieux | M |
-| **i18n** | Politique : **FR prioritaire** ; anglais résiduel progressivement retiré ou basculé via clés i18n | L |
+| **Profil patient : draft vs API** | Badge brouillon / synchronisé + texte ADR-006 dans PatientInfosTab | 🟡 Partiel |
+| **i18n** | Inventaire + pages critiques + layout (Header, Sidebar, Settings) | 🟢 Fait |
 
 ### P1 — Frontend discipline
 
 | Item | Description | Effort |
 |------|-------------|--------|
-| **React Query (ou équivalent)** | Cache serveur patients, profil, clinical bundle, discussions ARGOS | L |
+| **React Query** | Cache patients, profil, bundle clinique, discussions ARGOS (`client/hooks/queries/`) | 🟢 Fait |
 | **Couverture tests frontend** | Seuil CI sur `lib/` + pages critiques (Dashboard, PatientFile, ArgosSpace, auth) | M |
 | **E2E élargis** | Parcours : profil autosave, discussion ARGOS reload, admin assign | M |
 | **PatientFile phase 2** | Découper `usePatientReport` (streaming, autosave) | M |

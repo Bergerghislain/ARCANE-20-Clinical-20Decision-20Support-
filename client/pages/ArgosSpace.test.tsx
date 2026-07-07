@@ -1,9 +1,21 @@
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import ArgosSpace from "@/pages/ArgosSpace";
+
+function renderWithProviders(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 vi.mock("@/components/layout/MainLayout", () => ({
   MainLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -32,6 +44,15 @@ vi.mock("@/hooks/useArgosHistory", () => ({
   }),
 }));
 
+vi.mock("@/hooks/useArgosPatients", () => ({
+  useArgosPatients: () => ({
+    patients: [],
+    isLoading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/argosApi", () => ({
   createArgosDiscussion: vi.fn(),
   fetchArgosDiscussions: vi.fn(async () => []),
@@ -41,11 +62,7 @@ vi.mock("@/lib/argosApi", () => ({
 
 describe("ArgosSpace page", () => {
   it("affiche l'écran d'accueil ARGOS", () => {
-    render(
-      <MemoryRouter>
-        <ArgosSpace />
-      </MemoryRouter>,
-    );
-    expect(screen.getByRole("heading", { name: /ARGOS Clinical Assistant/i })).toBeInTheDocument();
+    renderWithProviders(<ArgosSpace />);
+    expect(screen.getByRole("heading", { name: /Assistant clinique ARGOS/i })).toBeInTheDocument();
   });
 });

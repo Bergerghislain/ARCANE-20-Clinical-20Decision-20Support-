@@ -17,6 +17,7 @@ Ce dossier contient le backend FastAPI unique du projet.
 - **IA** : ports `LlmPort` (sync) et `LlmSsePort` (SSE) ; implémentations `MockJsonLlmClient` / `OpenAiCompatibleClient` ; streaming via `StreamLlmSseUseCase`.
 
 Architecture détaillée : [`ARCHITECTURE_SOLID_DDD.md`](ARCHITECTURE_SOLID_DDD.md).  
+Frontières `PatientService` / `PatientClinicalService` : [`docs/SERVICE_BOUNDARIES.md`](docs/SERVICE_BOUNDARIES.md).  
 Intégration Qwen / LLM : [`../docs/QWEN_INTEGRATION.md`](../docs/QWEN_INTEGRATION.md).
 
 ## Prérequis
