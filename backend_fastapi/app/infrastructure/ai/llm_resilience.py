@@ -5,6 +5,8 @@ import time
 from collections.abc import Callable
 from typing import TypeVar
 
+from ...application.errors import ApplicationError
+
 T = TypeVar("T")
 
 DEFAULT_MAX_RETRIES = 2
@@ -77,6 +79,8 @@ def call_with_retries(
       result = operation()
       breaker.record_success()
       return result
+    except ApplicationError:
+      raise
     except Exception as exc:  # noqa: BLE001 — frontière réseau LLM
       last_error = exc
       breaker.record_failure()
