@@ -186,6 +186,7 @@ export default function PatientFile() {
             <TabsContent value="report" className="space-y-6">
               <ReportTab
                 reportOutput={report.reportOutput}
+                reportReflection={report.reportReflection}
                 reportStreamRaw={report.reportStreamRaw}
                 isReportStreaming={report.isReportStreaming}
                 onGoToPatientInfo={() => setSelectedTab("patient-info")}

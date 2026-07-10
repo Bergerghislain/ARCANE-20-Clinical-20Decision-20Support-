@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Plus,
   Trash2,
@@ -14,6 +14,8 @@ interface ArgosSidebarProps {
   conversations: Conversation[];
   currentConversationId: string | null;
   currentPatientId: string | null;
+  focusPatientId?: string | null;
+  defaultTab?: "all" | "by-patient";
   onLoadConversation: (conversationId: string) => void;
   onDeleteConversation: (conversationId: string) => void;
   onRenameConversation: (conversationId: string, newTitle: string) => void;
@@ -26,6 +28,8 @@ export function ArgosSidebar({
   conversations,
   currentConversationId,
   currentPatientId,
+  focusPatientId = null,
+  defaultTab = "all",
   onLoadConversation,
   onDeleteConversation,
   onRenameConversation,
@@ -33,12 +37,27 @@ export function ArgosSidebar({
   isOpen = true,
   onClose,
 }: ArgosSidebarProps) {
-  const [activeTab, setActiveTab] = useState<"all" | "by-patient">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "by-patient">(defaultTab);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(
-    new Set([currentPatientId || ""]),
+    new Set(
+      [currentPatientId, focusPatientId].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
   );
+
+  useEffect(() => {
+    if (focusPatientId) {
+      setActiveTab("by-patient");
+      setExpandedPatients((prev) => new Set(prev).add(focusPatientId));
+    }
+  }, [focusPatientId]);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   // Sort conversations by date (most recent first)
   const sortedConversations = useMemo(() => {

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { apiFetch } from "@/lib/api";
+import {
+  extractPartialJsonString,
+  hasPartialJsonField,
+} from "@/lib/aiStreamPartialJson";
 import type { PatientClinicalBundle } from "@/lib/patientClinicalApi";
 import {
   fetchPatientProfileFromApi,
@@ -51,6 +55,7 @@ export function usePatientReport(
   const [pathologySummary, setPathologySummary] = useState("");
   const [analysesEditor, setAnalysesEditor] = useState("");
   const [reportOutput, setReportOutput] = useState<SimulatedIaReport | null>(null);
+  const [reportReflection, setReportReflection] = useState("");
   const [reportStreamRaw, setReportStreamRaw] = useState("");
   const [isReportStreaming, setIsReportStreaming] = useState(false);
   const [ipp, setIpp] = useState("");
@@ -385,6 +390,7 @@ export function usePatientReport(
     setInfoMessage(null);
     setErrorMessage(null);
     setReportStreamRaw("");
+    setReportReflection("");
     setIsReportStreaming(true);
     try {
       const res = await apiFetch("/api/ai/report/stream", {
@@ -430,6 +436,13 @@ export function usePatientReport(
             if (typeof delta === "string" && delta) {
               jsonText += delta;
               setReportStreamRaw(jsonText);
+              setReportReflection(extractPartialJsonString(jsonText, "reflection"));
+              const hasResult =
+                hasPartialJsonField(jsonText, "conclusion") ||
+                hasPartialJsonField(jsonText, "reasoning");
+              if (!hasResult) {
+                continue;
+              }
               try {
                 const parsed = JSON.parse(jsonText) as {
                   conclusion?: string;
@@ -449,7 +462,14 @@ export function usePatientReport(
                   }
                 }
               } catch {
-                // JSON incomplet pendant le streaming.
+                const maybe: SimulatedIaReport = {
+                  conclusion: extractPartialJsonString(jsonText, "conclusion"),
+                  reasoning: extractPartialJsonString(jsonText, "reasoning"),
+                  sources: [],
+                };
+                if (maybe.conclusion || maybe.reasoning) {
+                  setReportOutput(maybe);
+                }
               }
             }
           } catch {
@@ -459,10 +479,12 @@ export function usePatientReport(
       }
 
       const finalParsed = JSON.parse(jsonText) as {
+        reflection?: string;
         conclusion?: string;
         reasoning?: string;
         sources?: unknown[];
       };
+      setReportReflection(String(finalParsed?.reflection ?? reportReflection));
       const finalReport: SimulatedIaReport = {
         conclusion: String(finalParsed?.conclusion ?? ""),
         reasoning: String(finalParsed?.reasoning ?? ""),
@@ -682,6 +704,7 @@ export function usePatientReport(
     parsedClinicalSections,
     currentProfile,
     reportOutput,
+    reportReflection,
     reportStreamRaw,
     isReportStreaming,
     handleGenerateReport,

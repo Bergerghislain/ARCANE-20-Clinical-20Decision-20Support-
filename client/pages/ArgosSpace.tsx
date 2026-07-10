@@ -26,6 +26,7 @@ import { ArgosSidebar } from "@/components/argos/ArgosSidebar";
 import {
   fetchArgosDiscussions,
   fetchArgosMessages,
+  updateArgosDiscussion,
 } from "@/lib/argosApi";
 import {
   backendDiscussionIdFromConversationId,
@@ -37,7 +38,9 @@ import { fr } from "@/lib/i18n/fr";
 import { useCreateArgosDiscussionMutation } from "@/hooks/mutations/useCreateArgosDiscussionMutation";
 import { usePostArgosMessageMutation } from "@/hooks/mutations/usePostArgosMessageMutation";
 import { ClinicalAiDisclaimer } from "@/components/ClinicalAiDisclaimer";
+import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
 import { streamArgosAiResponse } from "@/lib/argosAiStream";
+import { filterVisibleArgosConversations } from "@/lib/argosConversationUtils";
 import {
   buildArgosContextFromProfile,
   buildSimulatedAiReport,
@@ -105,12 +108,24 @@ export default function ArgosSpace() {
   const [loading, setLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarFocusPatientId, setSidebarFocusPatientId] = useState<string | null>(null);
+  const [sidebarDefaultTab, setSidebarDefaultTab] = useState<"all" | "by-patient">("all");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const injectedContextKeysRef = useRef<Set<string>>(new Set());
+  const navigatedPatientRef = useRef<string | null>(null);
 
   const currentConversation = argosHistory.getCurrentConversation();
+
+  const visibleConversations = useMemo(
+    () =>
+      filterVisibleArgosConversations(
+        argosHistory.getConversations(),
+        argosHistory.currentConversationId,
+      ),
+    [argosHistory.conversations, argosHistory.currentConversationId],
+  );
 
   const patientNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -155,18 +170,42 @@ export default function ArgosSpace() {
       queryKey: queryKeys.argos.discussions(),
       queryFn: () => fetchArgosDiscussions(),
     });
-    const loaded: Conversation[] = [];
-    for (const discussion of discussions) {
-      const messages = await queryClient.fetchQuery({
-        queryKey: queryKeys.argos.messages(discussion.id),
-        queryFn: () => fetchArgosMessages(discussion.id),
-      });
-      const patientName = resolvePatientName(String(discussion.patient_id));
-      loaded.push(
-        mapDiscussionToConversation(discussion, messages, patientName),
-      );
+    const loaded = await Promise.all(
+      discussions.map(async (discussion) => {
+        const messages = await queryClient.fetchQuery({
+          queryKey: queryKeys.argos.messages(discussion.id),
+          queryFn: () => fetchArgosMessages(discussion.id),
+        });
+        const patientName = resolvePatientName(String(discussion.patient_id));
+        return mapDiscussionToConversation(discussion, messages, patientName);
+      }),
+    );
+    argosHistory.mergeConversationsFromBackend(loaded);
+  };
+
+  const loadLatestPatientConversation = async (patient: Patient) => {
+    let patientConvs = argosHistory.getConversationsByPatient(patient.id);
+    if (patientConvs.length > 0) {
+      argosHistory.loadConversation(patientConvs[0].id);
+      return patientConvs[0];
     }
-    argosHistory.replaceConversations(loaded);
+    if (patient.id === GENERAL_PATIENT.id) return null;
+
+    const patientIdNum = Number(patient.id);
+    if (!Number.isFinite(patientIdNum)) return null;
+
+    const discussions = await fetchArgosDiscussions(patientIdNum);
+    if (discussions.length === 0) return null;
+
+    const discussion = discussions[0];
+    const messages = await fetchArgosMessages(discussion.id);
+    const conversation = mapDiscussionToConversation(
+      discussion,
+      messages,
+      patient.name,
+    );
+    argosHistory.hydrateConversation(conversation);
+    return conversation;
   };
 
   const createBackendConversation = async (
@@ -297,32 +336,7 @@ export default function ArgosSpace() {
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
     argosHistory.setCurrentPatientId(patient.id);
-    const patientConvs = argosHistory.getConversationsByPatient(patient.id);
-    if (patientConvs.length > 0) {
-      argosHistory.loadConversation(patientConvs[0].id);
-      return;
-    }
-    if (patient.id !== GENERAL_PATIENT.id) {
-      void (async () => {
-        try {
-          const patientIdNum = Number(patient.id);
-          if (!Number.isFinite(patientIdNum)) return;
-          const discussions = await fetchArgosDiscussions(patientIdNum);
-          if (discussions.length === 0) return;
-
-          const discussion = discussions[0];
-          const messages = await fetchArgosMessages(discussion.id);
-          const conversation = mapDiscussionToConversation(
-            discussion,
-            messages,
-            patient.name,
-          );
-          argosHistory.hydrateConversation(conversation);
-        } catch {
-          // L'historique reste vide si le chargement serveur échoue.
-        }
-      })();
-    }
+    void loadLatestPatientConversation(patient);
   };
 
   const handleNewConversation = (patient: Patient) => {
@@ -340,8 +354,13 @@ export default function ArgosSpace() {
     })();
   };
 
-  const handleLoadConversation = (patient: Patient) => {
-    handleSelectPatient(patient);
+  const handleOpenPatientHistory = (patient: Patient) => {
+    setSelectedPatient(patient);
+    argosHistory.setCurrentPatientId(patient.id);
+    setSidebarFocusPatientId(patient.id);
+    setSidebarDefaultTab("by-patient");
+    setSidebarOpen(true);
+    void loadLatestPatientConversation(patient);
   };
 
   const handlePatientSelectorOpen = () => {
@@ -358,26 +377,24 @@ export default function ArgosSpace() {
   };
 
   useEffect(() => {
-    const statePatient = (location.state as { patient?: Patient } | null)
-      ?.patient;
-    if (!statePatient) return;
-    if (selectedPatient?.id === statePatient.id) return;
+    if (!argosHistory.isLoaded || historyLoading) return;
 
+    const statePatient = (location.state as { patient?: Patient } | null)?.patient;
+    if (!statePatient) return;
+    if (navigatedPatientRef.current === statePatient.id) return;
+    if (selectedPatient?.id === statePatient.id && currentConversation) return;
+
+    navigatedPatientRef.current = statePatient.id;
     setSelectedPatient(statePatient);
     argosHistory.setCurrentPatientId(statePatient.id);
 
-    const patientConvs = argosHistory.getConversationsByPatient(
-      statePatient.id,
-    );
-    if (patientConvs.length > 0) {
-      argosHistory.loadConversation(patientConvs[0].id);
-    } else {
-      handleNewConversation(statePatient);
-    }
+    void loadLatestPatientConversation(statePatient);
   }, [
     location.state,
     selectedPatient?.id,
-    argosHistory,
+    currentConversation?.id,
+    argosHistory.isLoaded,
+    historyLoading,
   ]);
 
   // Injecte automatiquement le contexte patient dans la conversation active.
@@ -434,26 +451,42 @@ export default function ArgosSpace() {
         conversation.id,
       );
 
-      argosHistory.updateTitleFromFirstMessage(conversation.id);
+      const newTitle = argosHistory.updateTitleFromFirstMessage(
+        conversation.id,
+        userContent,
+      );
 
       const backendDiscussionId = getBackendDiscussionId(conversation.id);
+      if (backendDiscussionId && newTitle) {
+        void updateArgosDiscussion(backendDiscussionId, { title: newTitle }).catch(
+          () => {
+            setAiError(
+              "Titre mis à jour localement mais non synchronisé avec le serveur.",
+            );
+          },
+        );
+      }
       if (backendDiscussionId && userMessage) {
-        try {
-          await postMessageMutation.mutateAsync({
+        void postMessageMutation
+          .mutateAsync({
             discussionId: backendDiscussionId,
             patientId: selectedPatient ? Number(selectedPatient.id) : undefined,
             message_type: "user_query",
             content: userMessage.content,
+          })
+          .catch(() => {
+            setAiError(
+              "Message enregistré localement mais non synchronisé avec le serveur.",
+            );
           });
-        } catch {
-          setAiError(
-            "Message enregistré localement mais non synchronisé avec le serveur.",
-          );
-        }
       }
 
-      const historyForModel = (conversation.messages || [])
-        .slice(-12)
+      const historyForModel = (
+        userMessage
+          ? [...(conversation.messages || []), userMessage]
+          : conversation.messages || []
+      )
+        .slice(-8)
         .map((m) => ({
           role: m.role,
           content: m.content,
@@ -464,12 +497,14 @@ export default function ArgosSpace() {
           {
             role: "assistant",
             content: "",
+            reflection: "",
+            isGenerating: true,
             timestamp: new Date(),
           },
           conversation.id,
         );
 
-        const { content: finalContent, sections: finalSections } =
+        const { content: finalContent, reflection: finalReflection, sections: finalSections } =
           await streamArgosAiResponse(
             {
               patient_name: selectedPatient?.name,
@@ -479,14 +514,25 @@ export default function ArgosSpace() {
               user_message: userMessage?.content || userContent,
               history: historyForModel,
             },
-            (partialJson) => {
-              if (assistantMessage) {
-                argosHistory.updateMessageContent(assistantMessage.id, partialJson);
+            (progress) => {
+              if (!assistantMessage) return;
+              argosHistory.updateMessageReflection(
+                assistantMessage.id,
+                progress.reflection,
+                !progress.hasStructuredOutput,
+              );
+              if (progress.hasStructuredOutput && progress.content) {
+                argosHistory.updateMessageContent(assistantMessage.id, progress.content);
               }
             },
           );
 
         if (assistantMessage) {
+          argosHistory.updateMessageReflection(
+            assistantMessage.id,
+            finalReflection,
+            false,
+          );
           argosHistory.updateMessageContent(assistantMessage.id, finalContent);
           if (finalSections) {
             argosHistory.updateMessageSections(assistantMessage.id, finalSections);
@@ -537,12 +583,15 @@ export default function ArgosSpace() {
       <div className="flex h-[calc(100vh-4rem)] flex-col sm:flex-row bg-background overflow-hidden">
         {/* Sidebar */}
         <ArgosSidebar
-          conversations={argosHistory.getConversations()}
+          conversations={visibleConversations}
           currentConversationId={argosHistory.currentConversationId}
           currentPatientId={argosHistory.currentPatientId}
+          focusPatientId={sidebarFocusPatientId}
+          defaultTab={sidebarDefaultTab}
           onLoadConversation={(conversationId) => {
             argosHistory.loadConversation(conversationId);
             setSidebarOpen(false);
+            setSidebarFocusPatientId(null);
           }}
           onDeleteConversation={argosHistory.deleteConversation}
           onRenameConversation={argosHistory.renameConversation}
@@ -600,7 +649,7 @@ export default function ArgosSpace() {
                 selectedPatient={selectedPatient}
                 onSelectPatient={handleSelectPatient}
                 onNewConversation={handleNewConversation}
-                onLoadConversation={handleLoadConversation}
+                onLoadConversation={handleOpenPatientHistory}
               />
 
               <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-2 space-y-2">
@@ -664,7 +713,22 @@ export default function ArgosSpace() {
                             : "bg-card border border-border text-foreground"
                         }`}
                       >
-                        <p className="mb-3 text-sm">{message.content}</p>
+                        {(message.role === "assistant" &&
+                          (message.reflection || message.isGenerating)) && (
+                          <AiReflectionPanel
+                            reflection={message.reflection ?? ""}
+                            isStreaming={message.isGenerating}
+                            className="mb-3"
+                          />
+                        )}
+
+                        {message.content ? (
+                          <p className="mb-3 text-sm">{message.content}</p>
+                        ) : message.isGenerating ? (
+                          <p className="mb-3 text-sm text-muted-foreground">
+                            Synthèse clinique en cours…
+                          </p>
+                        ) : null}
 
                         {message.sections && (
                           <div className="space-y-4 mt-4 pt-4 border-t border-border">
@@ -813,7 +877,7 @@ export default function ArgosSpace() {
                 selectedPatient={null}
                 onSelectPatient={handleSelectPatient}
                 onNewConversation={handleNewConversation}
-                onLoadConversation={handleLoadConversation}
+                onLoadConversation={handleOpenPatientHistory}
               />
               <WelcomeScreen
                 onSelectPatient={handlePatientSelectorOpen}

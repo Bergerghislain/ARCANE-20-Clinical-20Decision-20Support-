@@ -48,6 +48,14 @@ class _Repo:
       return None
     return row
 
+  def update_discussion(self, *, discussion_id: int, clinician_id: int, title: str):
+    row = self.find_discussion(discussion_id=discussion_id, clinician_id=clinician_id)
+    if not row:
+      return None
+    row = {**row, "title": title, "updated_at": _dt.datetime(2026, 1, 2, 0, 0, 0)}
+    self._discussions[discussion_id] = row
+    return row
+
   def list_messages(self, *, discussion_id: int):
     return list(self._messages.get(discussion_id) or [])
 
@@ -185,4 +193,45 @@ def test_get_discussion_returns_mapped_row():
   got = service.get_discussion(discussion_id=int(created["id"]), clinician_id=4)
   assert got["title"] == "T1"
   assert got["context"] == "ctx"
+
+
+def test_update_discussion_renames_and_logs_activity():
+  repo = _Repo()
+  log = _ActivityLog()
+  service = ArgosService(repo, log)
+  created = service.create_discussion(
+    payload={"patient_id": 1, "title": "New Conversation"},
+    clinician_id=3,
+    ip_address=None,
+    user_agent=None,
+  )
+  updated = service.update_discussion(
+    discussion_id=int(created["id"]),
+    payload={"title": "Douleur thoracique"},
+    clinician_id=3,
+    ip_address="127.0.0.1",
+    user_agent="pytest",
+  )
+  assert updated["title"] == "Douleur thoracique"
+  assert log.events[-1]["action_type"] == "argos_discussion_updated"
+
+
+def test_update_discussion_404_when_not_owned():
+  repo = _Repo()
+  service = ArgosService(repo, _ActivityLog())
+  created = service.create_discussion(
+    payload={"patient_id": 1},
+    clinician_id=1,
+    ip_address=None,
+    user_agent=None,
+  )
+  with pytest.raises(ApplicationError) as exc:
+    service.update_discussion(
+      discussion_id=int(created["id"]),
+      payload={"title": "Titre"},
+      clinician_id=2,
+      ip_address=None,
+      user_agent=None,
+    )
+  assert exc.value.status_code == 404
 

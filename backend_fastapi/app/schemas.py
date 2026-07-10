@@ -217,6 +217,10 @@ class ArgosDiscussionCreateIn(BaseModel):
   context: str | None = None
 
 
+class ArgosDiscussionUpdateIn(BaseModel):
+  title: str = Field(min_length=1, max_length=200)
+
+
 class ArgosDiscussionOut(BaseModel):
   id: int
   patient_id: int

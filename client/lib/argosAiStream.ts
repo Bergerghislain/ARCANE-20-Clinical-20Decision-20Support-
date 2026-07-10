@@ -1,4 +1,8 @@
 import { apiFetch } from "@/lib/api";
+import {
+  extractPartialJsonString,
+  hasPartialJsonField,
+} from "@/lib/aiStreamPartialJson";
 import type { PatientReportProfile } from "@/lib/patientReport";
 
 export type ArgosStreamHistoryItem = {
@@ -25,8 +29,16 @@ export type ArgosStreamSections = {
 
 export type ArgosStreamResult = {
   content: string;
+  reflection: string;
   sections?: ArgosStreamSections;
   rawJson: string;
+};
+
+export type ArgosStreamProgress = {
+  rawJson: string;
+  reflection: string;
+  content: string;
+  hasStructuredOutput: boolean;
 };
 
 function isLlmStreamErrorPayload(data: string): boolean {
@@ -41,7 +53,7 @@ function isLlmStreamErrorPayload(data: string): boolean {
 
 export async function streamArgosAiResponse(
   payload: ArgosStreamRequest,
-  onDelta: (partialJson: string) => void,
+  onDelta: (progress: ArgosStreamProgress) => void,
 ): Promise<ArgosStreamResult> {
   const res = await apiFetch("/api/ai/argos/respond/stream", {
     method: "POST",
@@ -94,7 +106,16 @@ export async function streamArgosAiResponse(
           jsonText += delta;
           if (jsonText !== lastRendered) {
             lastRendered = jsonText;
-            onDelta(jsonText);
+            const reflection = extractPartialJsonString(jsonText, "reflection");
+            const contentPartial = extractPartialJsonString(jsonText, "content");
+            onDelta({
+              rawJson: jsonText,
+              reflection,
+              content: contentPartial,
+              hasStructuredOutput:
+                hasPartialJsonField(jsonText, "content") ||
+                jsonText.includes('"sections"'),
+            });
           }
         }
       } catch {
@@ -104,16 +125,20 @@ export async function streamArgosAiResponse(
   }
 
   let content = "";
+  let reflection = "";
   let sections: ArgosStreamSections | undefined;
   try {
     const parsed = JSON.parse(jsonText) as {
+      reflection?: string;
       content?: string;
       sections?: ArgosStreamSections;
     };
+    reflection = String(parsed?.reflection ?? "");
     content = String(parsed?.content ?? "");
     sections = parsed?.sections;
   } catch {
-    content = jsonText;
+    reflection = extractPartialJsonString(jsonText, "reflection");
+    content = extractPartialJsonString(jsonText, "content") || jsonText;
     sections = undefined;
   }
 
@@ -123,6 +148,7 @@ export async function streamArgosAiResponse(
 
   return {
     content: content || jsonText,
+    reflection,
     sections,
     rawJson: jsonText,
   };

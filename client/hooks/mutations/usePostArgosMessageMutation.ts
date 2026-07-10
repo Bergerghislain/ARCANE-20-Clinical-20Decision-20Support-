@@ -4,7 +4,6 @@ import {
   type ArgosMessage,
   type ArgosMessageSections,
 } from "@/lib/argosApi";
-import { invalidateArgosDiscussions } from "@/lib/queryInvalidation";
 import { queryKeys } from "@/lib/queryKeys";
 
 export interface PostArgosMessageInput {
@@ -25,12 +24,11 @@ export function usePostArgosMessageMutation() {
         content: input.content,
         sections: input.sections,
       }),
-    onSuccess: async (message, variables) => {
+    onSuccess: (message, variables) => {
       queryClient.setQueryData<ArgosMessage[]>(
         queryKeys.argos.messages(variables.discussionId),
         (current) => [...(current ?? []), message],
       );
-      await invalidateArgosDiscussions(variables.patientId);
     },
   });
 }

@@ -89,7 +89,7 @@ class Settings(BaseSettings):
   # Generation defaults
   llm_temperature: float = 0.7
   llm_top_p: float = 0.9
-  llm_max_tokens: int = 1200
+  llm_max_tokens: int = 800
 
   # === SQLAlchemy (optionnel, en parallèle de psycopg) ===
   # Active l'affichage des requêtes SQL (debug). Laisser False en prod.

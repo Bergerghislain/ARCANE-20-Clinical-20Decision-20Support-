@@ -54,6 +54,35 @@ class ArgosService:
       raise ApplicationError("Discussion not found", 404)
     return _row_to_discussion(row)
 
+  def update_discussion(
+    self,
+    *,
+    discussion_id: int,
+    payload: dict[str, Any],
+    clinician_id: int,
+    ip_address: str | None,
+    user_agent: str | None,
+  ) -> dict[str, Any]:
+    row = self._repository.update_discussion(
+      discussion_id=discussion_id,
+      clinician_id=clinician_id,
+      title=str(payload["title"]),
+    )
+    if not row:
+      raise ApplicationError("Discussion not found", 404)
+
+    discussion = _row_to_discussion(row)
+    self._activity_log.write(
+      user_id=clinician_id,
+      action_type="argos_discussion_updated",
+      resource_type="argos_discussion",
+      resource_id=discussion["id"],
+      details={"title": discussion["title"]},
+      ip_address=ip_address,
+      user_agent=user_agent,
+    )
+    return discussion
+
   def list_messages(self, discussion_id: int, clinician_id: int) -> list[dict[str, Any]]:
     discussion = self._repository.find_discussion(discussion_id=discussion_id, clinician_id=clinician_id)
     if not discussion:

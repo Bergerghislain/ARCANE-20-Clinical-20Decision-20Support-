@@ -11,6 +11,7 @@ from ..deps import ClinicianOrAdminUser, get_argos_service
 from ..schemas import (
   ArgosDiscussionCreateIn,
   ArgosDiscussionOut,
+  ArgosDiscussionUpdateIn,
   ArgosMessageCreateIn,
   ArgosMessageOut,
 )
@@ -74,6 +75,27 @@ def get_discussion(
 ) -> ArgosDiscussionOut:
   try:
     result = argos_service.get_discussion(discussion_id=discussion_id, clinician_id=int(user["id"]))
+    return ArgosDiscussionOut(**result)
+  except ApplicationError as error:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.patch("/discussions/{discussion_id}", response_model=ArgosDiscussionOut)
+def update_discussion(
+  discussion_id: int,
+  payload: ArgosDiscussionUpdateIn,
+  request: Request,
+  user: ClinicianOrAdminUser,
+  argos_service: Annotated[ArgosService, Depends(get_argos_service)],
+) -> ArgosDiscussionOut:
+  try:
+    result = argos_service.update_discussion(
+      discussion_id=discussion_id,
+      payload=payload.model_dump(),
+      clinician_id=int(user["id"]),
+      ip_address=_request_ip(request),
+      user_agent=request.headers.get("user-agent"),
+    )
     return ArgosDiscussionOut(**result)
   except ApplicationError as error:
     raise HTTPException(status_code=error.status_code, detail=error.detail)
