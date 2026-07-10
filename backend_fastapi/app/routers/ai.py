@@ -11,6 +11,7 @@ from ..application.services.ai_service import AiService
 from ..application.use_cases.stream_llm_sse import StreamLlmSseUseCase
 from ..deps import ClinicianOrAdminUser, get_ai_service, get_stream_llm_sse_use_case
 from ..infrastructure.ai.prompts import build_argos_messages, build_report_messages
+from ..infrastructure.ai.llm_status import probe_llm_status
 from ..schemas import PatientProfileIn
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -76,6 +77,19 @@ class ArgosRespondIn(BaseModel):
 class ArgosRespondOut(BaseModel):
   content: str
   sections: dict[str, Any] | None = None
+
+
+class LlmStatusOut(BaseModel):
+  provider: str
+  ready: bool
+  message: str
+  model: str | None = None
+  base_url: str | None = None
+
+
+@router.get("/status", response_model=LlmStatusOut)
+def llm_status(_user: ClinicianOrAdminUser) -> LlmStatusOut:
+  return LlmStatusOut(**probe_llm_status())
 
 
 @router.post("/argos/respond", response_model=ArgosRespondOut, status_code=status.HTTP_200_OK)

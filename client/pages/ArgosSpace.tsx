@@ -42,6 +42,12 @@ import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
 import { streamArgosAiResponse } from "@/lib/argosAiStream";
 import { filterVisibleArgosConversations } from "@/lib/argosConversationUtils";
 import {
+  persistArgosSession,
+  pickConversationToRestore,
+  readArgosSession,
+} from "@/lib/argosSession";
+import { fetchLlmStatus, formatLlmSetupHint } from "@/lib/llmStatus";
+import {
   buildArgosContextFromProfile,
   buildSimulatedAiReport,
   loadPatientReportProfile,
@@ -112,6 +118,7 @@ export default function ArgosSpace() {
   const [sidebarDefaultTab, setSidebarDefaultTab] = useState<"all" | "by-patient">("all");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [llmStatusMessage, setLlmStatusMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const injectedContextKeysRef = useRef<Set<string>>(new Set());
   const navigatedPatientRef = useRef<string | null>(null);
@@ -165,7 +172,7 @@ export default function ArgosSpace() {
   const getBackendDiscussionId = (conversationId: string | null) =>
     conversationId ? backendDiscussionIdFromConversationId(conversationId) : null;
 
-  const syncAllDiscussionsFromBackend = async () => {
+  const syncAllDiscussionsFromBackend = async (): Promise<Conversation[]> => {
     const discussions = await queryClient.fetchQuery({
       queryKey: queryKeys.argos.discussions(),
       queryFn: () => fetchArgosDiscussions(),
@@ -181,6 +188,37 @@ export default function ArgosSpace() {
       }),
     );
     argosHistory.mergeConversationsFromBackend(loaded);
+    return loaded;
+  };
+
+  const restoreArgosSessionAfterSync = (conversations: Conversation[]) => {
+    const statePatient = (location.state as { patient?: Patient } | null)?.patient;
+    if (statePatient) return;
+
+    const toRestore = pickConversationToRestore(
+      conversations,
+      readArgosSession(),
+    );
+    if (!toRestore) return;
+
+    argosHistory.loadConversation(toRestore.id);
+    const patientId = readArgosSession().patientId ?? toRestore.patientId;
+
+    if (patientId === GENERAL_PATIENT.id) {
+      setSelectedPatient(GENERAL_PATIENT);
+      return;
+    }
+
+    const fromList = apiPatients.find((patient) => patient.id === patientId);
+    setSelectedPatient(
+      fromList ?? {
+        id: toRestore.patientId,
+        name: toRestore.patientName,
+        age: 0,
+        condition: fr.argos.unknownCondition,
+      },
+    );
+    argosHistory.setCurrentPatientId(patientId);
   };
 
   const loadLatestPatientConversation = async (patient: Patient) => {
@@ -236,7 +274,10 @@ export default function ArgosSpace() {
       setHistoryLoading(true);
       setHistoryError(null);
       try {
-        await syncAllDiscussionsFromBackend();
+        const loaded = await syncAllDiscussionsFromBackend();
+        if (!cancelled) {
+          restoreArgosSessionAfterSync(loaded);
+        }
       } catch {
         if (!cancelled) {
           setHistoryError(
@@ -252,6 +293,35 @@ export default function ArgosSpace() {
       cancelled = true;
     };
   }, [argosHistory.isLoaded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const status = await fetchLlmStatus();
+        if (!cancelled) {
+          setLlmStatusMessage(
+            status.ready ? null : formatLlmSetupHint(status),
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setLlmStatusMessage(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentConversation) return;
+    persistArgosSession(
+      currentConversation.id,
+      selectedPatient?.id ?? currentConversation.patientId,
+    );
+  }, [currentConversation?.id, selectedPatient?.id, currentConversation?.patientId]);
 
   const ensurePatientContextInConversation = async (
     targetPatient: Patient,
@@ -666,6 +736,15 @@ export default function ArgosSpace() {
                   >
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{patientsError}</span>
+                  </div>
+                )}
+                {llmStatusMessage && (
+                  <div
+                    role="status"
+                    className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{llmStatusMessage}</span>
                   </div>
                 )}
                 {historyError && (

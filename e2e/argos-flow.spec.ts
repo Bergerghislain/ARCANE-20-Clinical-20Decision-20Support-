@@ -33,4 +33,25 @@ test.describe("Parcours clinique ARCANE", () => {
       page.getByText(/ARGOS|mock_json|simulée|analyse/i).first(),
     ).toBeVisible({ timeout: 30_000 });
   });
+
+  test("discussion ARGOS survit au F5", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByPlaceholder(/doctor@arcane|email|username/i).fill("admin@arcane.com");
+    await page.getByPlaceholder(/••••••••/).fill("password");
+    await page.getByRole("button", { name: /Sign in/i }).click();
+    await expect(page).toHaveURL(/dashboard/);
+
+    await page.goto("/argos");
+    await page.getByRole("button", { name: /Poser une question générale/i }).click();
+
+    const question = "Test persistance ARGOS après rechargement";
+    const input = page.getByPlaceholder(/Ask ARGOS/i);
+    await input.fill(question);
+    await input.press("Enter");
+
+    await expect(page.getByText(question)).toBeVisible({ timeout: 15_000 });
+
+    await page.reload();
+    await expect(page.getByText(question)).toBeVisible({ timeout: 20_000 });
+  });
 });
