@@ -1,4 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+function argosUserMessage(page: Page, text: string) {
+  return page
+    .locator(".bg-primary.text-primary-foreground")
+    .filter({ hasText: text });
+}
 
 test.describe("Parcours clinique ARCANE", () => {
   test("login → dashboard → dossier patient → ARGOS", async ({ page }) => {
@@ -49,9 +55,10 @@ test.describe("Parcours clinique ARCANE", () => {
     await input.fill(question);
     await input.press("Enter");
 
-    await expect(page.getByText(question)).toBeVisible({ timeout: 15_000 });
+    const userMessage = argosUserMessage(page, question);
+    await expect(userMessage).toBeVisible({ timeout: 15_000 });
 
     await page.reload();
-    await expect(page.getByText(question)).toBeVisible({ timeout: 20_000 });
+    await expect(userMessage).toBeVisible({ timeout: 20_000 });
   });
 });
