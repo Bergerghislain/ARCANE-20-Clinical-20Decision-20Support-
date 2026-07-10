@@ -40,6 +40,7 @@ vi.mock("@/hooks/useArgosHistory", () => ({
     updateMessageSections: vi.fn(),
     updateTitleFromFirstMessage: vi.fn(),
     hydrateConversation: vi.fn(),
+    mergeConversationsFromBackend: vi.fn(),
     replaceConversations: vi.fn(),
   }),
 }));

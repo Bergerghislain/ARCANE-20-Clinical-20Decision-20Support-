@@ -1,4 +1,4 @@
-import { AlertCircle, Bot } from "lucide-react";
+import { Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,10 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
 import type { SimulatedIaReport } from "@/lib/patientReport";
 
 interface ReportTabProps {
   reportOutput: SimulatedIaReport | null;
+  reportReflection: string;
   reportStreamRaw: string;
   isReportStreaming: boolean;
   onGoToPatientInfo: () => void;
@@ -18,27 +20,20 @@ interface ReportTabProps {
 
 export function ReportTab({
   reportOutput,
+  reportReflection,
   reportStreamRaw,
   isReportStreaming,
   onGoToPatientInfo,
   onOpenArgos,
 }: ReportTabProps) {
-  if (!reportOutput) {
+  const showReflection = isReportStreaming || reportReflection.length > 0;
+
+  if (!reportOutput && !isReportStreaming) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
-        <AlertCircle className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
-        <p className="text-muted-foreground">
-          {isReportStreaming
-            ? "Generation du rapport en cours..."
-            : "Aucun rapport genere pour le moment."}
-        </p>
-        {reportStreamRaw ? (
-          <div className="mx-auto mt-4 max-w-3xl whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-4 text-left font-mono text-xs text-foreground">
-            {reportStreamRaw}
-          </div>
-        ) : null}
+        <p className="text-muted-foreground">Aucun rapport généré pour le moment.</p>
         <Button className="mt-4" onClick={onGoToPatientInfo}>
-          Aller sur Patient Infos
+          Aller sur Informations patient
         </Button>
       </div>
     );
@@ -46,52 +41,74 @@ export function ReportTab({
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Conclusion IA</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-[220px] whitespace-pre-line rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
-            {reportOutput.conclusion}
-          </div>
-        </CardContent>
-      </Card>
+      {showReflection ? (
+        <AiReflectionPanel
+          reflection={reportReflection}
+          isStreaming={isReportStreaming && !reportOutput}
+          title="Réflexion clinique"
+        />
+      ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Raisonnement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-[220px] whitespace-pre-line rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
-            {reportOutput.reasoning}
-          </div>
-        </CardContent>
-      </Card>
+      {isReportStreaming && !reportOutput && !reportReflection && reportStreamRaw ? (
+        <div className="rounded-lg border border-border bg-muted/20 p-4 font-mono text-xs text-muted-foreground">
+          Génération du rapport en cours…
+        </div>
+      ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sources</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-[220px] rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
-            <ul className="list-disc space-y-2 pl-5">
-              {reportOutput.sources.map((source, index) => (
-                <li key={`${source}-${index}`}>{source}</li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+      {reportOutput ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Conclusion IA</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="min-h-[220px] whitespace-pre-line rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
+                {reportOutput.conclusion}
+              </div>
+            </CardContent>
+          </Card>
 
-      <div className="flex gap-3">
-        <Button variant="secondary" onClick={onGoToPatientInfo}>
-          Retour a Patient Infos
-        </Button>
-        <Button onClick={onOpenArgos}>
-          <Bot className="mr-2 h-4 w-4" />
-          Ouvrir dans ARGOS
-        </Button>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Raisonnement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="min-h-[220px] whitespace-pre-line rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
+                {reportOutput.reasoning}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sources</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="min-h-[120px] rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
+                <ul className="list-disc space-y-2 pl-5">
+                  {reportOutput.sources.map((source, index) => (
+                    <li key={`${source}-${index}`}>{source}</li>
+                  ))}
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={onGoToPatientInfo}>
+              Retour aux informations patient
+            </Button>
+            <Button onClick={onOpenArgos}>
+              <Bot className="mr-2 h-4 w-4" />
+              Ouvrir dans ARGOS
+            </Button>
+          </div>
+        </>
+      ) : isReportStreaming ? (
+        <p className="text-sm text-muted-foreground">
+          La synthèse structurée apparaîtra après la phase de réflexion…
+        </p>
+      ) : null}
     </div>
   );
 }

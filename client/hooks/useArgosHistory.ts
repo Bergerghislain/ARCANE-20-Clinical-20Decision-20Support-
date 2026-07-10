@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
+import { mergeBackendAndLocalConversations } from "@/lib/argosConversationUtils";
+import {
+  deriveConversationTitleFromMessage,
+  isDefaultArgosDiscussionTitle,
+} from "@/lib/argosDiscussionTitle";
+import { fr } from "@/lib/i18n/fr";
 
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  reflection?: string;
+  isGenerating?: boolean;
   sections?: {
     clinicalSynthesis: string;
     hypotheses: string[];
@@ -34,17 +42,22 @@ export interface UseArgosHistory {
   getCurrentConversation: () => Conversation | null;
   createConversation: (patientId: string, patientName: string) => Conversation;
   hydrateConversation: (conversation: Conversation) => void;
+  mergeConversationsFromBackend: (conversations: Conversation[]) => void;
   addMessage: (
     message: Omit<Message, "id">,
     conversationIdOverride?: string,
   ) => Message | undefined;
   updateMessageContent: (messageId: string, content: string) => void;
+  updateMessageReflection: (messageId: string, reflection: string, isGenerating?: boolean) => void;
   updateMessageSections: (messageId: string, sections: Message["sections"]) => void;
   loadConversation: (conversationId: string) => Conversation | null;
   deleteConversation: (conversationId: string) => void;
   renameConversation: (conversationId: string, newTitle: string) => void;
   autoGenerateTitle: (conversationId: string) => void;
-  updateTitleFromFirstMessage: (conversationId: string) => void;
+  updateTitleFromFirstMessage: (
+    conversationId: string,
+    userContent?: string,
+  ) => string | null;
   getPatientGroups: () => { patientId: string; patientName: string; count: number; lastDate: Date }[];
   getConversationsByDate: () => Conversation[];
   setCurrentPatientId: (value: string | null) => void;
@@ -93,10 +106,10 @@ export function useArgosHistory(): UseArgosHistory {
   const createConversation = useCallback(
     (patientId: string, patientName: string) => {
       const newConversation: Conversation = {
-        id: `conv_${Date.now()}`,
+        id: `local_${Date.now()}`,
         patientId,
         patientName,
-        title: "New Conversation",
+        title: fr.argos.newConversation,
         createdAt: new Date(),
         updatedAt: new Date(),
         messages: [
@@ -121,6 +134,10 @@ export function useArgosHistory(): UseArgosHistory {
 
   const replaceConversations = useCallback((next: Conversation[]) => {
     setConversations(next);
+  }, []);
+
+  const mergeConversationsFromBackend = useCallback((fromBackend: Conversation[]) => {
+    setConversations((prev) => mergeBackendAndLocalConversations(prev, fromBackend));
   }, []);
 
   // Hydrate a conversation from an external source (e.g. backend)
@@ -174,6 +191,23 @@ export function useArgosHistory(): UseArgosHistory {
           ...conv,
           messages: conv.messages.map((msg) =>
             msg.id === messageId ? { ...msg, content } : msg,
+          ),
+          updatedAt: new Date(),
+        })),
+      );
+    },
+    [],
+  );
+
+  const updateMessageReflection = useCallback(
+    (messageId: string, reflection: string, isGenerating = true) => {
+      setConversations((prev) =>
+        prev.map((conv) => ({
+          ...conv,
+          messages: conv.messages.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, reflection, isGenerating }
+              : msg,
           ),
           updatedAt: new Date(),
         })),
@@ -248,40 +282,34 @@ export function useArgosHistory(): UseArgosHistory {
     [],
   );
 
-  // Auto-generate title from first user message
-  const autoGenerateTitle = useCallback((firstMessage: string): string => {
-    const maxLength = 50;
-    let title = firstMessage.trim();
+  const autoGenerateTitle = useCallback(
+    (firstMessage: string): string => deriveConversationTitleFromMessage(firstMessage),
+    [],
+  );
 
-    // Remove extra whitespace and newlines
-    title = title.replace(/\s+/g, " ");
-
-    // Truncate if too long
-    if (title.length > maxLength) {
-      title = title.substring(0, maxLength) + "...";
-    }
-
-    return title;
-  }, []);
-
-  // Update title to auto-generated one after first user message
   const updateTitleFromFirstMessage = useCallback(
-    (conversationId: string) => {
-      const conversation = conversations.find(
-        (conv) => conv.id === conversationId,
-      );
-      if (conversation) {
-        // Find the first user message
-        const firstUserMessage = conversation.messages.find(
-          (msg) => msg.role === "user",
-        );
-        if (firstUserMessage && conversation.title === "New Conversation") {
-          const newTitle = autoGenerateTitle(firstUserMessage.content);
-          renameConversation(conversationId, newTitle);
-        }
+    (conversationId: string, userContent?: string): string | null => {
+      const conversation = conversations.find((conv) => conv.id === conversationId);
+      if (!conversation || !isDefaultArgosDiscussionTitle(conversation.title)) {
+        return null;
       }
+
+      const content =
+        userContent?.trim() ||
+        conversation.messages.find((msg) => msg.role === "user")?.content.trim();
+      if (!content) return null;
+
+      const computedTitle = deriveConversationTitleFromMessage(content);
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId
+            ? { ...conv, title: computedTitle, updatedAt: new Date() }
+            : conv,
+        ),
+      );
+      return computedTitle;
     },
-    [conversations, autoGenerateTitle, renameConversation],
+    [conversations],
   );
 
   // Get all unique patients with their conversation count
@@ -331,6 +359,7 @@ export function useArgosHistory(): UseArgosHistory {
     createConversation,
     addMessage,
     updateMessageContent,
+    updateMessageReflection,
     updateMessageSections,
     loadConversation,
     deleteConversation,
@@ -342,6 +371,7 @@ export function useArgosHistory(): UseArgosHistory {
     setCurrentPatientId,
     setCurrentConversationId,
     hydrateConversation,
+    mergeConversationsFromBackend,
     replaceConversations,
   };
 }

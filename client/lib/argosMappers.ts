@@ -50,6 +50,16 @@ export function mapDiscussionToConversation(
     title: discussion.title || "ARGOS Discussion",
     createdAt: new Date(discussion.created_at),
     updatedAt: new Date(discussion.updated_at),
-    messages: messages.map(mapArgosMessageToMessage),
+    messages:
+      messages.length > 0
+        ? messages.map(mapArgosMessageToMessage)
+        : [
+            {
+              id: `msg_welcome_${discussion.id}`,
+              role: "assistant" as const,
+              content: ARGOS_WELCOME_MESSAGE,
+              timestamp: new Date(discussion.created_at),
+            },
+          ],
   };
 }

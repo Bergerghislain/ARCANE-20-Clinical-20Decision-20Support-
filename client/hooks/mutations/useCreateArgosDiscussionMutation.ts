@@ -2,11 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createArgosDiscussion,
   fetchArgosMessages,
-  postArgosMessage,
   type ArgosDiscussion,
   type ArgosMessage,
 } from "@/lib/argosApi";
-import { ARGOS_WELCOME_MESSAGE } from "@/lib/argosMappers";
 import { invalidateArgosDiscussions } from "@/lib/queryInvalidation";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -34,10 +32,6 @@ export function useCreateArgosDiscussionMutation() {
       const discussion = await createArgosDiscussion({
         patientId,
         title,
-      });
-      await postArgosMessage(discussion.id, {
-        message_type: "argos_response",
-        content: ARGOS_WELCOME_MESSAGE,
       });
       const messages = await fetchArgosMessages(discussion.id);
       return { discussion, messages, patientName };

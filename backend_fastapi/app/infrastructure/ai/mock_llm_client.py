@@ -21,9 +21,13 @@ class MockJsonLlmClient:
     if "tu es argos" in sys_blob:
       return json.dumps(
         {
+          "reflection": (
+            "J'analyse la question clinique et le contexte patient disponible. "
+            "Je vérifie les données manquantes avant de formuler une recommandation."
+          ),
           "content": (
-            "Reponse ARGOS simulee (mock_json). "
-            "Passez a openai_compatible + LLM_BASE_URL pour une generation reelle."
+            "Réponse ARGOS simulée (mock_json). "
+            "Passez à openai_compatible + LLM_BASE_URL pour une génération réelle."
           ),
           "sections": None,
         },
@@ -31,6 +35,10 @@ class MockJsonLlmClient:
       )
     return json.dumps(
       {
+        "reflection": (
+          "Lecture du profil patient, identification des éléments clés "
+          "et des incertitudes avant la synthèse du rapport."
+        ),
         "conclusion": (
           "Conclusion simulee (mock_json). "
           "Configurez openai_compatible pour un rapport genere par LLM."

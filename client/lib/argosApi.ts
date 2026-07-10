@@ -55,6 +55,18 @@ export async function createArgosDiscussion(input: {
   return res.json();
 }
 
+export async function updateArgosDiscussion(
+  discussionId: number,
+  input: { title: string },
+): Promise<ArgosDiscussion> {
+  const res = await apiFetch(`/api/argos/discussions/${discussionId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: input.title }),
+  });
+  if (!res.ok) throw new Error("Failed to update ARGOS discussion");
+  return res.json();
+}
+
 export async function fetchArgosMessages(
   discussionId: number,
 ): Promise<ArgosMessage[]> {

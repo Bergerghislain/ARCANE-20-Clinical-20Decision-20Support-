@@ -11,7 +11,7 @@ from .prompt_safety import (
 )
 
 # Versionnage pour reproductibilité des recommandations (audit / traçabilité).
-PROMPT_VERSION = "arcane-prompts-v1.1.0"
+PROMPT_VERSION = "arcane-prompts-v1.2.0"
 
 
 def _safe_json(obj: Any) -> str:
@@ -36,11 +36,16 @@ def build_report_messages(*, patient_name: str, patient_mrn: str | None, profile
     },
     "profile_json": safe_profile,
     "output_format": {
+      "reflection": (
+        "string (raisonnement étape par étape, en français, "
+        "comme une réflexion clinique avant la synthèse — générer CE champ en premier)"
+      ),
       "conclusion": "string (conclusion clinique synthétique)",
       "reasoning": "string (raisonnement clinique détaillé, naturel, sans liste numérotée)",
       "sources": ["string (sources / références / guidelines / mots-clés de recherche)"],
     },
     "constraints": [
+      "Ordre JSON obligatoire : reflection, puis conclusion, puis reasoning, puis sources.",
       "Ne pas inventer de faits absents du JSON.",
       "Si une info manque, le signaler explicitement dans le reasoning.",
       "Sources: si aucune source explicite n'est disponible, fournir des sources génériques (guidelines, recommandations) sous forme de titres.",
@@ -81,6 +86,10 @@ def build_argos_messages(
     "chat_history": safe_history,
     "user_message": sanitize_untrusted_text(user_message),
     "output_format": {
+      "reflection": (
+        "string (analyse étape par étape du contexte et de la question — "
+        "générer CE champ en premier, ton réflexif)"
+      ),
       "content": "string (phrase courte qui introduit l'analyse)",
       "sections": {
         "clinicalSynthesis": "string",
@@ -91,6 +100,7 @@ def build_argos_messages(
       },
     },
     "constraints": [
+      "Ordre JSON obligatoire : reflection, puis content, puis sections.",
       "Ne pas inventer de faits absents du JSON.",
       "Rester prudent (support décisionnel, pas de prescription).",
       "Donner des hypothèses et étapes actionnables.",

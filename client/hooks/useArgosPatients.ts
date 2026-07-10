@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { usePatientsQuery } from "@/hooks/queries/usePatientsQuery";
 import {
-  normalizePatient,
   type Patient as ApiPatient,
 } from "@/lib/patientNormalize";
 

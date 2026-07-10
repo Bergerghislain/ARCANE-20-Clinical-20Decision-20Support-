@@ -84,6 +84,33 @@ class SqlArgosRepository:
       (discussion_id, clinician_id),
     )
 
+  def update_discussion(
+    self,
+    *,
+    discussion_id: int,
+    clinician_id: int,
+    title: str,
+  ) -> dict[str, Any] | None:
+    with DbUnitOfWork() as uow:
+      cur = uow.cursor
+      if cur is None:
+        raise RuntimeError("Transaction cursor not initialized")
+
+      cur.execute(
+        """
+        UPDATE argos_discussions
+        SET title = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s AND clinician_id = %s
+        RETURNING *
+        """,
+        (title, discussion_id, clinician_id),
+      )
+      row = cur.fetchone()
+      if not row:
+        return None
+      uow.commit()
+      return row
+
   def list_messages(self, discussion_id: int) -> list[dict[str, Any]]:
     return fetch_all(
       """

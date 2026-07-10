@@ -37,8 +37,10 @@ jobs:
       - name: ESLint (client)
         run: pnpm run lint
 
-      - name: Frontend tests
-        run: pnpm run test
+      - name: Frontend tests and coverage thresholds
+        run: |
+          pnpm run test:coverage
+          node scripts/check-frontend-critical-coverage.mjs
 
       - name: Production build
         run: pnpm run build

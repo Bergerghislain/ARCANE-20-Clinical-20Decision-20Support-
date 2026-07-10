@@ -23,6 +23,15 @@ class ArgosRepositoryPort(Protocol):
   def find_discussion(self, discussion_id: int, clinician_id: int) -> dict[str, Any] | None:
     ...
 
+  def update_discussion(
+    self,
+    *,
+    discussion_id: int,
+    clinician_id: int,
+    title: str,
+  ) -> dict[str, Any] | None:
+    ...
+
   def list_messages(self, discussion_id: int) -> list[dict[str, Any]]:
     ...
 
