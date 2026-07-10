@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import { ChevronDown, Search, Plus, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fr } from "@/lib/i18n/fr";
 

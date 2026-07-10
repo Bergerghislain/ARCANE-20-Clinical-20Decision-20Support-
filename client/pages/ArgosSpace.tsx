@@ -184,7 +184,7 @@ export default function ArgosSpace() {
   };
 
   const loadLatestPatientConversation = async (patient: Patient) => {
-    let patientConvs = argosHistory.getConversationsByPatient(patient.id);
+    const patientConvs = argosHistory.getConversationsByPatient(patient.id);
     if (patientConvs.length > 0) {
       argosHistory.loadConversation(patientConvs[0].id);
       return patientConvs[0];
