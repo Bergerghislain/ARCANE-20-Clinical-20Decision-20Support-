@@ -40,7 +40,11 @@ import { usePostArgosMessageMutation } from "@/hooks/mutations/usePostArgosMessa
 import { ClinicalAiDisclaimer } from "@/components/ClinicalAiDisclaimer";
 import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
 import { streamArgosAiResponse } from "@/lib/argosAiStream";
-import { filterVisibleArgosConversations } from "@/lib/argosConversationUtils";
+import {
+  buildArgosHistoryForModel,
+  filterVisibleArgosConversations,
+  filterVisibleChatMessages,
+} from "@/lib/argosConversationUtils";
 import {
   persistArgosSession,
   pickConversationToRestore,
@@ -65,8 +69,6 @@ const GENERAL_PATIENT: Patient = {
   age: 0,
   condition: fr.argos.generalCondition,
 };
-
-const AUTO_CONTEXT_HEADER = "[Contexte Patient Auto Charge]";
 
 function buildMockArgosResponse(patient: Patient | null) {
   const fallbackReport = buildSimulatedAiReport({
@@ -120,8 +122,8 @@ export default function ArgosSpace() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [llmStatusMessage, setLlmStatusMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const injectedContextKeysRef = useRef<Set<string>>(new Set());
   const navigatedPatientRef = useRef<string | null>(null);
+  const loadedContextPatientIdsRef = useRef<Set<string>>(new Set());
 
   const currentConversation = argosHistory.getCurrentConversation();
 
@@ -160,6 +162,12 @@ export default function ArgosSpace() {
     }
     return [GENERAL_PATIENT, ...list];
   }, [apiPatients, selectedPatient]);
+
+  const visibleChatMessages = useMemo(
+    () =>
+      filterVisibleChatMessages(currentConversation?.messages ?? []),
+    [currentConversation?.messages],
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -323,26 +331,13 @@ export default function ArgosSpace() {
     );
   }, [currentConversation?.id, selectedPatient?.id, currentConversation?.patientId]);
 
-  const ensurePatientContextInConversation = async (
-    targetPatient: Patient,
-    conversationId: string,
-  ) => {
-    if (targetPatient.id === GENERAL_PATIENT.id) return;
-
-    const markerKey = `${conversationId}:${targetPatient.id}`;
-    if (injectedContextKeysRef.current.has(markerKey)) return;
-
-    const conversation = argosHistory
-      .getConversations()
-      .find((conv) => conv.id === conversationId);
-    if (!conversation) return;
-
-    const alreadyContainsContext = conversation.messages.some((message) =>
-      message.content.includes(AUTO_CONTEXT_HEADER),
-    );
-    if (alreadyContainsContext) {
-      injectedContextKeysRef.current.add(markerKey);
-      return;
+  const loadPatientContext = async (targetPatient: Patient): Promise<Patient> => {
+    if (targetPatient.id === GENERAL_PATIENT.id) return targetPatient;
+    if (targetPatient.contextMessage && targetPatient.contextProfile) {
+      return targetPatient;
+    }
+    if (loadedContextPatientIdsRef.current.has(targetPatient.id)) {
+      return targetPatient;
     }
 
     let contextProfile = targetPatient.contextProfile;
@@ -369,38 +364,18 @@ export default function ArgosSpace() {
       };
     }
 
-    const contextMessage =
-      targetPatient.contextMessage ||
-      buildArgosContextFromProfile(
-        contextProfile,
-        targetPatient.name,
-        targetPatient.mrn,
-      );
-
-    argosHistory.addMessage(
-      {
-        role: "assistant",
-        content: `${AUTO_CONTEXT_HEADER}\n${contextMessage}`,
-        timestamp: new Date(),
-      },
-      conversationId,
+    const contextMessage = buildArgosContextFromProfile(
+      contextProfile,
+      targetPatient.name,
+      targetPatient.mrn,
     );
+    loadedContextPatientIdsRef.current.add(targetPatient.id);
 
-    const discussionId = getBackendDiscussionId(conversationId);
-    if (discussionId) {
-      void postMessageMutation
-        .mutateAsync({
-          discussionId,
-          patientId: Number(targetPatient.id),
-          message_type: "clinician_note",
-          content: contextMessage,
-        })
-        .catch(() => {
-          // Le contexte reste visible dans l'UI même si la synchro backend échoue.
-        });
-    }
-
-    injectedContextKeysRef.current.add(markerKey);
+    return {
+      ...targetPatient,
+      contextProfile,
+      contextMessage,
+    };
   };
 
   const handleSelectPatient = (patient: Patient) => {
@@ -467,18 +442,17 @@ export default function ArgosSpace() {
     historyLoading,
   ]);
 
-  // Injecte automatiquement le contexte patient dans la conversation active.
   useEffect(() => {
-    if (!selectedPatient || !currentConversation) return;
-    void ensurePatientContextInConversation(
-      selectedPatient,
-      currentConversation.id,
-    );
-  }, [
-    selectedPatient,
-    currentConversation?.id,
-    argosHistory,
-  ]);
+    if (!selectedPatient || selectedPatient.id === GENERAL_PATIENT.id) return;
+    void loadPatientContext(selectedPatient).then((enriched) => {
+      if (
+        enriched.contextMessage !== selectedPatient.contextMessage ||
+        enriched.contextProfile !== selectedPatient.contextProfile
+      ) {
+        setSelectedPatient(enriched);
+      }
+    });
+  }, [selectedPatient?.id]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -551,16 +525,19 @@ export default function ArgosSpace() {
           });
       }
 
-      const historyForModel = (
+      const patientForModel =
+        selectedPatient?.id === GENERAL_PATIENT.id
+          ? fallbackPatient
+          : await loadPatientContext(selectedPatient ?? fallbackPatient);
+      if (patientForModel !== selectedPatient) {
+        setSelectedPatient(patientForModel);
+      }
+
+      const historyForModel = buildArgosHistoryForModel(
         userMessage
           ? [...(conversation.messages || []), userMessage]
-          : conversation.messages || []
-      )
-        .slice(-8)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+          : conversation.messages || [],
+      );
 
       try {
         const assistantMessage = argosHistory.addMessage(
@@ -577,10 +554,10 @@ export default function ArgosSpace() {
         const { content: finalContent, reflection: finalReflection, sections: finalSections } =
           await streamArgosAiResponse(
             {
-              patient_name: selectedPatient?.name,
-              patient_mrn: selectedPatient?.mrn,
-              context_message: selectedPatient?.contextMessage,
-              profile: selectedPatient?.contextProfile,
+              patient_name: patientForModel.name,
+              patient_mrn: patientForModel.mrn,
+              context_message: patientForModel.contextMessage,
+              profile: patientForModel.contextProfile,
               user_message: userMessage?.content || userContent,
               history: historyForModel,
             },
@@ -770,7 +747,7 @@ export default function ArgosSpace() {
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto space-y-4 px-4 sm:px-6 py-6">
-                  {currentConversation.messages.map((message) => (
+                  {visibleChatMessages.map((message) => (
                     <div
                       key={message.id}
                       className={`flex gap-3 ${
@@ -906,7 +883,7 @@ export default function ArgosSpace() {
                       <div className="flex items-center gap-2 rounded-lg bg-card border border-border px-4 py-3">
                         <Loader className="h-4 w-4 animate-spin text-secondary" />
                         <span className="text-sm text-muted-foreground">
-                          ARGOS is analyzing...
+                          {fr.argos.analyzing}
                         </span>
                       </div>
                     </div>
@@ -923,7 +900,7 @@ export default function ArgosSpace() {
                     <div className="flex gap-3">
                       <Input
                         type="text"
-                        placeholder="Ask ARGOS about treatment options, staging, or next steps..."
+                        placeholder={fr.argos.inputPlaceholder}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         disabled={loading}
@@ -939,10 +916,7 @@ export default function ArgosSpace() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <AlertCircle className="h-4 w-4" />
-                      <p>
-                        ARGOS recommendations are for decision support. Always
-                        validate with clinical expertise.
-                      </p>
+                      <p>{fr.argos.inputDisclaimer}</p>
                     </div>
                   </form>
                 </div>

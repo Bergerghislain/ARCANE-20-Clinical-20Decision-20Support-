@@ -11,6 +11,16 @@ export const fr = {
     selectPatient: "Sélectionner un patient",
     selectPatientHint: "Choisissez un patient pour démarrer une consultation ARGOS",
     newConversation: "Nouvelle conversation",
+    welcomeMessage:
+      "Bonjour, je suis ARGOS, votre assistant d'aide à la décision clinique. Je suis prêt à vous aider pour le raisonnement clinique de ce patient. Partagez votre question ou le contexte clinique.",
+    sidebarAll: "Toutes",
+    sidebarByPatient: "Par patient",
+    inputPlaceholder:
+      "Posez votre question clinique à ARGOS (traitement, stadification, prochaines étapes…)",
+    deleteConversationConfirm: "Supprimer cette discussion ?",
+    analyzing: "ARGOS analyse votre question…",
+    inputDisclaimer:
+      "Les recommandations ARGOS sont un support décisionnel. Validez toujours avec votre expertise clinique.",
     unknownCondition: "Diagnostic non renseigné",
     years: "ans",
   },

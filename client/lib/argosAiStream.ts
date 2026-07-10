@@ -4,6 +4,7 @@ import {
   hasPartialJsonField,
 } from "@/lib/aiStreamPartialJson";
 import type { PatientReportProfile } from "@/lib/patientReport";
+import { isPromptEchoContent } from "@/lib/argosConversationUtils";
 
 export type ArgosStreamHistoryItem = {
   role: string;
@@ -174,12 +175,23 @@ export async function streamArgosAiResponse(
     sections = undefined;
   }
 
-  if (!content && !jsonText.trim()) {
-    throw new Error("Réponse IA vide.");
+  if (!content.trim()) {
+    if (isPromptEchoContent(jsonText)) {
+      throw new Error(
+        "Le modèle a renvoyé le prompt au lieu d'une réponse clinique. Réessayez ou utilisez un modèle plus capable.",
+      );
+    }
+    throw new Error("Réponse IA vide ou illisible.");
+  }
+
+  if (isPromptEchoContent(content)) {
+    throw new Error(
+      "Le modèle a renvoyé le prompt au lieu d'une réponse clinique. Réessayez ou utilisez un modèle plus capable.",
+    );
   }
 
   return {
-    content: content || jsonText,
+    content,
     reflection,
     sections,
     rawJson: jsonText,

@@ -1,8 +1,8 @@
 import type { Conversation, Message } from "@/hooks/useArgosHistory";
 import type { ArgosDiscussion, ArgosMessage } from "@/lib/argosApi";
+import { fr } from "@/lib/i18n/fr";
 
-export const ARGOS_WELCOME_MESSAGE =
-  "Hello, I am ARGOS, your clinical decision support assistant. I am ready to help you with clinical reasoning for this patient case. Please share your clinical question or context.";
+export const ARGOS_WELCOME_MESSAGE = fr.argos.welcomeMessage;
 
 export function conversationIdFromBackendDiscussionId(discussionId: number): string {
   return `conv_${discussionId}`;
@@ -52,7 +52,9 @@ export function mapDiscussionToConversation(
     updatedAt: new Date(discussion.updated_at),
     messages:
       messages.length > 0
-        ? messages.map(mapArgosMessageToMessage)
+        ? messages
+            .filter((message) => message.message_type !== "clinician_note")
+            .map(mapArgosMessageToMessage)
         : [
             {
               id: `msg_welcome_${discussion.id}`,

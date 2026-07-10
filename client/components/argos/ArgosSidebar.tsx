@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Conversation } from "@/hooks/useArgosHistory";
+import { fr } from "@/lib/i18n/fr";
 
 interface ArgosSidebarProps {
   conversations: Conversation[];
@@ -200,7 +201,7 @@ export function ArgosSidebar({
             onClick={(e) => {
               e.stopPropagation();
               if (
-                confirm("Are you sure you want to delete this conversation?")
+                confirm(fr.argos.deleteConversationConfirm)
               ) {
                 onDeleteConversation(conversation.id);
               }
@@ -226,7 +227,7 @@ export function ArgosSidebar({
           className="w-full"
         >
           <Plus className="h-4 w-4 mr-2" />
-          New Conversation
+          {fr.argos.newConversation}
         </Button>
       </div>
 
@@ -240,7 +241,7 @@ export function ArgosSidebar({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          All
+          {fr.argos.sidebarAll}
         </button>
         <button
           onClick={() => setActiveTab("by-patient")}
@@ -250,7 +251,7 @@ export function ArgosSidebar({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          By Patient
+          {fr.argos.sidebarByPatient}
         </button>
       </div>
 

@@ -25,7 +25,7 @@ test.describe("Parcours clinique ARCANE", () => {
       page.getByText(/ne se substitue pas au jugement médical/i),
     ).toBeVisible();
 
-    const input = page.getByPlaceholder(/Ask ARGOS/i);
+    const input = page.getByPlaceholder(/Posez votre question clinique à ARGOS|Ask ARGOS/i);
     await input.fill("Quelle est la prochaine étape clinique?");
     await input.press("Enter");
 
@@ -45,7 +45,7 @@ test.describe("Parcours clinique ARCANE", () => {
     await page.getByRole("button", { name: /Poser une question générale/i }).click();
 
     const question = "Test persistance ARGOS après rechargement";
-    const input = page.getByPlaceholder(/Ask ARGOS/i);
+    const input = page.getByPlaceholder(/Posez votre question clinique à ARGOS|Ask ARGOS/i);
     await input.fill(question);
     await input.press("Enter");
 
