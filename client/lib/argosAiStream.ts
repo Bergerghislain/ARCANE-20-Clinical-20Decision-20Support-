@@ -47,8 +47,37 @@ function isLlmStreamErrorPayload(data: string): boolean {
     lowered.includes("llm endpoint is unreachable") ||
     lowered.includes("llm request failed") ||
     lowered.includes("llm temporarily unavailable") ||
-    lowered.includes("llm provider is disabled")
+    lowered.includes("llm provider is disabled") ||
+    lowered.includes("llm_api_key") ||
+    lowered.includes("endpoint llm injoignable") ||
+    lowered.includes("serveur llm local injoignable")
   );
+}
+
+function toFrenchLlmError(data: string, httpStatus?: number): string {
+  const lowered = data.toLowerCase();
+  if (lowered.includes("llm provider is disabled") || httpStatus === 503) {
+    return "Service IA désactivé. Configurez LLM_PROVIDER dans .env (openai_compatible ou mock_json).";
+  }
+  if (lowered.includes("llm_api_key") || lowered.includes("clé api")) {
+    return "Clé API LLM manquante ou invalide. Ajoutez LLM_API_KEY (Groq) dans .env.";
+  }
+  if (
+    lowered.includes("unreachable") ||
+    lowered.includes("injoignable") ||
+    lowered.includes("local injoignable")
+  ) {
+    return data.includes("Groq") || data.includes("groq")
+      ? data
+      : "Endpoint LLM injoignable. Vérifiez LLM_BASE_URL ou utilisez Groq (api.groq.com).";
+  }
+  if (lowered.includes("circuit open")) {
+    return "Service IA temporairement indisponible (circuit ouvert). Réessayez dans quelques instants.";
+  }
+  if (lowered.includes("llm request failed")) {
+    return `Erreur du fournisseur LLM : ${data}`;
+  }
+  return data;
 }
 
 export async function streamArgosAiResponse(
@@ -62,9 +91,12 @@ export async function streamArgosAiResponse(
 
   if (!res.ok || !res.body) {
     throw new Error(
-      res.status === 503
-        ? "Service IA temporairement indisponible."
-        : "IA indisponible (vérifiez LLM_PROVIDER et le serveur LLM).",
+      toFrenchLlmError(
+        res.status === 503
+          ? "LLM provider is disabled."
+          : "IA indisponible.",
+        res.status,
+      ),
     );
   }
 
@@ -94,7 +126,7 @@ export async function streamArgosAiResponse(
       }
 
       if (isLlmStreamErrorPayload(data)) {
-        throw new Error(data);
+        throw new Error(toFrenchLlmError(data));
       }
 
       try {

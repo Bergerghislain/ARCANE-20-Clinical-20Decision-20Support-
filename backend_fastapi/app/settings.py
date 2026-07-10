@@ -86,6 +86,13 @@ class Settings(BaseSettings):
   llm_model: str = "Qwen/Qwen3-4B"
   llm_timeout_seconds: float = 120.0
 
+  @property
+  def llm_api_key_effective(self) -> str | None:
+    key = (self.llm_api_key or "").strip()
+    if not key or key.upper() in {"EMPTY", "NONE", "NULL"}:
+      return None
+    return key
+
   # Generation defaults
   llm_temperature: float = 0.7
   llm_top_p: float = 0.9
