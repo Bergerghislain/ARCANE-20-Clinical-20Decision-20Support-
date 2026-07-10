@@ -10,8 +10,8 @@ from ..application.errors import ApplicationError
 from ..application.services.ai_service import AiService
 from ..application.use_cases.stream_llm_sse import StreamLlmSseUseCase
 from ..deps import ClinicianOrAdminUser, get_ai_service, get_stream_llm_sse_use_case
-from ..infrastructure.ai.prompts import build_argos_messages, build_report_messages
 from ..infrastructure.ai.llm_status import probe_llm_status
+from ..infrastructure.ai.prompts import build_argos_messages, build_report_messages
 from ..schemas import PatientProfileIn
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
