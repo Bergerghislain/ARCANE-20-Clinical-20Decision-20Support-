@@ -1,8 +1,29 @@
 # Backlog issues GitHub — déploiement hospitalier & performance
 
-Création automatique : `powershell -File scripts/create-hospital-issues.ps1` (nécessite `gh auth login`).
+**Issues créées** (juillet 2026) : [#34](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/34) à [#49](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/49).
+
+Création automatique : `powershell -File scripts/create-hospital-issues.ps1 -SkipExisting` (nécessite `gh auth login`).
 
 Labels suggérés : `hospital`, `performance`, `security`, `compliance`, `p1`, `h2`, `h3`.
+
+| # | Issue GitHub | Titre |
+|---|--------------|-------|
+| 34 | [#34](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/34) | E2E parcours clinique complet |
+| 35 | [#35](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/35) | Seuil couverture frontend CI |
+| 36 | [#36](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/36) | Badge sync profil patient |
+| 37 | [#37](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/37) | Indicateur mock vs IA réelle |
+| 38 | [#38](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/38) | Observabilité (logs, health, metrics) |
+| 39 | [#39](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/39) | Pipeline déploiement staging → prod |
+| 40 | [#40](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/40) | Runbooks backup / restore |
+| 41 | [#41](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/41) | Reset MDP + révocation refresh tokens |
+| 42 | [#42](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/42) | SSO OIDC/SAML + MFA |
+| 43 | [#43](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/43) | Conformité RGPD / HDS / DPIA |
+| 44 | [#44](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/44) | Tests de charge + SLO P95 |
+| 45 | [#45](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/45) | Code splitting + audit bundle |
+| 46 | [#46](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/46) | Rate limiting + pooling DB |
+| 47 | [#47](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/47) | Journal traçabilité IA |
+| 48 | [#48](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/48) | FHIR + multi-établissement |
+| 49 | [#49](https://github.com/Bergerghislain/ARCANE-20-Clinical-20Decision-20Support-/issues/49) | Feedback clinicien + cas référence IA |
 
 ---
 
