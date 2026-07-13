@@ -2,6 +2,8 @@
 
 Guide pour être opérationnel sur le projet en **1 journée** (setup) puis **1 semaine** (première contribution).
 
+**Dernière mise à jour** : juillet 2026
+
 ## Contexte produit (30 secondes)
 
 ARCANE est une plateforme d'**aide à la décision clinique** pour les **cancers rares**. Les cliniciens :
@@ -11,6 +13,8 @@ ARCANE est une plateforme d'**aide à la décision clinique** pour les **cancers
 3. discutent avec **ARGOS**, l'assistant de raisonnement clinique.
 
 Le backend est la **source de vérité** pour les données persistées. Le frontend est une SPA React servie en dev via Vite (port 8080) avec proxy vers FastAPI (port 8000).
+
+**Objectif long terme** : pilote puis déploiement hospitalier — voir [HOSPITAL_READINESS.md](HOSPITAL_READINESS.md).
 
 ---
 
@@ -34,6 +38,8 @@ python -m pip install -r backend_fastapi/requirements.txt
 ```
 
 Copier `.env.example` → `.env` à la racine. Minimum : `JWT_SECRET`, variables `DB_*`.
+
+Pour un LLM local (optionnel) : voir `.env.example` (Ollama, Groq) et [QWEN_INTEGRATION.md](QWEN_INTEGRATION.md).
 
 ### Base de données
 
@@ -77,6 +83,7 @@ pnpm run typecheck
 pnpm run lint
 pnpm run test
 cd backend_fastapi && python -m pytest tests -q --benchmark-disable
+pnpm exec playwright test   # optionnel — nécessite Chromium installé
 ```
 
 Les tests d'intégration backend sont **skippés** si PostgreSQL n'est pas migré + seedé.
@@ -106,6 +113,7 @@ PostgreSQL
 | `client/App.tsx` | Routes et garde d'authentification |
 | `client/lib/api.ts` | Tous les appels HTTP + refresh 401 |
 | `client/lib/auth.ts` | Session (token mémoire, refresh cookie) |
+| `client/lib/argosSession.ts` | Persistance session ARGOS (F5) |
 | `backend_fastapi/app/main.py` | Montage des routeurs |
 | `backend_fastapi/app/deps.py` | Injection de dépendances |
 | `client/pages/Dashboard.tsx` | Liste patients |
@@ -117,18 +125,19 @@ PostgreSQL
 1. Login → Dashboard → ouvrir un patient.
 2. Modifier le profil → vérifier autosave (draft local + API).
 3. Générer un rapport (onglet Report).
-4. Ouvrir ARGOS avec contexte patient.
-5. (Admin) `/admin/patient-handler` — réaffecter un patient.
+4. Ouvrir ARGOS → sélectionner un patient seed (ex. Jean Dupont) → New Chat.
+5. Envoyer un message → **F5** → vérifier que la discussion et l'input chat réapparaissent.
+6. (Admin) `/admin/patient-handler` — réaffecter un patient.
 
 ---
 
 ## Semaine 1 — Première contribution
 
-1. Lire [CONTRIBUTING.md](CONTRIBUTING.md) (branches, CI).
-2. Choisir un item **P1** dans [ROADMAP.md](ROADMAP.md) validé par l'équipe.
+1. Lire [CONTRIBUTING.md](../CONTRIBUTING.md) (branches, CI).
+2. Choisir un item **P1** dans [ROADMAP.md](ROADMAP.md) ou une issue `p1` / `hospital`.
 3. Créer une branche `feat/...` ou `fix/...`.
 4. Ajouter ou adapter des tests (Vitest ou pytest).
-5. Ouvrir une PR ; la CI doit être verte.
+5. Ouvrir une PR ; la CI doit être verte (frontend + backend + E2E).
 
 ### Comptes seeds utiles
 
@@ -143,15 +152,38 @@ Mot de passe seeds : `password` (hash bcrypt réel).
 
 ---
 
+## Tests E2E (Playwright)
+
+| Spec | Parcours |
+|------|----------|
+| `e2e/argos-flow.spec.ts` | Login → ARGOS patient API → message → F5 |
+| `e2e/auth-session.spec.ts` | Refresh token, expiration |
+
+Lancer : `pnpm exec playwright test` (les serveurs sont démarrés par `playwright.config.ts` en CI).
+
+---
+
 ## Pièges fréquents
 
 | Symptôme | Cause probable | Solution |
 |----------|----------------|----------|
 | 401 sur toutes les routes | Pas de login ou token expiré sans cookie refresh | Se reconnecter ; vérifier `credentials: include` |
 | Tests intégration skippés | DB vide ou non seedée | `ci-init-db` |
-| ARGOS historique incohérent après F5 | `useArgosHistory` utilise encore `localStorage` | Voir [KNOWN_GAPS.md](KNOWN_GAPS.md) — chantier P1 |
+| ARGOS vide après F5 | Session non restaurée (bug régressif) | Vérifier `argosSession.ts` + sync API dans `ArgosSpace.tsx` |
 | IA ne répond pas | `LLM_PROVIDER=disabled` | `mock_json` ou `openai_compatible` — voir [QWEN_INTEGRATION.md](QWEN_INTEGRATION.md) |
-| Patients fictifs dans ARGOS | `mockPatients` hardcodés dans `ArgosSpace.tsx` | Chantier roadmap — brancher `/api/patients` |
+| Port 8000 déjà utilisé | API locale en arrière-plan | Arrêter le processus ou `reuseExistingServer` Playwright |
+| E2E login échoue localement | Token CI expire en 5 s si mauvais serveur réutilisé | Lancer avec `CI=true` ou libérer le port 8000 |
+
+---
+
+## Déploiement labo / hôpital
+
+| Niveau | Document |
+|--------|----------|
+| Labo (réseau interne) | [LABO_SECURITY.md](LABO_SECURITY.md) |
+| Checklist pilote hospitalier | [HOSPITAL_READINESS.md](HOSPITAL_READINESS.md) |
+| Lacunes connues | [KNOWN_GAPS.md](KNOWN_GAPS.md) |
+| Backlog issues GitHub | [GITHUB_ISSUES_HOSPITAL.md](GITHUB_ISSUES_HOSPITAL.md) |
 
 ---
 
@@ -159,5 +191,6 @@ Mot de passe seeds : `password` (hash bcrypt réel).
 
 - État fonctionnel : [PROJECT_STATE.md](PROJECT_STATE.md)
 - Lacunes connues : [KNOWN_GAPS.md](KNOWN_GAPS.md)
-- Décisions passées : [DECISIONS.md](DECISIONS.md)
+- Roadmap : [ROADMAP.md](ROADMAP.md)
+- i18n : [I18N_INVENTORY.md](I18N_INVENTORY.md)
 - API détaillée : `backend_fastapi/README.md`

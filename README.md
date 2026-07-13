@@ -8,7 +8,7 @@ Le projet combine:
 - un **backend FastAPI** (authentification, patients, administration, ARGOS),
 - une base **PostgreSQL + Alembic**.
 
-> **Documentation** : [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md), [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md).
+> **Documentation** : [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md), [`docs/HOSPITAL_READINESS.md`](docs/HOSPITAL_READINESS.md), [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md).
 
 ## Etat actuel du projet (mise a jour)
 
@@ -32,6 +32,7 @@ Le projet combine:
 - Dossier patient par onglets (`Patient Infos`, `Report`, `ARGOS`).
 - Vue admin `Patient Handler` exposee sur `/admin/patient-handler` pour reaffecter un patient a un clinicien.
 - Generation rapport / ARGOS: flux **reel** si `LLM_PROVIDER=openai_compatible` et endpoint LLM joignable; mode **`mock_json`** pour reponses JSON sans reseau (demos, tests).
+- ARGOS: discussions persistees API, patients reels (`GET /api/patients`), session F5 (`sessionStorage`), React Query.
 - Transfert automatique du contexte patient vers ARGOS.
 - Validation de profil patient via schema Zod (`schemaVersion`).
 - Persistence hybride des saisies:
@@ -207,14 +208,19 @@ python -m pytest tests/ -q --benchmark-disable
 - Roadmap : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Lacunes connues : [`docs/KNOWN_GAPS.md`](docs/KNOWN_GAPS.md)
 - État fonctionnel : [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md)
+- **Préparation hôpital** : [`docs/HOSPITAL_READINESS.md`](docs/HOSPITAL_READINESS.md)
 - Architecture (vue d'ensemble) : [`docs/ARCHITECTURE_OVERVIEW.md`](docs/ARCHITECTURE_OVERVIEW.md)
 - Sécurité labo : [`docs/LABO_SECURITY.md`](docs/LABO_SECURITY.md)
 - Protection branches GitHub : [`docs/GITHUB_BRANCH_PROTECTION.md`](docs/GITHUB_BRANCH_PROTECTION.md)
 - Intégration LLM : [`docs/QWEN_INTEGRATION.md`](docs/QWEN_INTEGRATION.md)
+- i18n : [`docs/I18N_INVENTORY.md`](docs/I18N_INVENTORY.md)
 - Architecture backend : `backend_fastapi/ARCHITECTURE_SOLID_DDD.md`
 - README backend : `backend_fastapi/README.md`
 
 ## Limitations connues / prochaines etapes
 
+- **Pilote hospitalier** : voir [`docs/HOSPITAL_READINESS.md`](docs/HOSPITAL_READINESS.md) (observabilité, SSO, conformité, performance).
 - Generation **reelle** par LLM: definir `LLM_PROVIDER=openai_compatible` et un endpoint compatible OpenAI (`LLM_BASE_URL`, `LLM_MODEL`, etc.). Sans LLM, `LLM_PROVIDER=mock_json` fournit des reponses JSON valides pour demos / tests (pas de reseau).
-- Bases existantes sans `patient_profiles`: `backend_fastapi/sql/migrate_patient_profiles.sql` ou `alembic upgrade head` (voir README backend).
+- Mot de passe oublie, SSO, MFA : non implementes (backlog H2–H3).
+- Couverture frontend non seuillee en CI.
+- Issues backlog : `powershell -File scripts/create-hospital-issues.ps1` (apres `gh auth login`).
