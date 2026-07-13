@@ -763,6 +763,9 @@ export default function ArgosSpace() {
                       )}
 
                       <div
+                        data-testid={
+                          message.role === "user" ? "argos-user-message" : undefined
+                        }
                         className={`max-w-2xl rounded-lg px-4 py-3 ${
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
@@ -899,6 +902,7 @@ export default function ArgosSpace() {
                   <form onSubmit={handleSendMessage} className="space-y-3">
                     <div className="flex gap-3">
                       <Input
+                        data-testid="argos-chat-input"
                         type="text"
                         placeholder={fr.argos.inputPlaceholder}
                         value={input}

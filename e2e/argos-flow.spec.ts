@@ -1,37 +1,69 @@
 import { expect, test, type Page } from "@playwright/test";
 
 function argosUserMessage(page: Page, text: string) {
-  return page
-    .locator(".bg-primary.text-primary-foreground")
-    .filter({ hasText: text });
+  return page.getByTestId("argos-user-message").filter({ hasText: text });
+}
+
+async function loginAsAdmin(page: Page) {
+  await page.goto("/login");
+  await page.getByPlaceholder(/doctor@arcane|email|username/i).fill("admin@arcane.com");
+  await page.getByPlaceholder(/••••••••/).fill("password");
+  await page.getByRole("button", { name: /Sign in/i }).click();
+  await expect(page).toHaveURL(/dashboard/);
+}
+
+/** Ouvre une discussion ARGOS persistée côté API (patient seed Jean Dupont). */
+async function startBackendArgosChat(page: Page) {
+  await page.goto("/argos");
+  await expect(page).not.toHaveURL(/login/);
+  await expect(
+    page.getByRole("button", { name: /Sélectionner un patient/i }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: /Sélectionner un patient/i }).click();
+  await expect(page.getByText("Jean Dupont", { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const patientRow = page
+    .locator(".group")
+    .filter({ hasText: "Jean Dupont" })
+    .first();
+  await patientRow.getByRole("button", { name: /New Chat/i }).click({
+    force: true,
+  });
+
+  await expect(page.getByTestId("argos-chat-input")).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 test.describe("Parcours clinique ARCANE", () => {
   test("login → dashboard → dossier patient → ARGOS", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByPlaceholder(/doctor@arcane|email|username/i).fill("admin@arcane.com");
-    await page.getByPlaceholder(/••••••••/).fill("password");
-    await page.getByRole("button", { name: /Sign in/i }).click();
-
-    await expect(page).toHaveURL(/dashboard/);
+    await loginAsAdmin(page);
     await expect(page.getByText(/Patients|Dashboard/i).first()).toBeVisible();
 
-    const patientLink = page.locator("a,button,tr").filter({ hasText: /Dupont|Curie|Martin|Bernard/i }).first();
+    const patientLink = page
+      .locator("a,button,tr")
+      .filter({ hasText: /Dupont|Curie|Martin|Bernard/i })
+      .first();
     if (await patientLink.count()) {
       await patientLink.click();
       await expect(page).toHaveURL(/patient\//);
     }
 
     await page.goto("/argos");
-    await expect(page.getByText(/Assistant clinique ARGOS/i).first()).toBeVisible();
+    await expect(page).not.toHaveURL(/login/);
+    await expect(page.getByText(/Assistant clinique ARGOS/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
-    // Le disclaimer et le champ de saisie ne sont visibles qu'après ouverture d'une conversation.
     await page.getByRole("button", { name: /Poser une question générale/i }).click();
     await expect(
       page.getByText(/ne se substitue pas au jugement médical/i),
     ).toBeVisible();
 
-    const input = page.getByPlaceholder(/Posez votre question clinique à ARGOS|Ask ARGOS/i);
+    const input = page.getByTestId("argos-chat-input");
     await input.fill("Quelle est la prochaine étape clinique?");
     await input.press("Enter");
 
@@ -41,24 +73,31 @@ test.describe("Parcours clinique ARCANE", () => {
   });
 
   test("discussion ARGOS survit au F5", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByPlaceholder(/doctor@arcane|email|username/i).fill("admin@arcane.com");
-    await page.getByPlaceholder(/••••••••/).fill("password");
-    await page.getByRole("button", { name: /Sign in/i }).click();
-    await expect(page).toHaveURL(/dashboard/);
-
-    await page.goto("/argos");
-    await page.getByRole("button", { name: /Poser une question générale/i }).click();
+    await loginAsAdmin(page);
+    await startBackendArgosChat(page);
 
     const question = "Test persistance ARGOS après rechargement";
-    const input = page.getByPlaceholder(/Posez votre question clinique à ARGOS|Ask ARGOS/i);
+    const input = page.getByTestId("argos-chat-input");
+    const userMessage = argosUserMessage(page, question);
+
+    const messageSaved = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/argos/discussions/") &&
+        response.url().includes("/messages") &&
+        response.request().method() === "POST" &&
+        response.ok(),
+    );
+
     await input.fill(question);
     await input.press("Enter");
+    await messageSaved;
 
-    const userMessage = argosUserMessage(page, question);
     await expect(userMessage).toBeVisible({ timeout: 15_000 });
 
     await page.reload();
+    await expect(page.getByTestId("argos-chat-input")).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(userMessage).toBeVisible({ timeout: 20_000 });
   });
 });
