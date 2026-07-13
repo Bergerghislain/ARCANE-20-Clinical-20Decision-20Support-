@@ -1,6 +1,27 @@
 # Crée les issues GitHub du backlog hospitalier (docs/GITHUB_ISSUES_HOSPITAL.md).
-# Prérequis : gh auth login
+# Prérequis : gh auth login  OU  $env:GH_TOKEN = "<token avec scope repo>"
 $ErrorActionPreference = "Stop"
+
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+  Write-Error "GitHub CLI (gh) introuvable. Installez-le puis relancez."
+}
+
+$authOk = $false
+try {
+  gh auth status 2>$null | Out-Null
+  $authOk = $true
+} catch {
+  if ($env:GH_TOKEN) { $authOk = $true }
+}
+
+if (-not $authOk -and -not $env:GH_TOKEN) {
+  Write-Error @"
+GitHub non authentifie. Avant de relancer ce script :
+  gh auth login
+ou :
+  `$env:GH_TOKEN = '<personal access token scope repo>'
+"@
+}
 
 $issues = @(
   @{
@@ -223,8 +244,11 @@ docs/ROADMAP.md
 )
 
 foreach ($issue in $issues) {
-  Write-Host "Création: $($issue.Title)"
+  Write-Host "Creation: $($issue.Title)"
   gh issue create --title $issue.Title --body $issue.Body --label $issue.Labels
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Echec creation issue: $($issue.Title)"
+  }
 }
 
 Write-Host "Terminé. Voir docs/GITHUB_ISSUES_HOSPITAL.md pour le détail."
