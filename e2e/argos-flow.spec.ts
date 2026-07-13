@@ -22,7 +22,10 @@ async function startBackendArgosChat(page: Page) {
     { timeout: 20_000 },
   );
 
-  await page.getByRole("button", { name: /Sélectionner un patient/i }).click();
+  await expect(page.getByTestId("argos-patient-selector-trigger")).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByTestId("argos-patient-selector-trigger").click();
 
   const patientDropdown = page.locator(".max-h-80.overflow-y-auto");
   await expect(patientDropdown.getByText("Jean Dupont", { exact: true })).toBeVisible({

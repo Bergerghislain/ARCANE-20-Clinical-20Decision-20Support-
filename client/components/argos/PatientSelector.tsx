@@ -68,6 +68,8 @@ export function PatientSelector({
         <div className="relative">
           {/* Selected Patient Button */}
           <button
+            type="button"
+            data-testid="argos-patient-selector-trigger"
             onClick={() => setIsOpen(!isOpen)}
             className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-white hover:border-secondary/50 transition-colors text-left"
           >
