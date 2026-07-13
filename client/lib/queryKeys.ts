@@ -15,4 +15,7 @@ export const queryKeys = {
     messages: (discussionId: number) =>
       ["argos", "messages", discussionId] as const,
   },
+  ai: {
+    status: () => ["ai", "status"] as const,
+  },
 };

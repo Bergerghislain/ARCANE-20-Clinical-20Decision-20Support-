@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
+import { LlmModeBanner } from "@/components/ai/LlmModeBanner";
 import type { SimulatedIaReport } from "@/lib/patientReport";
 
 interface ReportTabProps {
@@ -30,17 +31,21 @@ export function ReportTab({
 
   if (!reportOutput && !isReportStreaming) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
+      <div className="space-y-4">
+        <LlmModeBanner />
+        <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
         <p className="text-muted-foreground">Aucun rapport généré pour le moment.</p>
         <Button className="mt-4" onClick={onGoToPatientInfo}>
           Aller sur Informations patient
         </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 gap-6">
+      <LlmModeBanner />
       {showReflection ? (
         <AiReflectionPanel
           reflection={reportReflection}

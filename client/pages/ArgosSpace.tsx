@@ -38,6 +38,7 @@ import { fr } from "@/lib/i18n/fr";
 import { useCreateArgosDiscussionMutation } from "@/hooks/mutations/useCreateArgosDiscussionMutation";
 import { usePostArgosMessageMutation } from "@/hooks/mutations/usePostArgosMessageMutation";
 import { ClinicalAiDisclaimer } from "@/components/ClinicalAiDisclaimer";
+import { LlmModeBanner } from "@/components/ai/LlmModeBanner";
 import { AiReflectionPanel } from "@/components/ai/AiReflectionPanel";
 import { streamArgosAiResponse } from "@/lib/argosAiStream";
 import {
@@ -50,7 +51,6 @@ import {
   pickConversationToRestore,
   readArgosSession,
 } from "@/lib/argosSession";
-import { fetchLlmStatus, formatLlmSetupHint } from "@/lib/llmStatus";
 import {
   buildArgosContextFromProfile,
   buildSimulatedAiReport,
@@ -120,7 +120,6 @@ export default function ArgosSpace() {
   const [sidebarDefaultTab, setSidebarDefaultTab] = useState<"all" | "by-patient">("all");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [llmStatusMessage, setLlmStatusMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigatedPatientRef = useRef<string | null>(null);
   const loadedContextPatientIdsRef = useRef<Set<string>>(new Set());
@@ -301,27 +300,6 @@ export default function ArgosSpace() {
       cancelled = true;
     };
   }, [argosHistory.isLoaded]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const status = await fetchLlmStatus();
-        if (!cancelled) {
-          setLlmStatusMessage(
-            status.ready ? null : formatLlmSetupHint(status),
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setLlmStatusMessage(null);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!currentConversation) return;
@@ -701,6 +679,7 @@ export default function ArgosSpace() {
 
               <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-2 space-y-2">
                 <ClinicalAiDisclaimer compact />
+                <LlmModeBanner />
                 {patientsLoading && (
                   <p className="text-xs text-muted-foreground">
                     Chargement des patients depuis l&apos;API…
@@ -713,15 +692,6 @@ export default function ArgosSpace() {
                   >
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{patientsError}</span>
-                  </div>
-                )}
-                {llmStatusMessage && (
-                  <div
-                    role="status"
-                    className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
-                  >
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{llmStatusMessage}</span>
                   </div>
                 )}
                 {historyError && (
