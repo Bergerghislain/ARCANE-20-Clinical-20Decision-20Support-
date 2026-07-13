@@ -54,11 +54,21 @@ vi.mock("@/hooks/useArgosPatients", () => ({
   }),
 }));
 
+vi.mock("@/lib/llmStatus", () => ({
+  fetchLlmStatus: vi.fn(async () => ({
+    provider: "mock_json",
+    ready: true,
+    message: "Mode simulation",
+  })),
+  formatLlmSetupHint: vi.fn((status: { message: string }) => status.message),
+}));
+
 vi.mock("@/lib/argosApi", () => ({
   createArgosDiscussion: vi.fn(),
   fetchArgosDiscussions: vi.fn(async () => []),
   fetchArgosMessages: vi.fn(async () => []),
   postArgosMessage: vi.fn(),
+  updateArgosDiscussion: vi.fn(),
 }));
 
 describe("ArgosSpace page", () => {

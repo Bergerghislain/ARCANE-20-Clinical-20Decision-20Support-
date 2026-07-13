@@ -40,6 +40,65 @@ describe("useArgosHistory", () => {
     ).toBe("Prochaine étape pour patient hypertendu");
   });
 
+  it("loadConversation après merge dans le même tick ne pose pas l'ID actif", () => {
+    const { result } = renderHook(() => useArgosHistory());
+
+    const backendConversation = {
+      id: "conv_42",
+      patientId: "1",
+      patientName: "Jean Dupont",
+      title: "Discussion",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-02"),
+      messages: [
+        {
+          id: "m1",
+          role: "user" as const,
+          content: "Test persistance",
+          timestamp: new Date(),
+        },
+      ],
+    };
+
+    act(() => {
+      result.current.mergeConversationsFromBackend([backendConversation]);
+      result.current.loadConversation("conv_42");
+    });
+
+    expect(result.current.currentConversationId).toBeNull();
+    expect(result.current.getCurrentConversation()).toBeNull();
+  });
+
+  it("setCurrentConversationId après merge rouvre la discussion au rendu suivant", () => {
+    const { result } = renderHook(() => useArgosHistory());
+
+    const backendConversation = {
+      id: "conv_42",
+      patientId: "1",
+      patientName: "Jean Dupont",
+      title: "Discussion",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-02"),
+      messages: [
+        {
+          id: "m1",
+          role: "user" as const,
+          content: "Test persistance",
+          timestamp: new Date(),
+        },
+      ],
+    };
+
+    act(() => {
+      result.current.mergeConversationsFromBackend([backendConversation]);
+      result.current.setCurrentConversationId("conv_42");
+      result.current.setCurrentPatientId("1");
+    });
+
+    expect(result.current.currentConversationId).toBe("conv_42");
+    expect(result.current.getCurrentConversation()?.id).toBe("conv_42");
+  });
+
   it("ne remplace pas un titre déjà personnalisé", () => {
     const { result } = renderHook(() => useArgosHistory());
 

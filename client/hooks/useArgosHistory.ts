@@ -116,8 +116,7 @@ export function useArgosHistory(): UseArgosHistory {
           {
             id: `msg_${Date.now()}`,
             role: "assistant",
-            content:
-              "Hello, I am ARGOS, your clinical decision support assistant. I am ready to help you with clinical reasoning for this patient case. Please share your clinical question or context.",
+            content: fr.argos.welcomeMessage,
             timestamp: new Date(),
           },
         ],
