@@ -1,9 +1,9 @@
 # État du projet (référence « stable »)
 
 Snapshot pour savoir ce qui est **fiable aujourd'hui** avant d'améliorer ou déployer.  
-**Index doc** : [README.md](README.md) · **Roadmap** : [ROADMAP.md](ROADMAP.md) · **Lacunes** : [KNOWN_GAPS.md](KNOWN_GAPS.md)
+**Index doc** : [README.md](../README.md) · **Roadmap** : [ROADMAP.md](ROADMAP.md) · **Lacunes** : [KNOWN_GAPS.md](KNOWN_GAPS.md) · **Hôpital** : [HOSPITAL_READINESS.md](HOSPITAL_READINESS.md)
 
-Dernière mise à jour : mars 2026.
+**Dernière mise à jour** : juillet 2026
 
 ---
 
@@ -15,9 +15,19 @@ Dernière mise à jour : mars 2026.
 
 ---
 
-## Maturité globale estimée : ~5,5 / 10
+## Maturité globale estimée : ~6 / 10
 
-Backend et CI au-dessus de la moyenne ; frontend et prod-ready en retard. Détail : [KNOWN_GAPS.md](KNOWN_GAPS.md).
+Backend et CI solides ; prod hospitalière et performance à l'échelle encore en construction. Détail : [KNOWN_GAPS.md](KNOWN_GAPS.md).
+
+| Dimension | Score |
+|-----------|-------|
+| Architecture backend | 7/10 |
+| Données & migrations | 7/10 |
+| Sécurité | 6/10 |
+| Tests & CI | 6,5/10 |
+| Frontend | ~5,5/10 |
+| Prod / entreprise | 3/10 |
+| Cohérence produit | ~6/10 |
 
 ---
 
@@ -44,23 +54,31 @@ Backend et CI au-dessus de la moyenne ; frontend et prod-ready en retard. Détai
 - `PatientFile.tsx` orchestrateur (~200 lignes)
 - Logique : `usePatientReport`, `usePatientClinicalBundle`
 - UI : `components/patient-file/*`
-- Autosave profil : draft `localStorage` + API
+- Autosave profil : draft `localStorage` + API (badge sync : **partiel**)
 
 ### ARGOS
 
 - API : discussions + messages persistés PostgreSQL
-- Frontend : historique chargé via **API** (`useArgosHistory` + `argosMappers`) — plus de `localStorage` pour les conversations (P0.1 livré en code, merge PR en attente)
-- `ArgosSpace` : liste patients **mockée** (pas encore `/api/patients`) — P1
+- Frontend : historique via **API** (`useArgosHistory` + `argosMappers`) — plus de `localStorage` conversations
+- Liste patients : **`GET /api/patients`** via `useArgosPatients` + React Query
+- **F5** : `sessionStorage` (`argosSession.ts`) + restauration après sync API (`ArgosSpace.tsx`)
+- Qualité chat : contexte patient invisible côté UI, filtrage échos JSON, i18n FR
+- `GET /api/ai/status` pour état LLM
 
 ### IA
 
-- Providers : `disabled` | `mock_json` | `openai_compatible`
+- Providers : `disabled` | `mock_json` | `openai_compatible` (Ollama, Groq documentés)
 - Streaming SSE rapport ; prompt safety, audit, schémas JSON stricts côté backend
-- Fallback mock frontend si `VITE_ARGOS_MOCK_FALLBACK=true`
+- Circuit breaker / résilience LLM (`llm_resilience.py`)
+- Indicateur UI mock vs réel : **à faire** (issue backlog)
 
 ### Admin
 
 - `/admin/users`, `/admin/patient-handler`
+
+### Cache client
+
+- React Query : patients, profil, bundle clinique, discussions ARGOS (`client/hooks/queries/`)
 
 ---
 
@@ -71,11 +89,11 @@ Backend et CI au-dessus de la moyenne ; frontend et prod-ready en retard. Détai
 | TypeScript `strictNullChecks` | `client/` |
 | ESLint | `client/` (`pnpm run lint`) |
 | Ruff | `backend_fastapi/` |
-| Vitest | ~19 fichiers tests frontend |
+| Vitest | ~20+ fichiers tests frontend |
 | Pytest | ~38 fichiers tests backend |
 | Playwright | `e2e/argos-flow.spec.ts`, `e2e/auth-session.spec.ts` |
 
-Workflow : `.github/workflows/ci.yml` (frontend + backend + e2e).
+Workflow : `.github/workflows/ci.yml` (frontend + backend + E2E).
 
 ---
 
@@ -99,11 +117,13 @@ Voir `.env.example` et [LABO_SECURITY.md](LABO_SECURITY.md).
 
 ## Limites connues (résumé)
 
-1. ARGOS : patients fictifs dans l'UI (P1).
-2. Mot de passe oublié : écran sans API.
-3. Pas d'observabilité prod (logs structurés, metrics).
-4. Couverture frontend non seuillée en CI.
-5. i18n mixte FR/EN.
+1. Mot de passe oublié : écran sans API.
+2. Pas d'observabilité prod (logs structurés, metrics, alerting).
+3. Couverture frontend non seuillée en CI.
+4. Pas de SSO / MFA / HDS documenté.
+5. Pas de tests de charge ni SLO performance.
+6. Profil patient : badge brouillon/sync incomplet.
+7. Pages admin / Help : i18n EN résiduel (P2).
 
 Liste complète : [KNOWN_GAPS.md](KNOWN_GAPS.md).
 
@@ -111,4 +131,8 @@ Liste complète : [KNOWN_GAPS.md](KNOWN_GAPS.md).
 
 ## Prochaines étapes recommandées
 
-Voir [ROADMAP.md](ROADMAP.md) et [SPRINT_CURRENT.md](SPRINT_CURRENT.md) — merger P0.1 puis P0.5 alignement `main`.
+1. **H1** : E2E parcours complet, seuil couverture frontend, badge profil, indicateur IA.
+2. **H2** : observabilité, pipeline déploiement, backup/restore, reset MDP, tests de charge.
+3. **H3** : SSO, MFA, conformité RGPD/HDS, FHIR, multi-établissement.
+
+Voir [ROADMAP.md](ROADMAP.md), [HOSPITAL_READINESS.md](HOSPITAL_READINESS.md) et issues GitHub (`scripts/create-hospital-issues.ps1`).

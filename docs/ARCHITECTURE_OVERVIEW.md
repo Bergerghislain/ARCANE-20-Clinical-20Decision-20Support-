@@ -85,17 +85,19 @@ GET/PUT /api/patients/:id/profile → profil JSON éditable
 Draft local (localStorage)     → brouillon non publié uniquement
 ```
 
-### 3. ARGOS (état cible vs actuel)
+### 3. ARGOS
 
-**Cible (roadmap P0)** :
+**État actuel (juillet 2026)** :
 
 ```text
 POST /api/argos/discussions
 POST /api/argos/discussions/:id/messages
-GET  → rechargement page = même historique
+GET  discussions + messages → rechargement page = même historique (API)
+sessionStorage → conversation active + patient (F5)
+Liste patients → GET /api/patients (React Query)
 ```
 
-**Actuel (gap)** : `useArgosHistory` persiste aussi dans `localStorage` → risque divergence.
+Plus de persistance `localStorage` pour les conversations (`useArgosHistory` purge l'ancien cache au montage).
 
 ### 4. IA (rapport + ARGOS)
 
