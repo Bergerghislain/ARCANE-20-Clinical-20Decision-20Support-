@@ -9,29 +9,40 @@ async function loginAsAdmin(page: Page) {
   await page.getByPlaceholder(/doctor@arcane|email|username/i).fill("admin@arcane.com");
   await page.getByPlaceholder(/••••••••/).fill("password");
   await page.getByRole("button", { name: /Sign in/i }).click();
-  await expect(page).toHaveURL(/dashboard/);
+  await expect(page).toHaveURL(/dashboard/, { timeout: 15_000 });
 }
 
 /** Ouvre une discussion ARGOS persistée côté API (patient seed Jean Dupont). */
 async function startBackendArgosChat(page: Page) {
   await page.goto("/argos");
   await expect(page).not.toHaveURL(/login/);
-  await expect(
-    page.getByRole("button", { name: /Sélectionner un patient/i }),
-  ).toBeVisible({ timeout: 20_000 });
+
+  await page.waitForResponse(
+    (response) => response.url().includes("/api/patients") && response.ok(),
+    { timeout: 20_000 },
+  );
 
   await page.getByRole("button", { name: /Sélectionner un patient/i }).click();
-  await expect(page.getByText("Jean Dupont", { exact: true })).toBeVisible({
+
+  const patientDropdown = page.locator(".max-h-80.overflow-y-auto");
+  await expect(patientDropdown.getByText("Jean Dupont", { exact: true })).toBeVisible({
     timeout: 15_000,
   });
 
-  const patientRow = page
+  const discussionCreated = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/argos/discussions") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: 20_000 },
+  );
+
+  const patientRow = patientDropdown
     .locator(".group")
     .filter({ hasText: "Jean Dupont" })
     .first();
-  await patientRow.getByRole("button", { name: /New Chat/i }).click({
-    force: true,
-  });
+  await patientRow.getByRole("button", { name: /New Chat/i }).click({ force: true });
+  await discussionCreated;
 
   await expect(page.getByTestId("argos-chat-input")).toBeVisible({
     timeout: 15_000,
@@ -86,15 +97,25 @@ test.describe("Parcours clinique ARCANE", () => {
         response.url().includes("/messages") &&
         response.request().method() === "POST" &&
         response.ok(),
+      { timeout: 20_000 },
     );
 
     await input.fill(question);
     await input.press("Enter");
     await messageSaved;
-
     await expect(userMessage).toBeVisible({ timeout: 15_000 });
 
+    const historyReloaded = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/argos/discussions") &&
+        response.request().method() === "GET" &&
+        response.ok(),
+      { timeout: 20_000 },
+    );
+
     await page.reload();
+    await historyReloaded;
+
     await expect(page.getByTestId("argos-chat-input")).toBeVisible({
       timeout: 20_000,
     });
