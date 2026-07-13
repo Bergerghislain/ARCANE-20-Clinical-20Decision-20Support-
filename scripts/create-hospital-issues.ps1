@@ -1,26 +1,52 @@
 # Crée les issues GitHub du backlog hospitalier (docs/GITHUB_ISSUES_HOSPITAL.md).
 # Prérequis : gh auth login  OU  $env:GH_TOKEN = "<token avec scope repo>"
+# Usage : powershell -File scripts/create-hospital-issues.ps1 [-SkipExisting]
+param([switch]$SkipExisting)
+
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
   Write-Error "GitHub CLI (gh) introuvable. Installez-le puis relancez."
 }
 
-$authOk = $false
-try {
-  gh auth status 2>$null | Out-Null
-  $authOk = $true
-} catch {
-  if ($env:GH_TOKEN) { $authOk = $true }
+gh auth status 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0 -and -not $env:GH_TOKEN) {
+  Write-Error "GitHub non authentifie. Executez : gh auth login"
 }
 
-if (-not $authOk -and -not $env:GH_TOKEN) {
-  Write-Error @"
-GitHub non authentifie. Avant de relancer ce script :
-  gh auth login
-ou :
-  `$env:GH_TOKEN = '<personal access token scope repo>'
-"@
+function Ensure-RepoLabel {
+  param([string]$Name, [string]$Color, [string]$Description)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  gh label create $Name --color $Color --description $Description 2>&1 | Out-Null
+  $ErrorActionPreference = $prev
+}
+
+$requiredLabels = @(
+  @{ Name = "ai"; Color = "7057ff"; Description = "Intelligence artificielle / LLM" },
+  @{ Name = "hospital"; Color = "0e8a16"; Description = "Deploiement hospitalier" },
+  @{ Name = "h2"; Color = "0e8a16"; Description = "Pre-production clinique" },
+  @{ Name = "h3"; Color = "006b75"; Description = "Entreprise / hopital" },
+  @{ Name = "observability"; Color = "bfd4f2"; Description = "Logs, metrics, health" },
+  @{ Name = "devops"; Color = "ededed"; Description = "CI/CD et deploiement" },
+  @{ Name = "security"; Color = "d73a4a"; Description = "Securite et auth" },
+  @{ Name = "compliance"; Color = "fef2c0"; Description = "RGPD, HDS, conformite" },
+  @{ Name = "performance"; Color = "1d76db"; Description = "Perf et charge" },
+  @{ Name = "integration"; Color = "5319e7"; Description = "FHIR, SSO, SI hospitalier" },
+  @{ Name = "quality"; Color = "fbca04"; Description = "Qualite IA et tests metier" },
+  @{ Name = "p1"; Color = "fbca04"; Description = "Important horizon 1-2 mois" }
+)
+
+Write-Host "Verification des labels..."
+foreach ($label in $requiredLabels) {
+  Ensure-RepoLabel @label
+}
+
+$existingTitles = @()
+if ($SkipExisting) {
+  $json = gh issue list --state all --limit 200 --json title | ConvertFrom-Json
+  $existingTitles = $json | ForEach-Object { $_.title }
 }
 
 $issues = @(
@@ -243,12 +269,23 @@ docs/ROADMAP.md
   }
 )
 
+$created = 0
+$skipped = 0
+
 foreach ($issue in $issues) {
+  if ($SkipExisting -and ($existingTitles -contains $issue.Title)) {
+    Write-Host "Ignore (existe deja): $($issue.Title)"
+    $skipped++
+    continue
+  }
+
   Write-Host "Creation: $($issue.Title)"
   gh issue create --title $issue.Title --body $issue.Body --label $issue.Labels
   if ($LASTEXITCODE -ne 0) {
     Write-Error "Echec creation issue: $($issue.Title)"
   }
+  $created++
 }
 
-Write-Host "Terminé. Voir docs/GITHUB_ISSUES_HOSPITAL.md pour le détail."
+Write-Host "Termine. Creees: $created | Ignorees: $skipped"
+Write-Host "Voir docs/GITHUB_ISSUES_HOSPITAL.md pour le detail."
