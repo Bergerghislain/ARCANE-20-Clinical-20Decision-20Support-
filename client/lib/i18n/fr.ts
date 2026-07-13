@@ -83,4 +83,8 @@ export const fr = {
       clinician: "Clinicien",
     },
   },
+  llm: {
+    simulationDisclaimer:
+      "Ne pas utiliser pour une décision clinique sans valider avec un modèle réel.",
+  },
 } as const;
