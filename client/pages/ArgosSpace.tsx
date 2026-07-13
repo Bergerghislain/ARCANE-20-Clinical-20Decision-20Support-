@@ -203,14 +203,15 @@ export default function ArgosSpace() {
     const statePatient = (location.state as { patient?: Patient } | null)?.patient;
     if (statePatient) return;
 
-    const toRestore = pickConversationToRestore(
-      conversations,
-      readArgosSession(),
-    );
+    const session = readArgosSession();
+    const toRestore = pickConversationToRestore(conversations, session);
     if (!toRestore) return;
 
-    argosHistory.loadConversation(toRestore.id);
-    const patientId = readArgosSession().patientId ?? toRestore.patientId;
+    const patientId = session.patientId ?? toRestore.patientId;
+    // loadConversation lit `conversations` avant le commit React du merge :
+    // on pose l'ID actif explicitement pour que le rendu post-merge rouvre le chat.
+    argosHistory.setCurrentConversationId(toRestore.id);
+    argosHistory.setCurrentPatientId(patientId);
 
     if (patientId === GENERAL_PATIENT.id) {
       setSelectedPatient(GENERAL_PATIENT);
@@ -226,7 +227,6 @@ export default function ArgosSpace() {
         condition: fr.argos.unknownCondition,
       },
     );
-    argosHistory.setCurrentPatientId(patientId);
   };
 
   const loadLatestPatientConversation = async (patient: Patient) => {

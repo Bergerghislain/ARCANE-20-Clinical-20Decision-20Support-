@@ -15,12 +15,7 @@ async function loginAsAdmin(page: Page) {
 /** Ouvre une discussion ARGOS persistée côté API (patient seed Jean Dupont). */
 async function startBackendArgosChat(page: Page) {
   await page.goto("/argos");
-  await expect(page).not.toHaveURL(/login/);
-
-  await page.waitForResponse(
-    (response) => response.url().includes("/api/patients") && response.ok(),
-    { timeout: 20_000 },
-  );
+  await expect(page).not.toHaveURL(/login/, { timeout: 15_000 });
 
   await expect(page.getByTestId("argos-patient-selector-trigger")).toBeVisible({
     timeout: 20_000,
@@ -119,6 +114,9 @@ test.describe("Parcours clinique ARCANE", () => {
     await page.reload();
     await historyReloaded;
 
+    await expect(page.getByTestId("argos-patient-selector-trigger")).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId("argos-chat-input")).toBeVisible({
       timeout: 20_000,
     });
