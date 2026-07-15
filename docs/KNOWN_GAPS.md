@@ -105,7 +105,7 @@ Complète votre grille de maturité (~**6/10** global, juillet 2026).
 | ~~Patients fictifs dans ARGOS~~ | `ArgosSpace.tsx` | 🟢 Fait |
 | ~~React Query cache unifié~~ | `hooks/queries/` | 🟢 Fait |
 | ~~i18n pages critiques~~ | `fr.ts` | 🟢 Fait |
-| Badge sync profil patient | `PatientInfosTab.tsx` | **H1** |
+| Badge sync profil patient | `PatientInfosTab.tsx` | 🟢 `ProfileSyncStatusBadge` |
 | Indicateur mock vs IA réelle | Report + ARGOS | **H1** |
 | `strict: false` (seul `strictNullChecks`) | `tsconfig.json` | P2 |
 | Composants shadcn non testés | `components/ui/` | P2 |
@@ -164,7 +164,7 @@ Complète votre grille de maturité (~**6/10** global, juillet 2026).
 | Historique ARGOS | API (source de vérité) | 🟢 Fait |
 | Liste patients ARGOS | `GET /api/patients` | 🟢 Fait |
 | Session ARGOS F5 | `sessionStorage` + sync API | 🟢 Fait |
-| Profil patient | Draft local prioritaire si présent | Badge brouillon / synchronisé — 🟡 partiel |
+| Profil patient | Draft local prioritaire si présent | Badge brouillon / synchronisé — 🟢 fait (`ProfileSyncStatusBadge`) |
 | Discussions ARGOS « générales » | Locales seulement (`local_*`) | Décision produit à trancher |
 | Rapport IA | Stream réel OU fallback local silencieux | Indicateur clair « simulé » vs « IA » |
 

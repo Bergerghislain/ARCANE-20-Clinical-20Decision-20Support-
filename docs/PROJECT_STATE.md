@@ -54,7 +54,7 @@ Backend et CI solides ; prod hospitalière et performance à l'échelle encore e
 - `PatientFile.tsx` orchestrateur (~200 lignes)
 - Logique : `usePatientReport`, `usePatientClinicalBundle`
 - UI : `components/patient-file/*`
-- Autosave profil : draft `localStorage` + API (badge sync : **partiel**)
+- Autosave profil : draft `localStorage` + API (**badge sync** : 🟢 `ProfileSyncStatusBadge`)
 
 ### ARGOS
 

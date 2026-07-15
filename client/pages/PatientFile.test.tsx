@@ -157,8 +157,22 @@ describe("PatientFile flow", () => {
     await waitFor(() => {
       expect(diagnosisInput.value).toBe("Diagnostic local");
     });
+    expect(screen.getByText(/Brouillon local actif/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Profil patient charge depuis localStorage\./i),
+      screen.getByText(/brouillon local est affiche en priorite/i),
+    ).toBeInTheDocument();
+  });
+
+  it("affiche le badge synchronise quand le profil vient de l'API", async () => {
+    vi.mocked(fetchPatientProfileFromApi).mockResolvedValue(
+      makeProfile("Diagnostic API", "api"),
+    );
+
+    renderPatientFile();
+
+    await screen.findByLabelText("Pathologie principale");
+    expect(
+      await screen.findByText(/Synchronisé avec le serveur/i),
     ).toBeInTheDocument();
   });
 
