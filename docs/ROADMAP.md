@@ -59,7 +59,7 @@ Objectif : un clinicien peut utiliser ARCANE **quotidiennement** sur des vrais p
 | **ARGOS F5 session** | `sessionStorage` + restauration post-sync API | 🟢 Fait | — |
 | **ARGOS qualité chat** | Contexte invisible, filtrage JSON, i18n FR | 🟢 Fait | — |
 | **Discussions générales ARGOS** | Persister API ou retirer UX `local_*` | 🔴 À trancher | S |
-| **Profil patient : draft vs API** | Badge brouillon / synchronisé + ADR-006 | 🟡 Partiel | S |
+| **Profil patient : draft vs API** | Badge brouillon / synchronisé + ADR-006 | 🟢 Fait | — |
 | **i18n pages critiques** | `fr.ts` + layout | 🟢 Fait | — |
 | **Indicateur mock vs IA** | Bandeau selon `/api/ai/status` | 🔴 À faire | S |
 
